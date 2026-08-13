@@ -349,6 +349,7 @@ def test_document_parsing_v1_to_v2_migration(tmp_path: Path) -> None:
         "text_only",
         "mineru",
         "docling",
+        "liteparse",
         "markitdown",
         "pymupdf4llm",
     }
