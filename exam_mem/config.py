@@ -8,19 +8,11 @@ from exam_mem.backends import BackendMode
 
 
 class ExamMemCapabilitySettings(BaseModel):
-    """Feature flags frozen by the stage-three design document."""
+    """ExamMem-owned capability switches; Host capabilities are not mirrored here."""
 
     model_config = ConfigDict(extra="forbid")
 
     exam_practice: bool = True
-    native_chat: bool = True
-    knowledge_base: bool = True
-    native_quiz: bool = True
-    deep_research: bool = False
-    book: bool = False
-    cowriter: bool = False
-    visualize: bool = False
-    partners: bool = False
 
 
 class ExamMemSettings(BaseModel):
@@ -30,7 +22,7 @@ class ExamMemSettings(BaseModel):
 
     enabled: bool = True
     subject: str = "postgraduate_math_1"
-    memory_backend: BackendMode = BackendMode.NATIVE
+    memory_backend: BackendMode = BackendMode.LIFECYCLE
     capabilities: ExamMemCapabilitySettings = Field(default_factory=ExamMemCapabilitySettings)
 
 

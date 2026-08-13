@@ -92,6 +92,41 @@ the source design remains deferred.
 - Success: Practice → Grade → Memory → Recommendation → Recovery/Correction,
   checkpoint, Trace, idempotency, Capability, and seven Tool contracts pass.
 
+### Result
+
+- Added the ExamMem-owned seven-state Practice workflow, strict contracts,
+  server-side question catalog, grading/mapping/diagnosis adapters, candidate
+  builder, deterministic recommendation, recovery/replay, explicit correction,
+  plan transition, checkpoint CAS, and append-only Trace repositories.
+- Added the compile-time `deeptutor_plugins.exam_mem` assembly. Its manifest
+  contributes exactly `exam_practice`, seven single-purpose Tools, the
+  namespaced settings contract, and the frozen Alembic head through the neutral
+  Plugin API. No Core Registry or built-in list names ExamMem.
+- Removed Fork coupling: Practice obtains identity, LLM, embedding, stream,
+  Tool/Capability protocols, and Native Memory only through neutral Host
+  services. Native mode converts an ExamMem DTO in the plugin adapter; the
+  ExamMem package never reads or writes Host Native Memory formats directly.
+- Removed Fork feature-flag duplication. ExamMem owns only
+  `capabilities.exam_practice`; it cannot disable Chat, Knowledge Base,
+  Research, Book, Co-writer, Visualize, or Partners. The production default is
+  the independent PostgreSQL `lifecycle` backend; all five frozen modes remain
+  explicit and never fall back.
+- A real plugin-discovery → Capability → Provider → Workflow → PostgreSQL test
+  runs question issue, wrong-answer grading, taxonomy mapping, diagnosis, L1,
+  L2, provenance, lifecycle audit, L3 rebuild, recommendation, and replay. It
+  verifies one L1 event, two L2 memories/provenance links/decisions, four
+  `PLANNED`/`APPLIED` Change Log rows, one L3 snapshot, two checkpoints, and
+  append-only Trace without duplicate replay writes.
+- Checkpoint suite with the disposable PostgreSQL passed: `420 passed`.
+  Host regression with the DSN removed passed: `4200 passed, 51 skipped,
+  10 warnings`. Ruff, migration hashes, dependency direction, diff, source
+  integrity, and post-test database cleanup gates passed.
+- Database side effects remained inside the tmpfs `exammem_test` database;
+  random schemas were dropped and public business tables retained zero rows.
+- Deferred boundary: no HTTP, WebSocket, SDK/CLI, browser route, session-surface
+  policy, Review, Issues, Configuration UI, or future multi-source work is
+  included in this checkpoint.
+
 ## Checkpoint 5 — Web and real entries
 
 - Goal: migrate the Practice and Learning Memory browser surfaces and all public

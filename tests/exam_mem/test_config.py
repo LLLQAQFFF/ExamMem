@@ -13,18 +13,8 @@ def test_exam_mem_defaults_define_the_stage_three_runtime_surface() -> None:
 
     assert settings.enabled is True
     assert settings.subject == "postgraduate_math_1"
-    assert settings.memory_backend is BackendMode.NATIVE
-    assert settings.capabilities.model_dump() == {
-        "exam_practice": True,
-        "native_chat": True,
-        "knowledge_base": True,
-        "native_quiz": True,
-        "deep_research": False,
-        "book": False,
-        "cowriter": False,
-        "visualize": False,
-        "partners": False,
-    }
+    assert settings.memory_backend is BackendMode.LIFECYCLE
+    assert settings.capabilities.model_dump() == {"exam_practice": True}
 
 
 @pytest.mark.schema
@@ -42,17 +32,7 @@ def test_exam_mem_accepts_the_documented_lifecycle_configuration() -> None:
             "enabled": True,
             "subject": "postgraduate_math_1",
             "memory_backend": "lifecycle",
-            "capabilities": {
-                "exam_practice": True,
-                "native_chat": True,
-                "knowledge_base": True,
-                "native_quiz": True,
-                "deep_research": False,
-                "book": False,
-                "cowriter": False,
-                "visualize": False,
-                "partners": False,
-            },
+            "capabilities": {"exam_practice": True},
         }
     )
 
