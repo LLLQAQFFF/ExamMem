@@ -32,6 +32,11 @@ import type { SessionSummary } from "@/lib/session-api";
 import { Tooltip } from "@/components/ui/Tooltip";
 import { useCapabilityAccess } from "@/components/access/CapabilityAccessContext";
 import type { Capability } from "@/lib/capability-routes";
+import {
+  loadPluginNavigation,
+  pluginNavigationIcon,
+  type PluginNavigationItem,
+} from "@/lib/plugin-navigation";
 
 interface NavEntry {
   href: string;
@@ -169,6 +174,30 @@ export function SidebarShell({
   const renderedFooter =
     typeof footerSlot === "function" ? footerSlot(collapsed) : footerSlot;
   const [recentsCollapsed, setRecentsCollapsed] = useState(false);
+  const [pluginNavigation, setPluginNavigation] = useState<
+    PluginNavigationItem[]
+  >([]);
+
+  useEffect(() => {
+    let active = true;
+    void loadPluginNavigation()
+      .then((items) => {
+        if (active) setPluginNavigation(items);
+      })
+      .catch(() => {
+        if (active) setPluginNavigation([]);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const pluginPrimary = pluginNavigation.filter(
+    (item) => item.section === "primary",
+  );
+  const pluginSecondary = pluginNavigation.filter(
+    (item) => item.section === "secondary",
+  );
 
   // Hydrate Recents collapse from localStorage after first render to stay SSR-safe.
   useEffect(() => {
@@ -284,6 +313,25 @@ export function SidebarShell({
               </Tooltip>
             );
           })}
+          {pluginPrimary.map((item) => {
+            const Icon = pluginNavigationIcon(item.icon);
+            const active = pathname.startsWith(item.href);
+            return (
+              <Tooltip key={item.href} label={t(item.label)} side="right">
+                <Link
+                  href={item.href}
+                  aria-label={t(item.label)}
+                  className={`relative flex h-9 w-9 items-center justify-center rounded-xl transition-all duration-150 ${
+                    active
+                      ? "bg-[var(--accent)] text-[var(--foreground)] shadow-sm"
+                      : "text-[var(--foreground)]/85 hover:bg-[var(--background)]/60 hover:text-[var(--foreground)]"
+                  }`}
+                >
+                  <Icon size={18} strokeWidth={active ? 2 : 1.6} />
+                </Link>
+              </Tooltip>
+            );
+          })}
         </nav>
 
         <div className="flex-1" />
@@ -305,6 +353,25 @@ export function SidebarShell({
                 }`}
               >
                 <item.icon size={18} strokeWidth={active ? 2 : 1.6} />
+              </Link>
+            );
+          })}
+          {pluginSecondary.map((item) => {
+            const Icon = pluginNavigationIcon(item.icon);
+            const active = pathname.startsWith(item.href);
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                title={t(item.label) as string}
+                aria-label={t(item.label)}
+                className={`relative flex h-9 w-9 items-center justify-center rounded-xl transition-all duration-150 ${
+                  active
+                    ? "bg-[var(--accent)] text-[var(--foreground)] shadow-sm"
+                    : "text-[var(--foreground)]/85 hover:bg-[var(--background)]/60 hover:text-[var(--foreground)]"
+                }`}
+              >
+                <Icon size={18} strokeWidth={active ? 2 : 1.6} />
               </Link>
             );
           })}
@@ -412,6 +479,25 @@ export function SidebarShell({
               </Link>
             );
           })}
+          {pluginPrimary.map((item) => {
+            const Icon = pluginNavigationIcon(item.icon);
+            const active = pathname.startsWith(item.href);
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                onClick={closeDrawerOnNav}
+                className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-[13.5px] transition-colors ${
+                  active
+                    ? "bg-[var(--accent)] font-medium text-[var(--foreground)]"
+                    : "text-[var(--foreground)]/85 hover:bg-[var(--background)]/60 hover:text-[var(--foreground)]"
+                }`}
+              >
+                <Icon size={16} strokeWidth={active ? 1.9 : 1.5} />
+                <span>{t(item.label)}</span>
+              </Link>
+            );
+          })}
         </div>
       </nav>
 
@@ -486,6 +572,25 @@ export function SidebarShell({
               }`}
             >
               <item.icon size={16} strokeWidth={active ? 1.9 : 1.5} />
+              <span>{t(item.label)}</span>
+            </Link>
+          );
+        })}
+        {pluginSecondary.map((item) => {
+          const Icon = pluginNavigationIcon(item.icon);
+          const active = pathname.startsWith(item.href);
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              onClick={closeDrawerOnNav}
+              className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-[13.5px] transition-colors ${
+                active
+                  ? "bg-[var(--accent)] font-medium text-[var(--foreground)]"
+                  : "text-[var(--foreground)]/85 hover:bg-[var(--background)]/60 hover:text-[var(--foreground)]"
+              }`}
+            >
+              <Icon size={16} strokeWidth={active ? 1.9 : 1.5} />
               <span>{t(item.label)}</span>
             </Link>
           );

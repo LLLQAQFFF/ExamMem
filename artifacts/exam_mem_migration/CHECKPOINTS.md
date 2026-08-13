@@ -136,6 +136,51 @@ the source design remains deferred.
 - Success: Browser, authenticated HTTP, WebSocket, and Python SDK traverse the
   same plugin workflow; Web static checks, Node tests, and production build pass.
 
+### Result
+
+- Added an authenticated router contribution owned by the ExamMem plugin at
+  `/api/v1/exam-mem`. The plugin injects one `PracticeRuntimeProvider` into
+  both its Capability and its Learning Memory read/correction endpoints, so
+  HTTP does not construct a parallel backend or bypass the workflow.
+- Added the neutral `PluginTurnHost` seam. Practice start/answer HTTP requests
+  are protocol adapters over the public Host turn facade and therefore share
+  Capability Registry, TurnRuntime, session persistence, streaming events,
+  checkpoint, Trace, and idempotency behavior with Python SDK and WebSocket.
+- Added real PostgreSQL entry tests for Browser HTTP, Python SDK, and unified
+  WebSocket. Each entry runs start, wrong-answer grading, taxonomy mapping,
+  diagnosis, L1/L2/audit/L3 recommendation, and identical replay through the
+  plugin. Replay leaves all business and checkpoint rows unchanged while
+  appending the two expected replay-observation Trace spans.
+- The HTTP test additionally traverses scoped Learning Memory list, version
+  detail, and L1 provenance evidence. Authenticated `user_id` is supplied by
+  the Host; browser question payloads contain neither reference answers nor
+  grading rubrics.
+- Added compile-time Practice and Learning Memory browser routes. Practice
+  persists the complete pending answer request in `sessionStorage`, reuses its
+  immutable idempotency material after response loss, and surfaces partial
+  server checkpoints. Learning Memory visibly distinguishes its independent
+  PostgreSQL truth from Host Native Memory and exposes Scope, lifecycle,
+  version-chain, and evidence views.
+- Added generic Web consumption of plugin navigation contributions from the
+  existing Plugins API. Disabled plugins therefore disappear without any
+  `if exam_mem` branch in Sidebar or Core; unknown icons use a bounded neutral
+  fallback and external navigation URLs are rejected.
+- Hardened Trace against NTP/VM wall-clock rollback by clamping a span's wall
+  completion timestamp to its start while retaining monotonic duration. The
+  strict `completed_at >= started_at` invariant remains unchanged and has a
+  deterministic regression test.
+- Checkpoint backend suite passed: `433 passed`. Web Node tests passed:
+  `63 passed`; Web lint passed with zero errors and only the repository's 56
+  existing warnings. Next production build compiled, type-checked, and
+  generated all 59 routes, including `/exam-mem/practice` and
+  `/exam-mem/memories`.
+- Random PostgreSQL schemas were dropped and public business tables retained
+  zero rows. Ruff, diff, migration hashes, sensitive-content scan, dependency
+  direction, and frozen-source integrity gates passed.
+- Deferred boundary: session-history isolation, interactive Correction/Plan
+  controls, Review, Issues, and Saved/Effective/Pinned Configuration belong to
+  checkpoint 6. No multi-source ingestion or Stage 08 feature was added.
+
 ## Checkpoint 6 — current-loop productization
 
 - Goal: close the current product's Session Surface, recovery, Review, Issues,

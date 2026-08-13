@@ -36,3 +36,40 @@ async def test_plugin_completion_delegates_to_the_configured_host(monkeypatch) -
         "response_format": {"type": "json_object"},
         "temperature": 0.0,
     }
+
+
+@pytest.mark.asyncio
+async def test_plugin_turn_host_delegates_to_the_public_facade(monkeypatch) -> None:
+    requests: list[dict[str, object]] = []
+
+    class FakeApp:
+        async def start_turn(self, request):
+            requests.append(request)
+            return {"id": "session-1"}, {"id": "turn-1"}
+
+        async def stream_turn(self, turn_id):
+            assert turn_id == "turn-1"
+            yield {"type": "done"}
+
+    monkeypatch.setattr("deeptutor.app.DeepTutorApp", FakeApp)
+    host = host_services.PluginTurnHost()
+    session, turn = await host.start_turn(
+        host_services.PluginTurnRequest(
+            content="practice",
+            capability="domain_capability",
+            config={"domain_context": {"id": "one"}},
+        )
+    )
+    events = [event async for event in host.stream_turn(turn["id"])]
+
+    assert session == {"id": "session-1"}
+    assert requests == [
+        {
+            "content": "practice",
+            "capability": "domain_capability",
+            "session_id": None,
+            "language": "en",
+            "config": {"domain_context": {"id": "one"}},
+        }
+    ]
+    assert events == [{"type": "done"}]

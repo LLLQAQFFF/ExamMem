@@ -163,7 +163,10 @@ class PracticeTraceRecorder:
         error_code: str | None,
         related_record_ids: tuple[str, ...],
     ) -> PracticeTraceSpan:
-        completed_at = datetime.now(timezone.utc)
+        # Wall clocks can move backwards under NTP/VM adjustment while the
+        # monotonic clock still advances. Preserve the span invariant without
+        # discarding that call from the append-only audit trail.
+        completed_at = max(started[0], datetime.now(timezone.utc))
         span = PracticeTraceSpan(
             trace_id=self._trace_id,
             step_id=await self._repository.next_step_id(self._trace_id),

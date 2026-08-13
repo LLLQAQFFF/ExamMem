@@ -23,8 +23,13 @@ def test_exam_mem_manifest_contributes_only_plugin_owned_surfaces() -> None:
         "memory_writer",
         "recommendation",
     ]
-    assert manager.routers() == ()
-    assert manager.navigation() == ()
+    assert [(item.prefix, item.access) for item in manager.routers()] == [
+        ("/api/v1/exam-mem", "authenticated")
+    ]
+    assert [item.href for item in manager.navigation()] == [
+        "/exam-mem/practice",
+        "/exam-mem/memories",
+    ]
     assert manager.settings()[0].namespace == "exam_mem"
     assert manager.plugins[0].manifest.migration is not None
     assert manager.plugins[0].manifest.migration.expected_head == "0006_practice_workflow"

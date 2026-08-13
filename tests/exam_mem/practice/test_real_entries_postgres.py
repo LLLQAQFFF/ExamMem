@@ -1,0 +1,509 @@
+from __future__ import annotations
+
+import asyncio
+from collections.abc import AsyncIterator, Callable
+from contextlib import asynccontextmanager, suppress
+from datetime import datetime, timezone
+import json
+import os
+from pathlib import Path
+from types import SimpleNamespace
+from uuid import uuid4
+
+from fastapi import FastAPI, WebSocketDisconnect
+from httpx import ASGITransport, AsyncClient
+import pytest
+from sqlalchemy import func, select, text
+from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine, create_async_engine
+from sqlalchemy.schema import CreateSchema, DropSchema
+
+from deeptutor.api.routers.unified_ws import unified_websocket
+from deeptutor.app import DeepTutorApp, TurnRequest
+from deeptutor.multi_user.context import set_current_user
+from deeptutor.multi_user.paths import local_admin_user
+from deeptutor.plugins import PluginManager
+from deeptutor.runtime.registry.capability_registry import CapabilityRegistry
+from deeptutor.runtime.registry.tool_registry import ToolRegistry
+from deeptutor.services.llm.config import LLMConfig
+from deeptutor.services.memory import memory_path_service_override
+from deeptutor.services.path_service import PathService
+from deeptutor.services.session.sqlite_store import SQLiteSessionStore
+from deeptutor.services.session.turn_runtime import TurnRuntimeManager
+from deeptutor_plugins.exam_mem import ExamMemPlugin
+from exam_mem.config import ExamMemSettings
+from exam_mem.practice import stage07_practice_questions, stage07_question
+from exam_mem.practice.capability import (
+    PRACTICE_CONTEXT_METADATA_KEY,
+    PRACTICE_QUESTIONS_CONFIG_KEY,
+)
+from exam_mem.storage import (
+    LEARNING_MEMORY_EMBEDDING_DIMENSION,
+    load_database_settings,
+    metadata,
+)
+from exam_mem.storage.models import (
+    learning_events,
+    learning_memories,
+    lifecycle_decisions,
+    memory_change_log,
+    memory_provenance,
+    practice_trace_spans,
+    practice_workflow_checkpoints,
+    student_model_snapshots,
+)
+
+pytestmark = [pytest.mark.asyncio, pytest.mark.database, pytest.mark.e2e]
+
+NOW = datetime(2026, 8, 13, 12, 0, tzinfo=timezone.utc)
+PRACTICE_SESSION_ID = "practice:real-entry:001"
+TRACE_ID = "trace:real-entry:001"
+
+
+def _database_url_or_skip() -> str:
+    if not os.environ.get("EXAM_MEM_DATABASE_URL"):
+        pytest.skip("EXAM_MEM_DATABASE_URL is required for PostgreSQL E2E tests")
+    return load_database_settings().sqlalchemy_url()
+
+
+async def _install_schema(connection: AsyncConnection, schema_name: str) -> None:
+    await connection.execute(CreateSchema(schema_name))
+    await connection.execute(text(f'SET LOCAL search_path TO "{schema_name}", public'))
+    await connection.run_sync(metadata.create_all, checkfirst=False)
+    for table_name in (
+        "learning_events",
+        "lifecycle_decisions",
+        "memory_change_log",
+        "baseline_memory_facts",
+        "practice_trace_spans",
+    ):
+        await connection.execute(
+            text(
+                f"CREATE TRIGGER tr_{table_name}_append_only "
+                f"BEFORE UPDATE OR DELETE ON {table_name} "
+                "FOR EACH ROW EXECUTE FUNCTION exam_mem_reject_append_only_mutation()"
+            )
+        )
+
+
+@asynccontextmanager
+async def _isolated_database(
+    prefix: str,
+) -> AsyncIterator[tuple[AsyncEngine, str, Callable[[str], AsyncEngine]]]:
+    database_url = _database_url_or_skip()
+    schema_name = f"{prefix}_{uuid4().hex}"
+    administration_engine = create_async_engine(database_url)
+    try:
+        async with administration_engine.begin() as connection:
+            await _install_schema(connection, schema_name)
+
+        def engine_factory(url: str) -> AsyncEngine:
+            assert url == database_url
+            return create_async_engine(
+                url,
+                connect_args={
+                    "server_settings": {"search_path": f'"{schema_name}", public'}
+                },
+            )
+
+        yield administration_engine, schema_name, engine_factory
+    finally:
+        async with administration_engine.begin() as connection:
+            with suppress(Exception):
+                await connection.execute(DropSchema(schema_name, cascade=True))
+        await administration_engine.dispose()
+
+
+class _FixedEmbeddingClient:
+    async def embed(
+        self, texts: list[str], *, input_type: str | None = None
+    ) -> list[list[float]]:
+        assert input_type in {"search_document", "search_query"}
+        vector = [1.0, *([0.0] * (LEARNING_MEMORY_EMBEDDING_DIMENSION - 1))]
+        return [vector.copy() for _ in texts]
+
+
+async def _fixed_completion(**kwargs: object) -> str:
+    response_format = kwargs["response_format"]
+    assert isinstance(response_format, dict)
+    json_schema = response_format["json_schema"]
+    assert isinstance(json_schema, dict)
+    name = json_schema["name"]
+    prompt = str(kwargs.get("prompt") or "")
+    probability = "bayes" in prompt.lower() or "贝叶斯" in prompt
+    knowledge_point_id = (
+        "math1.probability.bayes"
+        if probability
+        else "math1.linear_algebra.matrix_multiplication"
+    )
+    if name == "exam_mem_grade_result":
+        return json.dumps(
+            {
+                "correct": False,
+                "score": 0.25,
+                "matched_rubric_items": [],
+                "missed_rubric_items": [],
+                "evidence": ["The controlled answer is intentionally incorrect."],
+                "grader_version": "answer_grader_v1",
+            }
+        )
+    if name == "exam_mem_knowledge_point_extraction":
+        return json.dumps(
+            {
+                "primary": {
+                    "name": "贝叶斯公式" if probability else "矩阵乘法",
+                    "confidence": 0.99,
+                },
+                "secondary": [],
+            },
+            ensure_ascii=False,
+        )
+    if name == "exam_mem_diagnosis_result":
+        return json.dumps(
+            {
+                "knowledge_point_ids": [knowledge_point_id],
+                "error_type": "concept_confusion",
+                "explanation": "The controlled answer uses the wrong rule.",
+                "confidence": 0.9,
+                "analyzer_version": "error_analyzer_v1",
+            }
+        )
+    if name == "exam_mem_relation_classifier_output":
+        return json.dumps(
+            {
+                "candidate_display_number": 1,
+                "relation": "duplicate",
+                "canonical_knowledge_point_id": knowledge_point_id,
+                "error_type": "concept_confusion",
+                "error_summary": "The controlled error repeats the same pattern.",
+                "confidence": 0.9,
+                "reason": "The controlled facts match.",
+            }
+        )
+    raise AssertionError(f"unexpected completion schema: {name}")
+
+
+async def _completed() -> None:
+    return None
+
+
+def _build_app(capabilities: CapabilityRegistry, store_path: Path) -> DeepTutorApp:
+    store = SQLiteSessionStore(store_path)
+    app = DeepTutorApp.__new__(DeepTutorApp)
+    app.runtime = TurnRuntimeManager(store)
+    app.store = store
+    app.notebooks = SimpleNamespace()
+    app.capabilities = capabilities
+    return app
+
+
+def _wire_runtime(
+    monkeypatch: pytest.MonkeyPatch,
+    engine_factory: Callable[[str], AsyncEngine],
+    tmp_path: Path,
+) -> tuple[PluginManager, DeepTutorApp, PathService]:
+    plugin = ExamMemPlugin(
+        ExamMemSettings(memory_backend="lifecycle"),
+        engine_factory=engine_factory,
+    )
+    manager = PluginManager(factories={"exam_mem": lambda: plugin})
+    capabilities = CapabilityRegistry()
+    tools = ToolRegistry()
+    for capability in manager.capabilities():
+        capabilities.register(capability)
+    for tool in manager.tools():
+        tools.register(tool)
+
+    monkeypatch.setattr(
+        "deeptutor.runtime.orchestrator.get_capability_registry", lambda: capabilities
+    )
+    monkeypatch.setattr("deeptutor.runtime.orchestrator.get_tool_registry", lambda: tools)
+    monkeypatch.setattr("deeptutor.services.llm.complete", _fixed_completion)
+    monkeypatch.setattr(
+        "exam_mem.practice.provider.get_embedding_client", lambda: _FixedEmbeddingClient()
+    )
+    fixed_config = LLMConfig(model="fixed-entry-test", api_key="not-used")
+    monkeypatch.setattr(
+        "deeptutor.services.model_selection.runtime.activate_llm_selection",
+        lambda _selection: (fixed_config, None),
+    )
+    monkeypatch.setattr(
+        TurnRuntimeManager, "_maybe_generate_session_title", lambda *_a, **_k: _completed()
+    )
+    monkeypatch.setattr(
+        TurnRuntimeManager, "_mirror_events_to_workspace", lambda *_a, **_k: _completed()
+    )
+    app = _build_app(capabilities, tmp_path / "entry-chat.db")
+    return manager, app, PathService(workspace_root=tmp_path / "runtime")
+
+
+def _questions() -> list[dict[str, object]]:
+    return [question.model_dump(mode="json") for question in stage07_practice_questions()]
+
+
+def _context(*, question_id: str | None = None) -> dict[str, object]:
+    payload: dict[str, object] = {
+        "practice_session_id": PRACTICE_SESSION_ID,
+        "scope": {
+            "user_id": "untrusted-client-user",
+            "exam_id": "postgraduate_entrance_exam",
+            "subject_id": "math_1",
+            "memory_namespace": "mastery",
+        },
+        "step_state": "IDLE",
+        "trace_id": TRACE_ID,
+    }
+    if question_id is not None:
+        question = stage07_question(question_id)
+        assert question is not None
+        payload.update(
+            {
+                "current_question": question.model_dump(mode="json"),
+                "submitted_answer": {
+                    "practice_session_id": PRACTICE_SESSION_ID,
+                    "question_id": question_id,
+                    "answer": "controlled incorrect answer",
+                    "submitted_at": NOW.isoformat(),
+                    "idempotency_key": "answer:real-entry:001",
+                },
+                "step_state": "ANSWER_RECEIVED",
+            }
+        )
+    return payload
+
+
+def _turn_request(*, session_id: str | None, question_id: str | None) -> TurnRequest:
+    return TurnRequest(
+        content="提交答案" if question_id else "开始练习",
+        capability="exam_practice",
+        session_id=session_id,
+        language="zh",
+        config={
+            PRACTICE_CONTEXT_METADATA_KEY: _context(question_id=question_id),
+            PRACTICE_QUESTIONS_CONFIG_KEY: _questions(),
+            "_persist_user_message": False,
+        },
+    )
+
+
+async def _sdk_turn(
+    app: DeepTutorApp, request: TurnRequest
+) -> tuple[dict[str, object], dict[str, object], list[dict[str, object]]]:
+    session, turn = await app.start_turn(request)
+    events = [event async for event in app.stream_turn(str(turn["id"]))]
+    assert events[-1]["type"] == "done"
+    result = next(event for event in events if event.get("type") == "result")
+    return session, result, events
+
+
+class _MemoryWebSocket:
+    def __init__(self, payload: dict[str, object]) -> None:
+        self.query_params: dict[str, str] = {}
+        self.cookies: dict[str, str] = {}
+        self.events: list[dict[str, object]] = []
+        self._payload = json.dumps(payload)
+        self._received = False
+        self._done = asyncio.Event()
+
+    async def accept(self) -> None:
+        return None
+
+    async def close(self, code: int) -> None:
+        raise AssertionError(f"unexpected close: {code}")
+
+    async def receive_text(self) -> str:
+        if not self._received:
+            self._received = True
+            return self._payload
+        await asyncio.wait_for(self._done.wait(), timeout=30)
+        raise WebSocketDisconnect
+
+    async def send_text(self, raw: str) -> None:
+        event = json.loads(raw)
+        self.events.append(event)
+        if event.get("type") == "done":
+            self._done.set()
+
+
+async def _websocket_turn(
+    app: DeepTutorApp, request: TurnRequest, monkeypatch: pytest.MonkeyPatch
+) -> tuple[dict[str, object], dict[str, object], list[dict[str, object]]]:
+    async def authenticate(_ws: object):
+        return set_current_user(local_admin_user())
+
+    monkeypatch.setattr("deeptutor.api.routers.auth.ws_require_auth", authenticate)
+    monkeypatch.setattr(
+        "deeptutor.services.session.get_turn_runtime_manager", lambda: app.runtime
+    )
+    socket = _MemoryWebSocket({"type": "start_turn", **request.to_payload()})
+    await unified_websocket(socket)  # type: ignore[arg-type]
+    result = next(event for event in socket.events if event.get("type") == "result")
+    return {"id": result["session_id"]}, result, socket.events
+
+
+async def _counts(engine: AsyncEngine, schema_name: str) -> tuple[int, ...]:
+    tables = (
+        learning_events,
+        learning_memories,
+        memory_provenance,
+        lifecycle_decisions,
+        memory_change_log,
+        student_model_snapshots,
+        practice_workflow_checkpoints,
+        practice_trace_spans,
+    )
+    async with engine.connect() as connection:
+        await connection.execute(text(f'SET search_path TO "{schema_name}", public'))
+        counts: list[int] = []
+        for table in tables:
+            count = await connection.scalar(select(func.count()).select_from(table))
+            counts.append(int(count or 0))
+        return tuple(counts)
+
+
+@pytest.mark.parametrize("entry", ["sdk", "http", "websocket"])
+async def test_real_entry_runs_one_plugin_workflow_and_replays_without_duplicates(
+    entry: str,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    async with _isolated_database(f"real_{entry}") as (
+        administration_engine,
+        schema_name,
+        engine_factory,
+    ):
+        manager, app, path_service = _wire_runtime(monkeypatch, engine_factory, tmp_path)
+        monkeypatch.setattr("deeptutor.app.DeepTutorApp", lambda: app)
+
+        with memory_path_service_override(path_service):
+            if entry == "http":
+                api = FastAPI()
+                contribution = manager.routers()[0]
+                api.include_router(contribution.router, prefix=contribution.prefix)
+                async with AsyncClient(
+                    transport=ASGITransport(app=api), base_url="http://test"
+                ) as client:
+                    started_response = await client.post(
+                        "/api/v1/exam-mem/practice/start",
+                        json={
+                            "practice_session_id": PRACTICE_SESSION_ID,
+                            "trace_id": TRACE_ID,
+                        },
+                    )
+                    assert started_response.status_code == 200, started_response.text
+                    started = started_response.json()
+                    question_id = started["practice"]["question"]["question_id"]
+                    answer_body = {
+                        "practice_session_id": PRACTICE_SESSION_ID,
+                        "trace_id": TRACE_ID,
+                        "session_id": started["session_id"],
+                        "question_id": question_id,
+                        "answer": "controlled incorrect answer",
+                        "submitted_at": NOW.isoformat(),
+                        "idempotency_key": "answer:real-entry:001",
+                    }
+                    answered_response = await client.post(
+                        "/api/v1/exam-mem/practice/answer", json=answer_body
+                    )
+                    assert answered_response.status_code == 200, answered_response.text
+                    answered = answered_response.json()
+                    list_response = await client.get(
+                        "/api/v1/exam-mem/memories",
+                        params={
+                            "exam_id": "postgraduate_entrance_exam",
+                            "subject_id": "math_1",
+                            "memory_namespace": "error_pattern",
+                        },
+                    )
+                    assert list_response.status_code == 200, list_response.text
+                    listed = list_response.json()
+                    assert listed["count"] == 1
+                    memory_id = listed["memories"][0]["memory"]["memory_id"]
+                    scoped_params = {
+                        "exam_id": "postgraduate_entrance_exam",
+                        "subject_id": "math_1",
+                        "memory_namespace": "error_pattern",
+                    }
+                    detail_response = await client.get(
+                        f"/api/v1/exam-mem/memories/{memory_id}",
+                        params=scoped_params,
+                    )
+                    evidence_response = await client.get(
+                        f"/api/v1/exam-mem/memories/{memory_id}/evidence",
+                        params=scoped_params,
+                    )
+                    assert detail_response.status_code == 200, detail_response.text
+                    assert evidence_response.status_code == 200, evidence_response.text
+                    assert detail_response.json()["snapshot"]["memory"]["memory_id"] == memory_id
+                    assert evidence_response.json()["events"][0]["event_id"]
+                    counts_after_answer = await _counts(administration_engine, schema_name)
+                    replay_response = await client.post(
+                        "/api/v1/exam-mem/practice/answer", json=answer_body
+                    )
+                    assert replay_response.status_code == 200, replay_response.text
+                    replayed = replay_response.json()
+                    serialized = started_response.text + answered_response.text
+                    assert "reference_answer" not in serialized
+                    assert "grading_rubric" not in serialized
+            else:
+                run = _sdk_turn if entry == "sdk" else None
+                if run is not None:
+                    start_session, started_result, _ = await run(
+                        app, _turn_request(session_id=None, question_id=None)
+                    )
+                    started = {
+                        "session_id": start_session["id"],
+                        "practice": started_result["metadata"]["practice"],
+                    }
+                    question_id = started["practice"]["question"]["question_id"]
+                    _, answered_result, _ = await run(
+                        app,
+                        _turn_request(
+                            session_id=str(start_session["id"]), question_id=question_id
+                        ),
+                    )
+                    answered = {"practice": answered_result["metadata"]["practice"]}
+                    counts_after_answer = await _counts(administration_engine, schema_name)
+                    _, replay_result, _ = await run(
+                        app,
+                        _turn_request(
+                            session_id=str(start_session["id"]), question_id=question_id
+                        ),
+                    )
+                    replayed = {"practice": replay_result["metadata"]["practice"]}
+                else:
+                    start_session, started_result, _ = await _websocket_turn(
+                        app,
+                        _turn_request(session_id=None, question_id=None),
+                        monkeypatch,
+                    )
+                    started = {
+                        "session_id": start_session["id"],
+                        "practice": started_result["metadata"]["practice"],
+                    }
+                    question_id = started["practice"]["question"]["question_id"]
+                    _, answered_result, _ = await _websocket_turn(
+                        app,
+                        _turn_request(
+                            session_id=str(start_session["id"]), question_id=question_id
+                        ),
+                        monkeypatch,
+                    )
+                    answered = {"practice": answered_result["metadata"]["practice"]}
+                    counts_after_answer = await _counts(administration_engine, schema_name)
+                    _, replay_result, _ = await _websocket_turn(
+                        app,
+                        _turn_request(
+                            session_id=str(start_session["id"]), question_id=question_id
+                        ),
+                        monkeypatch,
+                    )
+                    replayed = {"practice": replay_result["metadata"]["practice"]}
+
+        assert started["practice"]["step_state"] == "QUESTION_READY"
+        assert answered["practice"]["step_state"] == "RECOMMENDED"
+        assert answered["practice"]["recommendation"]["source_memory_ids"]
+        assert replayed["practice"]["replayed"] is True
+        assert all(count > 0 for count in counts_after_answer)
+        counts_after_replay = await _counts(administration_engine, schema_name)
+        assert counts_after_replay[:-1] == counts_after_answer[:-1]
+        assert counts_after_replay[-1] == counts_after_answer[-1] + 2

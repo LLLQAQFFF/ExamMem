@@ -10,7 +10,9 @@ from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
 from deeptutor.plugins import (
     BaseFullStackPlugin,
     MigrationContribution,
+    NavigationContribution,
     PluginManifest,
+    RouterContribution,
     SettingsContribution,
 )
 from exam_mem.config import ExamMemSettings
@@ -26,6 +28,7 @@ from exam_mem.practice.tools import (
     RecommendationTool,
 )
 
+from .api import build_router
 from .native_adapter import DeepTutorNativeMemoryClient
 
 
@@ -42,6 +45,11 @@ class ExamMemPlugin(BaseFullStackPlugin):
     ) -> None:
         self.settings = settings or ExamMemSettings()
         self._engine_factory = engine_factory
+        self._runtime_provider = PracticeRuntimeProvider(
+            settings=self.settings,
+            engine_factory=self._engine_factory,
+            native_memory_client_factory=DeepTutorNativeMemoryClient,
+        )
         self.manifest = PluginManifest(
             name="exam_mem",
             version="1.0.0",
@@ -55,6 +63,30 @@ class ExamMemPlugin(BaseFullStackPlugin):
                 MemoryReaderTool,
                 MemoryWriterTool,
                 RecommendationTool,
+            ),
+            routers=(
+                RouterContribution(
+                    router=build_router(self._runtime_provider),
+                    prefix="/api/v1/exam-mem",
+                    tags=("exam-mem",),
+                    access="authenticated",
+                ),
+            ),
+            navigation=(
+                NavigationContribution(
+                    href="/exam-mem/practice",
+                    label="Exam Practice",
+                    icon="BookOpenCheck",
+                    section="primary",
+                    order=45,
+                ),
+                NavigationContribution(
+                    href="/exam-mem/memories",
+                    label="Learning Memory",
+                    icon="BrainCircuit",
+                    section="secondary",
+                    order=45,
+                ),
             ),
             settings=SettingsContribution(
                 namespace="exam_mem",
@@ -75,11 +107,7 @@ class ExamMemPlugin(BaseFullStackPlugin):
 
     def _build_practice_capability(self) -> ExamPracticeCapability:
         return ExamPracticeCapability(
-            runtime_factory=PracticeRuntimeProvider(
-                settings=self.settings,
-                engine_factory=self._engine_factory,
-                native_memory_client_factory=DeepTutorNativeMemoryClient,
-            )
+            runtime_factory=self._runtime_provider
         )
 
 

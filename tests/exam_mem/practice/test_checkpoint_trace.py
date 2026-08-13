@@ -17,6 +17,8 @@ from exam_mem.practice import (
     Question,
     checkpoint_key_for_context,
 )
+from exam_mem.practice.trace import PracticeTraceRecorder
+from exam_mem.storage import AppendStatus, PracticeTraceAppendResult
 
 NOW = datetime(2026, 8, 12, tzinfo=timezone.utc)
 SCOPE = MemoryScope(
@@ -58,6 +60,49 @@ def test_trace_span_requires_failed_error_code_and_monotonic_time() -> None:
 
     with pytest.raises(ValidationError, match="failed span requires error_code"):
         PracticeTraceSpan.model_validate(payload)
+
+
+@pytest.mark.asyncio
+async def test_trace_recorder_clamps_a_backward_wall_clock(monkeypatch) -> None:
+    class Repository:
+        span = None
+
+        async def next_step_id(self, trace_id):  # noqa: ANN001, ANN201
+            assert trace_id == "trace:clock:001"
+            return 1
+
+        async def append(self, span):  # noqa: ANN001, ANN201
+            self.span = span
+            return PracticeTraceAppendResult(status=AppendStatus.CREATED, span=span)
+
+    repository = Repository()
+    recorder = PracticeTraceRecorder(repository, trace_id="trace:clock:001")
+    started_at = datetime(2026, 8, 13, 12, 0, 1, tzinfo=timezone.utc)
+    monkeypatch.setattr(
+        "exam_mem.practice.trace.datetime",
+        type(
+            "BackwardClock",
+            (),
+            {
+                "now": staticmethod(
+                    lambda _timezone: datetime(
+                        2026, 8, 13, 12, 0, 0, tzinfo=timezone.utc
+                    )
+                )
+            },
+        ),
+    )
+
+    span = await recorder.completed(
+        name=PracticeSpanName.RESPONSE_SENT,
+        started=(started_at, 0.0),
+        input_summary={},
+        output_summary={},
+    )
+
+    assert span.started_at == started_at
+    assert span.completed_at == started_at
+    assert repository.span == span
 
 
 def test_checkpoint_rejects_skipping_required_graded_material() -> None:

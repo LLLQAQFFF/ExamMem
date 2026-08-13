@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass
-from typing import Any
+from dataclasses import asdict, dataclass, field
+from typing import Any, AsyncIterator
 
 from deeptutor.agents._shared.capability_result import emit_capability_result
 from deeptutor.agents._shared.json_output import extract_json_object
@@ -29,6 +29,35 @@ class PluginMemoryEvent:
     payload: dict[str, Any]
     session_id: str | None
     turn_id: str
+
+
+@dataclass(frozen=True, slots=True)
+class PluginTurnRequest:
+    """Domain-neutral turn request accepted by the Host runtime."""
+
+    content: str
+    capability: str
+    session_id: str | None = None
+    language: str = "en"
+    config: dict[str, Any] = field(default_factory=dict)
+
+
+class PluginTurnHost:
+    """Stable plugin-facing adapter over the Host turn facade."""
+
+    def __init__(self) -> None:
+        from deeptutor.app import DeepTutorApp
+
+        self._app = DeepTutorApp()
+
+    async def start_turn(
+        self, request: PluginTurnRequest
+    ) -> tuple[dict[str, Any], dict[str, Any]]:
+        return await self._app.start_turn(asdict(request))
+
+    async def stream_turn(self, turn_id: str) -> AsyncIterator[dict[str, Any]]:
+        async for event in self._app.stream_turn(turn_id):
+            yield event
 
 
 class NativeMemoryHost:
@@ -94,6 +123,14 @@ def current_user_id() -> str:
     return get_current_user().id
 
 
+def current_user_is_admin() -> bool:
+    """Return whether the authenticated Host identity is an administrator."""
+
+    from deeptutor.multi_user.context import get_current_user
+
+    return get_current_user().is_admin
+
+
 def get_embedding_client() -> Any:
     """Return the configured Host embedding client without exposing its implementation."""
 
@@ -109,12 +146,15 @@ __all__ = [
     "NativeMemoryHost",
     "PluginDataConflict",
     "PluginMemoryEvent",
+    "PluginTurnHost",
+    "PluginTurnRequest",
     "StreamBus",
     "ToolDefinition",
     "ToolResult",
     "UnifiedContext",
     "complete",
     "current_user_id",
+    "current_user_is_admin",
     "emit_capability_result",
     "extract_json_object",
     "get_embedding_client",
