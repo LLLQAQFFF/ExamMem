@@ -1,0 +1,288 @@
+taxonomy_version: math1_v1
+nodes:
+  - id: math1
+    name_zh: 数学一
+    parent_id: null
+    aliases: []
+    prerequisites: []
+    status: active
+    replaced_by: null
+
+  - id: math1.linear_algebra
+    name_zh: 线性代数
+    parent_id: math1
+    aliases: [线代]
+    prerequisites: []
+    status: active
+    replaced_by: null
+
+  - id: math1.linear_algebra.matrix_multiplication
+    name_zh: 矩阵乘法
+    parent_id: math1.linear_algebra
+    aliases: [矩阵相乘, 矩阵乘积, 矩阵乘法运算]
+    prerequisites: []
+    status: active
+    replaced_by: null
+
+  - id: math1.linear_algebra.inverse_matrix
+    name_zh: 逆矩阵
+    parent_id: math1.linear_algebra
+    aliases: [逆阵, 矩阵求逆]
+    prerequisites: [math1.linear_algebra.determinant]
+    status: active
+    replaced_by: null
+
+  - id: math1.linear_algebra.determinant
+    name_zh: 行列式
+    parent_id: math1.linear_algebra
+    aliases: [行列式计算, 求行列式]
+    prerequisites: []
+    status: active
+    replaced_by: null
+
+  - id: math1.linear_algebra.elementary_transformations
+    name_zh: 初等变换
+    parent_id: math1.linear_algebra
+    aliases: [矩阵初等变换]
+    prerequisites: []
+    status: active
+    replaced_by: null
+
+  - id: math1.linear_algebra.matrix_rank
+    name_zh: 矩阵秩
+    parent_id: math1.linear_algebra
+    aliases: [矩阵的秩, 求矩阵秩]
+    prerequisites: [math1.linear_algebra.elementary_transformations]
+    status: active
+    replaced_by: null
+
+  - id: math1.linear_algebra.linear_equation_solution_structure
+    name_zh: 线性方程组解结构
+    parent_id: math1.linear_algebra
+    aliases: [线性方程组解的结构, 方程组解结构]
+    prerequisites: [math1.linear_algebra.matrix_rank]
+    status: active
+    replaced_by: null
+
+  - id: math1.linear_algebra.vector_linear_representation
+    name_zh: 向量线性表示
+    parent_id: math1.linear_algebra
+    aliases: [向量的线性表示, 线性表出]
+    prerequisites: [math1.linear_algebra.linear_equation_solution_structure]
+    status: active
+    replaced_by: null
+
+  - id: math1.linear_algebra.linear_independence
+    name_zh: 线性相关性
+    parent_id: math1.linear_algebra
+    aliases: [向量组线性相关性, 线性相关与线性无关]
+    prerequisites: [math1.linear_algebra.vector_linear_representation]
+    status: active
+    replaced_by: null
+
+  - id: math1.linear_algebra.vector_group_rank
+    name_zh: 向量组秩
+    parent_id: math1.linear_algebra
+    aliases: [向量组的秩, 求向量组秩]
+    prerequisites: [math1.linear_algebra.linear_independence]
+    status: active
+    replaced_by: null
+
+  - id: math1.linear_algebra.vector_space
+    name_zh: 向量空间
+    parent_id: math1.linear_algebra
+    aliases: [向量空间定义, 线性空间]
+    prerequisites:
+      - math1.linear_algebra.vector_linear_representation
+      - math1.linear_algebra.linear_independence
+    status: active
+    replaced_by: null
+
+  - id: math1.linear_algebra.eigenvalue
+    name_zh: 特征值
+    parent_id: math1.linear_algebra
+    aliases: [特征值计算, 矩阵特征值]
+    prerequisites: [math1.linear_algebra.determinant]
+    status: active
+    replaced_by: null
+
+  - id: math1.linear_algebra.eigenvector
+    name_zh: 特征向量
+    parent_id: math1.linear_algebra
+    aliases: [特征向量计算, 矩阵特征向量]
+    prerequisites:
+      - math1.linear_algebra.eigenvalue
+      - math1.linear_algebra.linear_equation_solution_structure
+    status: active
+    replaced_by: null
+
+  - id: math1.linear_algebra.similarity_diagonalization
+    name_zh: 矩阵相似对角化
+    parent_id: math1.linear_algebra
+    aliases: [相似对角化, 矩阵可对角化]
+    prerequisites:
+      - math1.linear_algebra.eigenvalue
+      - math1.linear_algebra.eigenvector
+      - math1.linear_algebra.linear_independence
+    status: active
+    replaced_by: null
+
+  - id: math1.linear_algebra.quadratic_form
+    name_zh: 二次型
+    parent_id: math1.linear_algebra
+    aliases: [二次型矩阵表示, 二次型化标准形]
+    prerequisites: [math1.linear_algebra.matrix_multiplication]
+    status: active
+    replaced_by: null
+
+  - id: math1.linear_algebra.positive_definite_quadratic_form
+    name_zh: 正定二次型
+    parent_id: math1.linear_algebra
+    aliases: [正定二次型判定, 二次型正定性]
+    prerequisites:
+      - math1.linear_algebra.quadratic_form
+      - math1.linear_algebra.eigenvalue
+    status: active
+    replaced_by: null
+
+  - id: math1.probability
+    name_zh: 概率论与数理统计
+    parent_id: math1
+    aliases: [概率统计, 概率论]
+    prerequisites: []
+    status: active
+    replaced_by: null
+
+  - id: math1.probability.random_event
+    name_zh: 随机事件
+    parent_id: math1.probability
+    aliases: [概率事件, 随机试验事件]
+    prerequisites: []
+    status: active
+    replaced_by: null
+
+  - id: math1.probability.probability_properties
+    name_zh: 概率基本性质
+    parent_id: math1.probability
+    aliases: [概率的性质, 概率运算法则]
+    prerequisites: [math1.probability.random_event]
+    status: active
+    replaced_by: null
+
+  - id: math1.probability.conditional_probability
+    name_zh: 条件概率
+    parent_id: math1.probability
+    aliases: [条件概率公式, 条件概率计算]
+    prerequisites:
+      - math1.probability.random_event
+      - math1.probability.probability_properties
+    status: active
+    replaced_by: null
+
+  - id: math1.probability.independence
+    name_zh: 事件独立性
+    parent_id: math1.probability
+    aliases: [事件的独立性, 相互独立]
+    prerequisites: [math1.probability.conditional_probability]
+    status: active
+    replaced_by: null
+
+  - id: math1.probability.total_probability
+    name_zh: 全概率公式
+    parent_id: math1.probability
+    aliases: [全概率, 全概率计算]
+    prerequisites: [math1.probability.conditional_probability]
+    status: active
+    replaced_by: null
+
+  - id: math1.probability.bayes
+    name_zh: 贝叶斯公式
+    parent_id: math1.probability
+    aliases: [贝叶斯定理, 后验概率公式]
+    prerequisites:
+      - math1.probability.conditional_probability
+      - math1.probability.total_probability
+    status: active
+    replaced_by: null
+
+  - id: math1.probability.random_variable_distribution
+    name_zh: 随机变量分布
+    parent_id: math1.probability
+    aliases: [随机变量的分布, 概率分布]
+    prerequisites: [math1.probability.probability_properties]
+    status: active
+    replaced_by: null
+
+  - id: math1.probability.distribution_function
+    name_zh: 分布函数
+    parent_id: math1.probability
+    aliases: [累积分布函数, CDF]
+    prerequisites: [math1.probability.random_variable_distribution]
+    status: active
+    replaced_by: null
+
+  - id: math1.probability.joint_distribution
+    name_zh: 联合分布
+    parent_id: math1.probability
+    aliases: [联合概率分布]
+    prerequisites: [math1.probability.random_variable_distribution]
+    status: active
+    replaced_by: null
+
+  - id: math1.probability.expectation
+    name_zh: 数学期望
+    parent_id: math1.probability
+    aliases: [数学期望计算, 随机变量均值]
+    prerequisites: [math1.probability.random_variable_distribution]
+    status: active
+    replaced_by: null
+
+  - id: math1.probability.variance
+    name_zh: 方差
+    parent_id: math1.probability
+    aliases: [方差计算, 随机变量方差]
+    prerequisites: [math1.probability.expectation]
+    status: active
+    replaced_by: null
+
+  - id: math1.probability.covariance_correlation
+    name_zh: 协方差与相关系数
+    parent_id: math1.probability
+    aliases: [协方差和相关系数, 相关系数]
+    prerequisites:
+      - math1.probability.joint_distribution
+      - math1.probability.expectation
+      - math1.probability.variance
+    status: active
+    replaced_by: null
+
+  - id: math1.probability.law_large_numbers
+    name_zh: 大数定律
+    parent_id: math1.probability
+    aliases: [大数定理]
+    prerequisites:
+      - math1.probability.expectation
+      - math1.probability.variance
+    status: active
+    replaced_by: null
+
+  - id: math1.probability.central_limit_theorem
+    name_zh: 中心极限定理
+    parent_id: math1.probability
+    aliases: [中心极限定理应用]
+    prerequisites:
+      - math1.probability.expectation
+      - math1.probability.variance
+    status: active
+    replaced_by: null
+
+  - id: math1.probability.parameter_estimation
+    name_zh: 参数估计
+    parent_id: math1.probability
+    aliases: [参数的估计, 统计参数估计]
+    prerequisites:
+      - math1.probability.random_variable_distribution
+      - math1.probability.expectation
+      - math1.probability.variance
+    status: active
+    replaced_by: null

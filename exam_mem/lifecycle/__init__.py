@@ -1,0 +1,115 @@
+"""Deterministic lifecycle contracts for ExamMem Learning Memory."""
+
+from .applier import (
+    LifecycleApplicationConflict,
+    LifecycleApplicationResult,
+    LifecycleApplier,
+)
+from .audit import (
+    AuditAppendStatus,
+    LifecycleApplyState,
+    LifecycleAuditTrail,
+    LifecycleChangeAuditRecord,
+    LifecycleDecisionAuditRecord,
+)
+from .compensation import (
+    CompensationPlan,
+    CompensationService,
+    CompensationTokenError,
+    CompensationValidationError,
+)
+from .contracts import (
+    CandidateDisplayRangeError,
+    LifecycleCandidateSnapshot,
+    LifecycleMemorySnapshot,
+    LifecyclePolicyInput,
+    LifecyclePolicyResult,
+    LifecyclePolicyV1Config,
+    MemoryRelation,
+    RelationClassifierOutput,
+    ResolvedRelationClassification,
+    resolve_relation_output,
+)
+from .manual_review import (
+    ContestedGroupInvariantError,
+    ManualReviewItem,
+    ManualReviewQueue,
+)
+from .policy_v1 import (
+    DirectionalStabilityGate,
+    DirectionalSupport,
+    EvidenceDirection,
+    MasteryPolicyEvaluation,
+    MasterySupportSummary,
+    ScoredMasteryEvidence,
+    aggregate_mastery_support,
+    evaluate_mastery_policy,
+    evaluate_stability_gate,
+    resolve_mastery_evidence_direction,
+    score_mastery_event,
+)
+from .projection_refresh import (
+    PostCommitProjectionRefresher,
+    ProjectionRefreshFailed,
+    ProjectionRefreshRequest,
+    build_projection_refresh_request,
+)
+from .relation_classifier import (
+    DeepTutorRelationClassifierAdapter,
+    RelationClassificationError,
+    RelationClassifier,
+    RelationCompletion,
+    resolve_validated_relation_output,
+    validate_relation_candidate_pool,
+)
+from .state_machine import decide_lifecycle
+
+__all__ = [
+    "AuditAppendStatus",
+    "CandidateDisplayRangeError",
+    "CompensationPlan",
+    "CompensationService",
+    "CompensationTokenError",
+    "CompensationValidationError",
+    "ContestedGroupInvariantError",
+    "DeepTutorRelationClassifierAdapter",
+    "DirectionalSupport",
+    "DirectionalStabilityGate",
+    "EvidenceDirection",
+    "LifecycleApplicationConflict",
+    "LifecycleApplicationResult",
+    "LifecycleApplier",
+    "LifecycleCandidateSnapshot",
+    "LifecycleMemorySnapshot",
+    "LifecycleApplyState",
+    "LifecycleAuditTrail",
+    "LifecycleChangeAuditRecord",
+    "LifecycleDecisionAuditRecord",
+    "LifecyclePolicyInput",
+    "LifecyclePolicyResult",
+    "LifecyclePolicyV1Config",
+    "MemoryRelation",
+    "MasteryPolicyEvaluation",
+    "MasterySupportSummary",
+    "ManualReviewItem",
+    "ManualReviewQueue",
+    "PostCommitProjectionRefresher",
+    "ProjectionRefreshFailed",
+    "ProjectionRefreshRequest",
+    "RelationClassificationError",
+    "RelationClassifierOutput",
+    "RelationClassifier",
+    "RelationCompletion",
+    "ResolvedRelationClassification",
+    "ScoredMasteryEvidence",
+    "aggregate_mastery_support",
+    "build_projection_refresh_request",
+    "decide_lifecycle",
+    "evaluate_mastery_policy",
+    "evaluate_stability_gate",
+    "resolve_mastery_evidence_direction",
+    "resolve_relation_output",
+    "resolve_validated_relation_output",
+    "score_mastery_event",
+    "validate_relation_candidate_pool",
+]

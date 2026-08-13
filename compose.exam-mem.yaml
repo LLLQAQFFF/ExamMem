@@ -1,0 +1,26 @@
+name: exammem
+
+services:
+  postgres:
+    image: pgvector/pgvector:0.8.2-pg16-bookworm
+    container_name: exammem-postgres
+    environment:
+      POSTGRES_USER: ${EXAM_MEM_POSTGRES_USER:?Set EXAM_MEM_POSTGRES_USER}
+      POSTGRES_PASSWORD: ${EXAM_MEM_POSTGRES_PASSWORD:?Set EXAM_MEM_POSTGRES_PASSWORD}
+      POSTGRES_DB: ${EXAM_MEM_POSTGRES_DB:?Set EXAM_MEM_POSTGRES_DB}
+    ports:
+      - "127.0.0.1:${EXAM_MEM_POSTGRES_PORT:-55432}:5432"
+    volumes:
+      - exammem-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - pg_isready -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}"
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    shm_size: 256mb
+
+volumes:
+  exammem-postgres-data:

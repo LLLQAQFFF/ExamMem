@@ -54,6 +54,36 @@ the source design remains deferred.
 - Success: domain/unit tests, migration hashes, repository/PostgreSQL integration,
   append-only, CAS, provenance, audit, compensation, and rebuild invariants pass.
 
+### Result
+
+- Migrated the frozen contracts, Taxonomy and normalization resources,
+  `slot_key`, four-dimensional Scope, projection, lifecycle policy/applier,
+  Decision Journal, Change Log, compensation, repositories, schema metadata,
+  and all five Backend contracts into the ExamMem-owned package.
+- Removed Fork coupling while preserving behavior: LLM, JSON and embedding
+  operations enter through `deeptutor.plugins.host_services`; the Native
+  comparison arm now consumes an ExamMem-owned event DTO and an injected Host
+  port instead of reading or writing DeepTutor Native Memory directly.
+- Migrations `0001` through `0006` match frozen commit
+  `747958725b6e681a3a846a0430b5a21deb163188` byte-for-byte. A committed SHA-256
+  test freezes this property; Alembic reports the single head
+  `0006_practice_workflow`.
+- Real PostgreSQL verification used a disposable pgvector 0.8.2 / PostgreSQL 16
+  container bound only to localhost with its data directory on tmpfs. Upgrade
+  produced 12 tables (including `alembic_version`) and five append-only
+  triggers. The complete checkpoint suite passed: `315 passed`; after the run,
+  no random test schema or business row remained.
+- Host-without-plugin regression passed with the ExamMem DSN removed:
+  `4108 passed, 40 skipped, 6 warnings`. Ruff, migration hashes, dependency
+  direction, source integrity, and diff checks passed.
+- Database side effects are confined to the disposable `exammem_test` database;
+  stopping `exammem-postgres-codex` deletes the tmpfs database. No DeepTutor
+  internal database or Native Memory file was touched.
+- Deferred boundary: Practice-owned checkpoint/Trace repositories and the
+  database-backed five-arm workflow matrix move with the Practice assembly in
+  checkpoint 4. No Practice entry point, UI, or future multi-source feature is
+  enabled here.
+
 ## Checkpoint 4 — Practice production chain
 
 - Goal: assemble the recoverable Practice workflow through the Plugin API.
