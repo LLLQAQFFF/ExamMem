@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from contextlib import AbstractAsyncContextManager
-from datetime import datetime
+from datetime import datetime, timezone
 import hashlib
 from typing import Annotated, Any, Literal, Protocol
 
@@ -17,16 +17,25 @@ from pydantic import (
     model_validator,
 )
 
+from deeptutor.plugins import (
+    SettingsContribution,
+    load_plugin_settings,
+    save_plugin_settings,
+)
 from deeptutor.plugins.host_services import (
     PluginTurnHost,
     PluginTurnRequest,
     current_user_id,
     current_user_is_admin,
 )
+from exam_mem.config import ExamMemSettings, backend_side_effects, settings_revision
 from exam_mem.contracts import LearningContext, LifecycleState, MemoryNamespace, MemoryValue
 from exam_mem.practice import (
     CorrectionError,
     ExplicitCorrectionRequest,
+    GradeResult,
+    GradeReviewAction,
+    GradeReviewEvent,
     LearningMemoryListRequest,
     PlanTransitionError,
     PracticeProgressTransitionRequest,
@@ -36,6 +45,7 @@ from exam_mem.practice import (
     stage07_practice_questions,
     stage07_question,
 )
+from exam_mem.storage import AppendStatus
 
 NonEmptyString = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
 _EXAM_ID = "postgraduate_entrance_exam"
@@ -94,6 +104,30 @@ class PlanTransitionBody(StrictApiModel):
         return self
 
 
+class GradeDisputeBody(StrictApiModel):
+    practice_session_id: NonEmptyString
+    checkpoint_key: NonEmptyString
+    idempotency_key: NonEmptyString
+    reason: NonEmptyString
+
+
+class GradeDispositionBody(StrictApiModel):
+    action: Literal["uphold", "overturn"]
+    practice_session_id: NonEmptyString
+    checkpoint_key: NonEmptyString
+    idempotency_key: NonEmptyString
+    reason: NonEmptyString
+    replacement_grade: GradeResult | None = None
+
+    @model_validator(mode="after")
+    def validate_replacement(self) -> GradeDispositionBody:
+        if self.action == "overturn" and self.replacement_grade is None:
+            raise ValueError("overturn requires replacement_grade")
+        if self.action == "uphold" and self.replacement_grade is not None:
+            raise ValueError("uphold must not include replacement_grade")
+        return self
+
+
 class LearningMemoryRuntime(Protocol):
     queries: Any
     corrections: Any
@@ -108,16 +142,21 @@ class RuntimeProvider(Protocol):
         self, *, trace_id: str
     ) -> AbstractAsyncContextManager[Any]: ...
 
+    def open_product(self) -> AbstractAsyncContextManager[Any]: ...
+
 
 def build_router(
     runtime_provider: RuntimeProvider,
     *,
     turn_host: PluginTurnHost | None = None,
+    settings_contribution: SettingsContribution | None = None,
+    effective_settings: ExamMemSettings | None = None,
 ) -> APIRouter:
     """Build one router wired to the same Provider as the plugin Capability."""
 
     router = APIRouter()
     host = turn_host
+    effective = effective_settings or ExamMemSettings()
 
     def runtime_host() -> PluginTurnHost:
         nonlocal host
@@ -167,6 +206,165 @@ def build_router(
             session_id=body.session_id,
             context=context,
         )
+
+    @router.get("/practice/sessions")
+    async def list_practice_sessions(
+        exam_id: NonEmptyString = _EXAM_ID,
+        subject_id: NonEmptyString = _SUBJECT_ID,
+    ) -> dict[str, Any]:
+        context = _authenticated_context(exam_id=exam_id, subject_id=subject_id)
+        async with runtime_provider.open_product() as runtime:
+            sessions = await runtime.products.list_practice_sessions(context)
+        return {"scope": _public_scope(context), "sessions": sessions}
+
+    @router.get("/practice/sessions/{practice_session_id}")
+    async def get_practice_session(
+        practice_session_id: NonEmptyString,
+        exam_id: NonEmptyString = _EXAM_ID,
+        subject_id: NonEmptyString = _SUBJECT_ID,
+    ) -> dict[str, Any]:
+        context = _authenticated_context(exam_id=exam_id, subject_id=subject_id)
+        async with runtime_provider.open_product() as runtime:
+            review = await runtime.products.get_practice_session(
+                context, practice_session_id
+            )
+        if review is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Exam not found")
+        return review
+
+    @router.post("/practice/sessions/{practice_session_id}/resume")
+    async def resume_practice(practice_session_id: NonEmptyString) -> dict[str, Any]:
+        context = _authenticated_context(exam_id=_EXAM_ID, subject_id=_SUBJECT_ID)
+        async with runtime_provider.open_product() as runtime:
+            latest = await runtime.checkpoints.get_latest(context, practice_session_id)
+        if latest is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Exam not found")
+        result = await _run_practice_turn(
+            runtime_host(),
+            content="恢复数学一练习",
+            session_id=None,
+            context=latest.checkpoint.context.model_dump(mode="json"),
+        )
+        return result
+
+    @router.get("/issues")
+    async def list_issues(
+        exam_id: NonEmptyString = _EXAM_ID,
+        subject_id: NonEmptyString = _SUBJECT_ID,
+    ) -> dict[str, Any]:
+        context = _authenticated_context(exam_id=exam_id, subject_id=subject_id)
+        async with runtime_provider.open_product() as runtime:
+            issues = await runtime.products.list_issues(context)
+        return {"scope": _public_scope(context), "issues": issues}
+
+    @router.get("/configuration")
+    async def get_configuration(
+        practice_session_id: NonEmptyString | None = None,
+    ) -> dict[str, Any]:
+        contribution = settings_contribution
+        if contribution is None:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Settings contribution is unavailable",
+            )
+        saved = ExamMemSettings.model_validate(load_plugin_settings(contribution))
+        pinned = None
+        if practice_session_id is not None:
+            context = _authenticated_context(exam_id=_EXAM_ID, subject_id=_SUBJECT_ID)
+            async with runtime_provider.open_product() as runtime:
+                pinned = await runtime.checkpoints.get_runtime_snapshot(
+                    context, practice_session_id
+                )
+        return _configuration_payload(saved=saved, effective=effective, pinned=pinned)
+
+    @router.put("/configuration")
+    async def update_configuration(body: ExamMemSettings) -> dict[str, Any]:
+        if not current_user_is_admin():
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="ExamMem configuration requires an administrator",
+            )
+        contribution = settings_contribution
+        if contribution is None:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Settings contribution is unavailable",
+            )
+        saved = ExamMemSettings.model_validate(
+            save_plugin_settings(contribution, body.model_dump(mode="json"))
+        )
+        return {
+            **_configuration_payload(saved=saved, effective=effective, pinned=None),
+            "restart_required": saved != effective,
+        }
+
+    @router.post("/grade-reviews/disputes")
+    async def dispute_grade(body: GradeDisputeBody) -> dict[str, Any]:
+        context = _authenticated_context(exam_id=_EXAM_ID, subject_id=_SUBJECT_ID)
+        chain_id = _review_chain_id(context, body.practice_session_id, body.checkpoint_key)
+        event = _review_event(
+            context=context,
+            chain_id=chain_id,
+            action=GradeReviewAction.DISPUTE,
+            body=body,
+        )
+        async with runtime_provider.open_product() as runtime:
+            checkpoint = await runtime.checkpoints.get(
+                context, body.practice_session_id, body.checkpoint_key
+            )
+            if checkpoint is None or checkpoint.checkpoint.grade_result is None:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="Graded checkpoint not found",
+                )
+            result = await runtime.reviews.append(event)
+            await runtime.connection.commit()
+        if result.status is AppendStatus.CONFLICT:
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Review conflict")
+        return {
+            "status": result.status.value,
+            "review": result.event.model_dump(mode="json") if result.event else None,
+        }
+
+    @router.post("/grade-reviews/{review_chain_id}/dispositions")
+    async def dispose_grade_review(
+        review_chain_id: NonEmptyString,
+        body: GradeDispositionBody,
+    ) -> dict[str, Any]:
+        if not current_user_is_admin():
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Grade Review disposition requires an administrator",
+            )
+        context = _authenticated_context(exam_id=_EXAM_ID, subject_id=_SUBJECT_ID)
+        expected_chain = _review_chain_id(
+            context, body.practice_session_id, body.checkpoint_key
+        )
+        if expected_chain != review_chain_id:
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Review identity conflict")
+        event = _review_event(
+            context=context,
+            chain_id=review_chain_id,
+            action=GradeReviewAction(body.action),
+            body=body,
+            replacement_grade=body.replacement_grade,
+        )
+        async with runtime_provider.open_product() as runtime:
+            chain = await runtime.reviews.list_chain(context, review_chain_id)
+            if not chain or chain[0].action is not GradeReviewAction.DISPUTE:
+                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Dispute not found")
+            if len(chain) > 1 and not any(
+                item.idempotency_key == body.idempotency_key for item in chain
+            ):
+                raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Review is closed")
+            result = await runtime.reviews.append(event)
+            await runtime.connection.commit()
+        if result.status is AppendStatus.CONFLICT:
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Review conflict")
+        return {
+            "status": result.status.value,
+            "review": result.event.model_dump(mode="json") if result.event else None,
+        }
 
     @router.get("/memories")
     async def list_memories(
@@ -378,6 +576,73 @@ def _authenticated_context(*, exam_id: str, subject_id: str) -> LearningContext:
         exam_id=exam_id,
         subject_id=subject_id,
     )
+
+
+def _public_scope(context: LearningContext) -> dict[str, str]:
+    return {"exam_id": context.exam_id, "subject_id": context.subject_id}
+
+
+def _review_chain_id(
+    context: LearningContext,
+    practice_session_id: str,
+    checkpoint_key: str,
+) -> str:
+    identity = "\x1f".join(
+        (
+            context.user_id,
+            context.exam_id,
+            context.subject_id,
+            practice_session_id,
+            checkpoint_key,
+        )
+    ).encode()
+    return f"grade_review:{hashlib.sha256(identity).hexdigest()}"
+
+
+def _review_event(
+    *,
+    context: LearningContext,
+    chain_id: str,
+    action: GradeReviewAction,
+    body: GradeDisputeBody | GradeDispositionBody,
+    replacement_grade: GradeResult | None = None,
+) -> GradeReviewEvent:
+    identity = f"{context.user_id}\x1f{body.idempotency_key}".encode()
+    return GradeReviewEvent(
+        review_event_id=f"grade_review_event:{hashlib.sha256(identity).hexdigest()}",
+        review_chain_id=chain_id,
+        idempotency_key=body.idempotency_key,
+        action=action,
+        user_id=context.user_id,
+        exam_id=context.exam_id,
+        subject_id=context.subject_id,
+        practice_session_id=body.practice_session_id,
+        checkpoint_key=body.checkpoint_key,
+        reason=body.reason,
+        replacement_grade=replacement_grade,
+        created_at=datetime.now(timezone.utc),
+    )
+
+
+def _configuration_payload(
+    *,
+    saved: ExamMemSettings,
+    effective: ExamMemSettings,
+    pinned,
+) -> dict[str, Any]:  # noqa: ANN001
+    return {
+        "saved": {
+            "revision": settings_revision(saved),
+            "settings": saved.model_dump(mode="json"),
+            "side_effects": list(backend_side_effects(saved.memory_backend)),
+        },
+        "effective": {
+            "revision": settings_revision(effective),
+            "settings": effective.model_dump(mode="json"),
+            "side_effects": list(backend_side_effects(effective.memory_backend)),
+        },
+        "pinned": None if pinned is None else pinned.model_dump(mode="json"),
+    }
 
 
 def _practice_context_payload(

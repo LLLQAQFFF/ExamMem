@@ -83,7 +83,7 @@ async def list_sessions(
     offset: int = Query(default=0, ge=0),
 ):
     store = get_session_store()
-    sessions = await store.list_sessions(limit=limit, offset=offset)
+    sessions = await store.list_sessions(limit=limit, offset=offset, surface="chat")
     return {"sessions": sessions}
 
 
@@ -133,7 +133,7 @@ def _truncate_oversized_events(
 @router.get("/{session_id}")
 async def get_session(session_id: str):
     store = get_session_store()
-    session = await store.get_session_with_messages(session_id)
+    session = await store.get_session_with_messages(session_id, surface="chat")
     if session is None:
         raise HTTPException(status_code=404, detail="Session not found")
     _truncate_oversized_events(session.get("messages", []))

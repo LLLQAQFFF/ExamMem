@@ -191,6 +191,60 @@ the source design remains deferred.
   API layers; recovery, review, issue derivation, configuration pinning, side
   effect preview, correction, and responsive UI contracts pass.
 
+### Result
+
+- Added the neutral `session_surface` capability contribution and repository
+  filter. Built-in capabilities default to `chat`; `exam_practice` owns the
+  separate `exam_practice` surface. SQLite treats legacy rows without the field
+  as Chat, PocketBase filters before pagination, and TurnRuntime rejects reuse
+  across surfaces. Chat Recents, Search/detail, SDK list/detail, and dashboard
+  APIs request only the Chat surface without importing or naming ExamMem.
+- Added exact Grade Artifact identity over question version, normalized-answer
+  hash, rubric version, grader contract version, and effective configuration
+  revision. A matching artifact may reuse only the Grade computation across
+  practice sessions in the same authenticated three-dimensional Scope; every
+  submission still runs mapping, diagnosis, L1/L2/lifecycle writes and produces
+  its own checkpoint and Trace. Historic checkpoints without an identity remain
+  readable but are never cache sources.
+- Pinned each new practice session to an immutable runtime snapshot containing
+  configuration revision, one of the five backend modes, and its deterministic
+  side-effect set. Recovery resolves the pinned snapshot before constructing a
+  backend, so changing Saved configuration cannot silently alter an in-progress
+  exam. The administrator-only Configuration API and page distinguish Saved,
+  process-effective, and per-exam Pinned values and state when restart is needed.
+- Reused checkpoint, Trace, L1/L2, provenance, Decision Journal, Change Log and
+  L3 to provide practice history/detail, server-side resume, Review, and derived
+  Issues. Resume starts a new Host transport session while replaying the latest
+  authenticated business checkpoint, original idempotency context, Trace, and
+  pinned backend; browser `sessionStorage` remains only a response-loss
+  optimization.
+- Added the separately documented append-only Grade Review event stream in
+  migration `0007_grade_reviews`. Existing audit facts cannot truthfully derive
+  a learner's new dispute or an administrator's disposition, and storing either
+  as a Learning Memory correction would corrupt the domain boundary. The table
+  is Scope-bound, idempotent, append-only, requires an existing graded
+  checkpoint at the API boundary, and has no cross-database foreign key. Frozen
+  migrations `0001`–`0006` remain byte-identical.
+- Completed the current-loop UI with five plugin-contributed pages: Practice,
+  Learning Memory, Review, Issues and Configuration. Learning Memory correction
+  and Plan cancellation require explicit confirmation and append evidence rather
+  than editing history. Grade dispute is visibly separate; administrator Uphold
+  is available in the UI, while Overturn remains an HTTP operation requiring a
+  complete structured replacement Grade.
+- The complete checkpoint backend suite passed: `484 passed`; the strengthened
+  real Browser HTTP, Python SDK, and unified WebSocket entry suite passed again:
+  `3 passed`. Ruff passed. Web Node tests passed `63/63`; ESLint had zero errors
+  (only 56 pre-existing warnings outside ExamMem); Next production build
+  compiled, type-checked, and generated 62 routes including all five ExamMem
+  routes.
+- PostgreSQL head is `0007_grade_reviews`. The disposable public schema has six
+  distinct append-only triggers, no random test schema, and no business rows
+  after tests. Sensitive-content, Core dependency-direction, diff, and frozen
+  source-integrity checks passed.
+- Deferred boundary: no file, video, image, note or PPT ingestion; no Learning
+  Journey Memory, course Q&A, source-driven question generation, or other Stage
+  08/multi-source implementation was added.
+
 ## Checkpoint 7 — total acceptance
 
 - Goal: freeze the migrated production baseline and operating evidence.

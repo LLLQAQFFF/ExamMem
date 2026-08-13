@@ -1,7 +1,10 @@
 import {
+  AlertOctagon,
   BookOpenCheck,
   BrainCircuit,
+  FileCheck2,
   Puzzle,
+  Settings2,
   type LucideIcon,
 } from "lucide-react";
 
@@ -18,6 +21,9 @@ export interface PluginNavigationItem {
 const PLUGIN_ICONS: Record<string, LucideIcon> = {
   BookOpenCheck,
   BrainCircuit,
+  FileCheck2,
+  AlertOctagon,
+  Settings2,
 };
 
 export function pluginNavigationIcon(name: string): LucideIcon {

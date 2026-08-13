@@ -681,6 +681,14 @@ class TurnRuntimeManager:
 
     async def start_turn(self, payload: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any]]:
         capability = str(payload.get("capability") or "chat")
+        from deeptutor.runtime.registry.capability_registry import get_capability_registry
+
+        capability_instance = get_capability_registry().get(capability)
+        session_surface = (
+            capability_instance.manifest.session_surface
+            if capability_instance is not None
+            else "chat"
+        )
         if not payload.get("language"):
             from deeptutor.services.settings.interface_settings import (
                 get_response_language,
@@ -714,8 +722,16 @@ class TurnRuntimeManager:
             "capability": capability,
             "config": {**validated_public_config, **runtime_only_config},
         }
-        session = await self.store.ensure_session(payload.get("session_id"))
+        requested_session_id = str(payload.get("session_id") or "").strip()
+        session = await self.store.ensure_session(requested_session_id or None)
         preferences = session.get("preferences") or {}
+        stored_surface = str(preferences.get("session_surface") or "chat")
+        is_new_session = not requested_session_id or session["id"] != requested_session_id
+        if not is_new_session and stored_surface != session_surface:
+            raise RuntimeError(
+                "Session surface conflict: "
+                f"session belongs to {stored_surface!r}, requested {session_surface!r}."
+            )
         # A mastery path has a longer lifetime than any one conversation.
         # Persist the explicit association on the session, and restore it on
         # later turns whose frontend payload omits the field.
@@ -828,6 +844,7 @@ class TurnRuntimeManager:
         await self._recover_orphan_running_turns_for_session(session["id"])
         preference_update: dict[str, Any] = {
             "capability": capability,
+            "session_surface": session_surface,
             "tools": list(payload.get("tools") or []),
             "knowledge_bases": list(payload.get("knowledge_bases") or []),
             "language": str(payload.get("language") or "en"),

@@ -127,6 +127,20 @@ async def test_list_sessions_only_returns_own(fake_pb) -> None:
     assert {s["session_id"] for s in alice_sessions} == {"s_a1", "s_a2"}
 
 
+async def test_surface_filter_is_applied_before_pagination(fake_pb) -> None:
+    store = PocketBaseSessionStore()
+    with as_user("alice"):
+        practice = await store.create_session(title="practice", session_id="s_practice")
+        await store.update_session_preferences(
+            practice["id"], {"session_surface": "exam_practice"}
+        )
+        await store.create_session(title="chat", session_id="s_chat")
+
+        chat_sessions = await store.list_sessions(limit=1, surface="chat")
+
+    assert [session["session_id"] for session in chat_sessions] == ["s_chat"]
+
+
 async def test_get_session_404s_for_other_user(fake_pb) -> None:
     store = PocketBaseSessionStore()
     with as_user("alice"):

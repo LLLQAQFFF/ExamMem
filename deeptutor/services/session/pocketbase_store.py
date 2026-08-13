@@ -87,6 +87,13 @@ def _current_user_id() -> str:
     return _validate_id(get_current_user().id, "user_id")
 
 
+def _session_surface(session: dict[str, Any]) -> str:
+    preferences = session.get("preferences")
+    if not isinstance(preferences, dict):
+        return "chat"
+    return str(preferences.get("session_surface") or "chat")
+
+
 def _find_session_record(pb: Any, session_id: str, user_id: str) -> Any | None:
     """Return the ``sessions`` record for *session_id* owned by *user_id*.
 
@@ -145,7 +152,9 @@ class PocketBaseSessionStore:
         record = await asyncio.to_thread(_create)
         return self._session_record_to_dict(record, resolved_id, resolved_title, now)
 
-    async def get_session(self, session_id: str) -> dict[str, Any] | None:
+    async def get_session(
+        self, session_id: str, surface: str | None = None
+    ) -> dict[str, Any] | None:
         sid = _validate_id(session_id, "session_id")
         uid = _current_user_id()
 
@@ -158,7 +167,10 @@ class PocketBaseSessionStore:
         record = await asyncio.to_thread(_get)
         if record is None:
             return None
-        return self._session_record_to_dict(record)
+        session = self._session_record_to_dict(record)
+        if surface is not None and _session_surface(session) != surface:
+            return None
+        return session
 
     async def ensure_session(
         self,
@@ -236,16 +248,23 @@ class PocketBaseSessionStore:
         self,
         limit: int = 50,
         offset: int = 0,
+        surface: str | None = None,
     ) -> list[dict[str, Any]]:
         page = (offset // limit) + 1
         uid = _current_user_id()
 
         def _list():
             query_params: dict[str, Any] = {"sort": "-updated", "filter": f'user_id="{uid}"'}
+            if surface is not None:
+                return _pb().collection("sessions").get_full_list(query_params=query_params)
             return _pb().collection("sessions").get_list(page, limit, query_params=query_params)
 
         try:
             result = await asyncio.to_thread(_list)
+            if surface is not None:
+                sessions = [self._session_record_to_dict(record) for record in result]
+                sessions = [item for item in sessions if _session_surface(item) == surface]
+                return sessions[offset : offset + limit]
             return [self._session_record_to_dict(r) for r in result.items]
         except Exception as exc:
             logger.warning(f"list_sessions failed: {exc}")
@@ -301,8 +320,10 @@ class PocketBaseSessionStore:
             logger.warning(f"update_session_preferences failed: {exc}")
             return False
 
-    async def get_session_with_messages(self, session_id: str) -> dict[str, Any] | None:
-        session = await self.get_session(session_id)
+    async def get_session_with_messages(
+        self, session_id: str, surface: str | None = None
+    ) -> dict[str, Any] | None:
+        session = await self.get_session(session_id, surface=surface)
         if session is None:
             return None
         session["messages"] = await self.get_messages(session_id)

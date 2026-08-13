@@ -14,6 +14,7 @@ from deeptutor.plugins import (
     PluginManifest,
     RouterContribution,
     SettingsContribution,
+    load_plugin_settings,
 )
 from exam_mem.config import ExamMemSettings
 from exam_mem.practice.capability import ExamPracticeCapability
@@ -36,6 +37,14 @@ def _normalize_settings(settings: Mapping[str, Any]) -> dict[str, Any]:
     return ExamMemSettings.model_validate(settings).model_dump(mode="json")
 
 
+def _settings_contribution() -> SettingsContribution:
+    return SettingsContribution(
+        namespace="exam_mem",
+        defaults=ExamMemSettings().model_dump(mode="json"),
+        normalize=_normalize_settings,
+    )
+
+
 class ExamMemPlugin(BaseFullStackPlugin):
     def __init__(
         self,
@@ -50,6 +59,7 @@ class ExamMemPlugin(BaseFullStackPlugin):
             engine_factory=self._engine_factory,
             native_memory_client_factory=DeepTutorNativeMemoryClient,
         )
+        settings_contribution = _settings_contribution()
         self.manifest = PluginManifest(
             name="exam_mem",
             version="1.0.0",
@@ -66,7 +76,11 @@ class ExamMemPlugin(BaseFullStackPlugin):
             ),
             routers=(
                 RouterContribution(
-                    router=build_router(self._runtime_provider),
+                    router=build_router(
+                        self._runtime_provider,
+                        settings_contribution=settings_contribution,
+                        effective_settings=self.settings,
+                    ),
                     prefix="/api/v1/exam-mem",
                     tags=("exam-mem",),
                     access="authenticated",
@@ -81,22 +95,39 @@ class ExamMemPlugin(BaseFullStackPlugin):
                     order=45,
                 ),
                 NavigationContribution(
+                    href="/exam-mem/review",
+                    label="Exam Review",
+                    icon="FileCheck2",
+                    section="primary",
+                    order=46,
+                ),
+                NavigationContribution(
                     href="/exam-mem/memories",
                     label="Learning Memory",
                     icon="BrainCircuit",
                     section="secondary",
                     order=45,
                 ),
+                NavigationContribution(
+                    href="/exam-mem/issues",
+                    label="Memory Issues",
+                    icon="AlertOctagon",
+                    section="secondary",
+                    order=46,
+                ),
+                NavigationContribution(
+                    href="/exam-mem/configuration",
+                    label="ExamMem Configuration",
+                    icon="Settings2",
+                    section="secondary",
+                    order=47,
+                ),
             ),
-            settings=SettingsContribution(
-                namespace="exam_mem",
-                defaults=ExamMemSettings().model_dump(mode="json"),
-                normalize=_normalize_settings,
-            ),
+            settings=settings_contribution,
             migration=MigrationContribution(
                 config_path="alembic.ini",
                 versions_path="exam_mem/storage/migrations/versions",
-                expected_head="0006_practice_workflow",
+                expected_head="0007_grade_reviews",
             ),
             metadata={
                 "product_surface": "exam_practice",
@@ -112,7 +143,10 @@ class ExamMemPlugin(BaseFullStackPlugin):
 
 
 def get_plugin() -> ExamMemPlugin:
-    return ExamMemPlugin()
+    contribution = _settings_contribution()
+    return ExamMemPlugin(
+        settings=ExamMemSettings.model_validate(load_plugin_settings(contribution))
+    )
 
 
 __all__ = ["ExamMemPlugin", "get_plugin"]

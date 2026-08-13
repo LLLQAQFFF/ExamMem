@@ -28,6 +28,7 @@ class CapabilityManifest:
     cli_aliases: list[str] = field(default_factory=list)
     request_schema: dict[str, Any] = field(default_factory=dict)
     config_defaults: dict[str, Any] = field(default_factory=dict)
+    session_surface: str = "chat"
 
 
 class BaseCapability(ABC):

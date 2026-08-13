@@ -157,11 +157,15 @@ class DeepTutorApp:
     ) -> tuple[dict[str, Any], dict[str, Any]]:
         return await self.runtime.regenerate_last_turn(session_id, overrides=overrides)
 
-    async def list_sessions(self, limit: int = 50, offset: int = 0) -> list[dict[str, Any]]:
-        return await self.store.list_sessions(limit=limit, offset=offset)
+    async def list_sessions(
+        self, limit: int = 50, offset: int = 0, *, surface: str = "chat"
+    ) -> list[dict[str, Any]]:
+        return await self.store.list_sessions(limit=limit, offset=offset, surface=surface)
 
-    async def get_session(self, session_id: str) -> dict[str, Any] | None:
-        return await self.store.get_session_with_messages(session_id)
+    async def get_session(
+        self, session_id: str, *, surface: str = "chat"
+    ) -> dict[str, Any] | None:
+        return await self.store.get_session_with_messages(session_id, surface=surface)
 
     async def rename_session(self, session_id: str, title: str) -> bool:
         return await self.store.update_session_title(session_id, title)

@@ -6,6 +6,8 @@ from typing import Annotated
 
 from pydantic import BaseModel, ConfigDict, StringConstraints, model_validator
 
+from exam_mem.backends import BackendMode
+from exam_mem.config import backend_side_effects
 from exam_mem.contracts import (
     LearningContext,
     LearningEvent,
@@ -16,6 +18,7 @@ from exam_mem.lifecycle import ProjectionRefreshRequest
 
 from .contracts import (
     DiagnosisResult,
+    GradeArtifactIdentity,
     GradeResult,
     PracticeContext,
     PracticeState,
@@ -24,6 +27,22 @@ from .contracts import (
 )
 
 NonEmptyString = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
+
+
+class PracticeRuntimeSnapshot(BaseModel):
+    """Immutable effective configuration pinned when an exam instance starts."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    config_revision: NonEmptyString
+    backend_mode: BackendMode
+    side_effects: tuple[NonEmptyString, ...]
+
+    @model_validator(mode="after")
+    def validate_side_effects(self) -> PracticeRuntimeSnapshot:
+        if self.side_effects != backend_side_effects(self.backend_mode):
+            raise ValueError("runtime side effects must be derived from backend_mode")
+        return self
 
 
 class PracticeWorkflowCheckpoint(BaseModel):
@@ -38,7 +57,10 @@ class PracticeWorkflowCheckpoint(BaseModel):
 
     checkpoint_key: NonEmptyString
     context: PracticeContext
+    runtime_snapshot: PracticeRuntimeSnapshot | None = None
     grade_result: GradeResult | None = None
+    grade_artifact_identity: GradeArtifactIdentity | None = None
+    grade_reused_from_checkpoint: NonEmptyString | None = None
     mapped_knowledge_point_ids: tuple[NonEmptyString, ...] = ()
     diagnosis_result: DiagnosisResult | None = None
     learning_event: LearningEvent | None = None
@@ -64,6 +86,8 @@ class PracticeWorkflowCheckpoint(BaseModel):
             and self.grade_result is None
         ):
             raise ValueError(f"{state.value} checkpoint requires grade_result")
+        if self.grade_reused_from_checkpoint is not None and self.grade_result is None:
+            raise ValueError("grade reuse source requires grade_result")
 
         if state in {
             PracticeState.DIAGNOSED,
@@ -118,4 +142,8 @@ def checkpoint_key_for_context(context: PracticeContext) -> str:
     return f"answer:{context.submitted_answer.idempotency_key}"
 
 
-__all__ = ["PracticeWorkflowCheckpoint", "checkpoint_key_for_context"]
+__all__ = [
+    "PracticeRuntimeSnapshot",
+    "PracticeWorkflowCheckpoint",
+    "checkpoint_key_for_context",
+]

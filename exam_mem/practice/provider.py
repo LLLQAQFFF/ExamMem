@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import AsyncIterator, Callable, Sequence
 
-from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
+from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine, create_async_engine
 
 from deeptutor.plugins.host_services import UnifiedContext, get_embedding_client
 from exam_mem.backends import (
@@ -19,7 +19,7 @@ from exam_mem.backends import (
 from exam_mem.backends.baseline import AppendOnlyMemoryBackend, VectorMemoryBackend
 from exam_mem.backends.lifecycle import LifecycleMemoryBackend
 from exam_mem.backends.native import NativeMemoryBackend, NativeMemoryClient
-from exam_mem.config import ExamMemSettings
+from exam_mem.config import ExamMemSettings, backend_side_effects, settings_revision
 from exam_mem.contracts import (
     LearningContext,
     LearningEvent,
@@ -39,14 +39,18 @@ from exam_mem.storage import (
     CommittedPostgresPracticeCheckpointRepository,
     CommittedPostgresPracticeTraceRepository,
     PostgresBaselineFactRepository,
+    PostgresExamProductRepository,
+    PostgresGradeReviewRepository,
     PostgresLearningEventRepository,
     PostgresLearningMemoryRepository,
     PostgresLifecycleAuditRepository,
+    PostgresPracticeCheckpointRepository,
     PostgresStudentModelRepository,
     StudentModelRebuildService,
     load_database_settings,
 )
 
+from .checkpoint import PracticeRuntimeSnapshot
 from .contracts import PracticeContext, Question, Recommendation
 from .corrections import (
     ConfirmedCorrectionRelationClassifier,
@@ -377,6 +381,15 @@ class LearningMemoryRuntime:
     engine: AsyncEngine
 
 
+@dataclass(frozen=True, slots=True)
+class ExamProductRuntime:
+    products: PostgresExamProductRepository
+    reviews: PostgresGradeReviewRepository
+    checkpoints: PostgresPracticeCheckpointRepository
+    connection: AsyncConnection
+    engine: AsyncEngine
+
+
 class PracticeRuntimeProvider:
     """Resolve settings and open one isolated runtime per Capability turn."""
 
@@ -400,12 +413,24 @@ class PracticeRuntimeProvider:
         settings = self._settings
         if not settings.enabled or not settings.capabilities.exam_practice:
             raise PracticeRuntimeConfigurationError("exam_practice is disabled")
-        mode = validate_runtime_backend_mode(settings.memory_backend)
         questions = _runtime_questions(unified_context)
         engine = self._engine_factory(load_database_settings().sqlalchemy_url())
         try:
+            checkpoints = CommittedPostgresPracticeCheckpointRepository(engine)
+            current_mode = validate_runtime_backend_mode(settings.memory_backend)
+            current_snapshot = PracticeRuntimeSnapshot(
+                config_revision=settings_revision(settings),
+                backend_mode=current_mode,
+                side_effects=backend_side_effects(current_mode),
+            )
+            pinned_snapshot = await checkpoints.get_runtime_snapshot(
+                _learning_context(practice_context),
+                practice_context.practice_session_id,
+            )
+            runtime_snapshot = pinned_snapshot or current_snapshot
+            mode = runtime_snapshot.backend_mode
             workflow = ExamPracticeWorkflow(
-                checkpoint_repository=CommittedPostgresPracticeCheckpointRepository(engine),
+                checkpoint_repository=checkpoints,
                 trace_repository=CommittedPostgresPracticeTraceRepository(engine),
                 answer_grader=AnswerGraderTool(),
                 knowledge_mapper=KnowledgeMapperTool(taxonomy_version="math1_v1"),
@@ -430,6 +455,9 @@ class PracticeRuntimeProvider:
                         ),
                     )
                 ),
+                grader_contract_version="answer_grader_v1",
+                config_revision=runtime_snapshot.config_revision,
+                runtime_snapshot=runtime_snapshot,
             )
             yield PracticeRuntime(workflow=workflow, engine=engine)
         finally:
@@ -518,6 +546,24 @@ class PracticeRuntimeProvider:
                     queries=queries,
                     corrections=corrections,
                     trace=trace,
+                    engine=engine,
+                )
+        finally:
+            await engine.dispose()
+
+    @asynccontextmanager
+    async def open_product(self) -> AsyncIterator[ExamProductRuntime]:
+        settings = self._settings
+        if not settings.enabled or not settings.capabilities.exam_practice:
+            raise PracticeRuntimeConfigurationError("exam_practice is disabled")
+        engine = self._engine_factory(load_database_settings().sqlalchemy_url())
+        try:
+            async with engine.connect() as connection:
+                yield ExamProductRuntime(
+                    products=PostgresExamProductRepository(connection),
+                    reviews=PostgresGradeReviewRepository(connection),
+                    checkpoints=PostgresPracticeCheckpointRepository(connection),
+                    connection=connection,
                     engine=engine,
                 )
         finally:

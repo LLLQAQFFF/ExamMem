@@ -73,6 +73,16 @@ class GradeResult(StrictPracticeModel):
     grader_version: NonEmptyString
 
 
+class GradeArtifactIdentity(StrictPracticeModel):
+    """Strict identity for reusing grading computation across exam instances."""
+
+    question_version: NonEmptyString
+    normalized_answer_hash: NonEmptyString
+    rubric_version: NonEmptyString
+    grader_contract_version: NonEmptyString
+    config_revision: NonEmptyString
+
+
 class DiagnosisResult(StrictPracticeModel):
     """Structured diagnosis that cannot create free-form error types."""
 

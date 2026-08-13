@@ -322,6 +322,45 @@ practice_trace_spans = Table(
     ),
 )
 
+grade_review_events = Table(
+    "grade_review_events",
+    metadata,
+    Column("review_event_id", Text, nullable=False),
+    Column("review_chain_id", Text, nullable=False),
+    Column("idempotency_key", Text, nullable=False),
+    Column("action", Text, nullable=False),
+    Column("user_id", Text, nullable=False),
+    Column("exam_id", Text, nullable=False),
+    Column("subject_id", Text, nullable=False),
+    Column("practice_session_id", Text, nullable=False),
+    Column("checkpoint_key", Text, nullable=False),
+    Column("payload", JSONB, nullable=False),
+    Column("created_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+    PrimaryKeyConstraint("review_event_id", name="pk_grade_review_events"),
+    UniqueConstraint("user_id", "idempotency_key", name="uq_grade_review_events_user_idem"),
+    CheckConstraint(
+        "action IN ('dispute', 'uphold', 'overturn')",
+        name="ck_grade_review_events_action",
+    ),
+    CheckConstraint(
+        "jsonb_typeof(payload) = 'object'",
+        name="ck_grade_review_events_payload_object",
+    ),
+)
+
+Index(
+    "ix_grade_review_events_scope_created",
+    grade_review_events.c.user_id,
+    grade_review_events.c.exam_id,
+    grade_review_events.c.subject_id,
+    grade_review_events.c.created_at,
+)
+Index(
+    "ix_grade_review_events_chain_created",
+    grade_review_events.c.review_chain_id,
+    grade_review_events.c.created_at,
+)
+
 Index(
     "ix_practice_trace_spans_name_created",
     practice_trace_spans.c.span_name,
@@ -645,6 +684,7 @@ __all__ = [
     "baseline_memory_facts",
     "event_correction_targets",
     "event_plan_transition_targets",
+    "grade_review_events",
     "learning_events",
     "learning_memories",
     "lifecycle_decisions",

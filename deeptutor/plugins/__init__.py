@@ -16,6 +16,7 @@ from .manager import (
     get_plugin_manager,
     reset_plugin_manager,
 )
+from .settings import load_plugin_settings, save_plugin_settings
 
 __all__ = [
     "BaseFullStackPlugin",
@@ -28,6 +29,8 @@ __all__ = [
     "RouterContribution",
     "SettingsContribution",
     "get_plugin_manager",
+    "load_plugin_settings",
     "mount_plugin_routers",
     "reset_plugin_manager",
+    "save_plugin_settings",
 ]

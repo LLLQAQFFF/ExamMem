@@ -21,6 +21,7 @@ from exam_mem.practice import (
     Question,
     Recommendation,
 )
+from exam_mem.practice.workflow import grade_artifact_identity
 from exam_mem.storage import (
     AppendStatus,
     PracticeCheckpointAppendResult,
@@ -51,14 +52,20 @@ def _question(question_id: str, difficulty: float = 0.5) -> Question:
     )
 
 
-def _context(*, trace_id: str = "trace:workflow:001") -> PracticeContext:
+def _context(
+    *,
+    trace_id: str = "trace:workflow:001",
+    practice_session_id: str = "practice:workflow:001",
+    idempotency_key: str = "answer:workflow:001",
+    answer: str = "I reversed the conditional probability.",
+) -> PracticeContext:
     question = _question("question:bayes:001")
     submission = AnswerSubmission(
-        practice_session_id="practice:workflow:001",
+        practice_session_id=practice_session_id,
         question_id=question.question_id,
-        answer="I reversed the conditional probability.",
+        answer=answer,
         submitted_at=NOW,
-        idempotency_key="answer:workflow:001",
+        idempotency_key=idempotency_key,
     )
     return PracticeContext(
         practice_session_id=submission.practice_session_id,
@@ -144,6 +151,47 @@ class FakeCheckpointRepository:
                 if question is not None and question.question_id == question_id:
                     return question
         return None
+
+    async def find_grade_artifact(self, context, identity):  # noqa: ANN001, ANN201
+        for record in reversed(tuple(self.records.values())):
+            checkpoint = record.checkpoint
+            scope = checkpoint.context.scope
+            if (scope.user_id, scope.exam_id, scope.subject_id) != (
+                context.user_id,
+                context.exam_id,
+                context.subject_id,
+            ):
+                continue
+            if checkpoint.grade_artifact_identity == identity:
+                return record
+        return None
+
+    async def get_runtime_snapshot(self, context, practice_session_id):  # noqa: ANN001, ANN201
+        for record in self.records.values():
+            checkpoint = record.checkpoint
+            if checkpoint.context.practice_session_id != practice_session_id:
+                continue
+            scope = checkpoint.context.scope
+            if (scope.user_id, scope.exam_id, scope.subject_id) == (
+                context.user_id,
+                context.exam_id,
+                context.subject_id,
+            ) and checkpoint.runtime_snapshot is not None:
+                return checkpoint.runtime_snapshot
+        return None
+
+    async def get_latest(self, context, practice_session_id):  # noqa: ANN001, ANN201
+        matches = []
+        for record in self.records.values():
+            checkpoint = record.checkpoint
+            scope = checkpoint.context.scope
+            if checkpoint.context.practice_session_id == practice_session_id and (
+                scope.user_id,
+                scope.exam_id,
+                scope.subject_id,
+            ) == (context.user_id, context.exam_id, context.subject_id):
+                matches.append(record)
+        return matches[-1] if matches else None
 
 
 class FakeTraceRepository:
@@ -322,6 +370,52 @@ async def test_wrong_answer_runs_to_recommendation_and_replay_skips_side_effects
     assert PracticeSpanName.ANSWER_GRADED in span_names
     assert PracticeSpanName.EVENT_APPENDED in span_names
     assert PracticeSpanName.QUESTION_RECOMMENDED in span_names
+
+
+async def test_grade_artifact_reuses_only_grading_across_exam_instances() -> None:
+    workflow, deps = _workflow()
+    first_context = _context()
+    second_context = _context(
+        trace_id="trace:workflow:002",
+        practice_session_id="practice:workflow:002",
+        idempotency_key="answer:workflow:002",
+        answer="  I   reversed the conditional probability.  ",
+    )
+    await _issue_first_question(workflow, first_context)
+    first = await workflow.run(first_context)
+    await _issue_first_question(workflow, second_context)
+    second = await workflow.run(second_context)
+
+    assert deps["grader"].calls == 1
+    assert deps["writer"].calls == 2
+    assert first.checkpoint.learning_event != second.checkpoint.learning_event
+    assert second.checkpoint.grade_artifact_identity == grade_artifact_identity(
+        second_context.current_question,
+        second_context.submitted_answer,
+        grader_contract_version="answer_grader_v1",
+        config_revision="exam_mem_default_v1",
+    )
+    assert second.checkpoint.grade_reused_from_checkpoint == (
+        "practice:workflow:001:answer:answer:workflow:001"
+    )
+
+
+async def test_grade_artifact_identity_change_calls_grader_again() -> None:
+    workflow, deps = _workflow()
+    first_context = _context()
+    changed_context = _context(
+        trace_id="trace:workflow:changed",
+        practice_session_id="practice:workflow:changed",
+        idempotency_key="answer:workflow:changed",
+        answer="A materially different answer.",
+    )
+    await _issue_first_question(workflow, first_context)
+    await workflow.run(first_context)
+    await _issue_first_question(workflow, changed_context)
+    await workflow.run(changed_context)
+
+    assert deps["grader"].calls == 2
+    assert deps["writer"].calls == 2
 
 
 async def test_memory_failure_resumes_from_diagnosed_without_regrading() -> None:

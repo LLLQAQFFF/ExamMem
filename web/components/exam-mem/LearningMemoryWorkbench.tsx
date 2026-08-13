@@ -1,12 +1,14 @@
 "use client";
 
-import { AlertTriangle, Database, RefreshCw, Search } from "lucide-react";
+import { AlertTriangle, Database, RefreshCw, Search, ShieldCheck } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { apiFetch, apiUrl } from "@/lib/api";
 import {
   LEARNING_MEMORY_NAMESPACES,
+  cancelLearningPlan,
+  correctLearningMemory,
   learningMemoryQuery,
   memoryValueSummary,
   type LearningMemoryDetail,
@@ -25,6 +27,8 @@ export default function LearningMemoryWorkbench() {
   const [evidence, setEvidence] = useState<LearningMemoryEvidence | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [correction, setCorrection] = useState("");
+  const [pendingCorrectionKey, setPendingCorrectionKey] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -74,8 +78,51 @@ export default function LearningMemoryWorkbench() {
       }
       setSelected((await detailResponse.json()) as LearningMemoryDetail);
       setEvidence((await evidenceResponse.json()) as LearningMemoryEvidence);
+      setCorrection("");
+      setPendingCorrectionKey(null);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : t("Memory detail failed."));
+    }
+  };
+
+  const submitCorrection = async () => {
+    const memory = selected?.snapshot.memory;
+    if (!memory || (!pendingCorrectionKey && !correction.trim())) return;
+    const key = pendingCorrectionKey ?? `correction:web:${crypto.randomUUID()}`;
+    setPendingCorrectionKey(key);
+    setError(null);
+    try {
+      await correctLearningMemory({
+        memoryId: memory.memory_id,
+        namespace: memory.scope.memory_namespace,
+        statement: correction.trim(),
+        idempotencyKey: key,
+      });
+      setPendingCorrectionKey(null);
+      setCorrection("");
+      await load();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : t("Learning Memory correction failed."));
+    }
+  };
+
+  const cancelPlan = async () => {
+    const memory = selected?.snapshot.memory;
+    if (!memory || (!pendingCorrectionKey && !correction.trim())) return;
+    const key = pendingCorrectionKey ?? `plan-cancel:web:${crypto.randomUUID()}`;
+    setPendingCorrectionKey(key);
+    setError(null);
+    try {
+      await cancelLearningPlan({
+        memoryId: memory.memory_id,
+        reason: correction.trim(),
+        idempotencyKey: key,
+      });
+      setPendingCorrectionKey(null);
+      setCorrection("");
+      await load();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : t("Plan cancellation failed."));
     }
   };
 
@@ -168,6 +215,35 @@ export default function LearningMemoryWorkbench() {
                   ? t("This version is eligible for an explicit, confirmed correction.")
                   : t("This historical version is read-only.")}
               </p>
+              {selected.correction_allowed ? (
+                <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-4">
+                  <div className="flex items-center gap-2 text-sm font-semibold">
+                    <ShieldCheck className="h-4 w-4" />
+                    {selected.snapshot.memory.scope.memory_namespace === "plan"
+                      ? t("Confirm Plan cancellation")
+                      : t("Confirm Learning Memory correction")}
+                  </div>
+                  <p className="mt-2 text-xs text-[var(--muted-foreground)]">
+                    {t("This appends new evidence and lifecycle audit records. The selected historical version is never edited in place.")}
+                  </p>
+                  <textarea
+                    rows={3}
+                    value={correction}
+                    onChange={(event) => setCorrection(event.target.value)}
+                    disabled={pendingCorrectionKey !== null}
+                    className="mt-3 w-full rounded-lg border border-[var(--border)] bg-[var(--background)] p-3 text-sm"
+                    placeholder={t("Explain what is inaccurate or why this plan should be cancelled…")}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => void (selected.snapshot.memory.scope.memory_namespace === "plan" ? cancelPlan() : submitCorrection())}
+                    disabled={!pendingCorrectionKey && !correction.trim()}
+                    className="mt-2 rounded-lg bg-[var(--primary)] px-4 py-2 text-sm text-[var(--primary-foreground)] disabled:opacity-50"
+                  >
+                    {pendingCorrectionKey ? t("Retry identical confirmed request") : t("Confirm and append")}
+                  </button>
+                </div>
+              ) : null}
             </div>
           ) : (
             <p className="text-sm text-[var(--muted-foreground)]">{t("Select a Memory to inspect its complete version and evidence chain.")}</p>

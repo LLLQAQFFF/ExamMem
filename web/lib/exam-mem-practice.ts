@@ -36,6 +36,16 @@ export interface PracticeResult {
   } | null;
   resumed_from_state: string;
   replayed: boolean;
+  runtime?: {
+    config_revision: string;
+    backend_mode: string;
+    side_effects: string[];
+  } | null;
+  grade_artifact?: {
+    reused: boolean;
+    source_checkpoint: string | null;
+    identity: Record<string, string>;
+  } | null;
 }
 
 export interface PracticeTurnResponse {

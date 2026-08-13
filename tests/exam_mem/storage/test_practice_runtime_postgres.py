@@ -8,6 +8,8 @@ from sqlalchemy.ext.asyncio import create_async_engine
 
 from exam_mem.contracts import LearningContext, MemoryScope
 from exam_mem.practice import (
+    GradeArtifactIdentity,
+    GradeResult,
     PracticeContext,
     PracticeSpanName,
     PracticeSpanStatus,
@@ -90,6 +92,48 @@ def _span(*, output: str = "selected") -> PracticeTraceSpan:
     )
 
 
+def _graded_checkpoint(
+    *, practice_session_id: str, checkpoint_key: str
+) -> PracticeWorkflowCheckpoint:
+    question = _ready_checkpoint().context.current_question
+    assert question is not None
+    context = PracticeContext.model_validate(
+        {
+            "practice_session_id": practice_session_id,
+            "scope": SCOPE.model_dump(mode="json"),
+            "current_question": question.model_dump(mode="json"),
+            "submitted_answer": {
+                "practice_session_id": practice_session_id,
+                "question_id": question.question_id,
+                "answer": "One stable answer.",
+                "submitted_at": NOW,
+                "idempotency_key": checkpoint_key,
+            },
+            "step_state": "GRADED",
+            "trace_id": f"trace:{practice_session_id}",
+        }
+    )
+    return PracticeWorkflowCheckpoint(
+        checkpoint_key=checkpoint_key,
+        context=context,
+        grade_result=GradeResult(
+            correct=True,
+            score=1.0,
+            matched_rubric_items=["apply_bayes"],
+            missed_rubric_items=[],
+            evidence=["Stable evidence."],
+            grader_version="answer_grader_v1",
+        ),
+        grade_artifact_identity=GradeArtifactIdentity(
+            question_version="question-version",
+            normalized_answer_hash="answer-hash",
+            rubric_version="rubric-version",
+            grader_contract_version="answer_grader_v1",
+            config_revision="config-revision",
+        ),
+    )
+
+
 async def test_checkpoint_repository_create_replay_and_cas_are_transactional() -> None:
     engine = create_async_engine(_database_url_or_skip())
     try:
@@ -153,5 +197,33 @@ async def test_trace_repository_is_append_only_and_idempotent_by_step() -> None:
                 assert await repository.next_step_id("trace:runtime:001") == 2
             finally:
                 await transaction.rollback()
+    finally:
+        await engine.dispose()
+
+
+async def test_grade_artifact_lookup_crosses_practice_session_but_not_scope() -> None:
+    engine = create_async_engine(_database_url_or_skip())
+    try:
+        async with engine.connect() as connection:
+            transaction = await connection.begin()
+            repository = PostgresPracticeCheckpointRepository(connection)
+            stored = _graded_checkpoint(
+                practice_session_id="practice:artifact:001",
+                checkpoint_key="answer:artifact:001",
+            )
+            await repository.create(stored)
+
+            found = await repository.find_grade_artifact(
+                LEARNING_CONTEXT, stored.grade_artifact_identity
+            )
+            other_scope = await repository.find_grade_artifact(
+                LEARNING_CONTEXT.model_copy(update={"user_id": "other-user"}),
+                stored.grade_artifact_identity,
+            )
+
+            assert found is not None
+            assert found.checkpoint.context.practice_session_id == "practice:artifact:001"
+            assert other_scope is None
+            await transaction.rollback()
     finally:
         await engine.dispose()

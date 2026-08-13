@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from types import SimpleNamespace
 
 import pytest
@@ -71,6 +72,41 @@ def _model_catalog() -> dict:
             }
         },
     }
+
+
+@pytest.mark.asyncio
+async def test_turn_runtime_rejects_cross_surface_session_reuse(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path,
+) -> None:
+    chat = SimpleNamespace(manifest=SimpleNamespace(session_surface="chat"))
+    registry = SimpleNamespace(get=lambda name: chat if name == "chat" else None)
+    monkeypatch.setattr(
+        "deeptutor.runtime.registry.capability_registry.get_capability_registry",
+        lambda: registry,
+    )
+    store = SQLiteSessionStore(tmp_path / "chat_history.db")
+    runtime = TurnRuntimeManager(store)
+    session = await store.create_session(session_id="practice_session")
+    assert await store.update_session_preferences(
+        session["id"], {"session_surface": "exam_practice"}
+    )
+    persisted = await store.get_session(session["id"])
+    assert persisted is not None
+    assert persisted["preferences"]["session_surface"] == "exam_practice"
+
+    with pytest.raises(RuntimeError, match="Session surface conflict"):
+        await asyncio.wait_for(
+            runtime.start_turn(
+                {
+                    "content": "do not resume in chat",
+                    "session_id": session["id"],
+                    "capability": "chat",
+                    "config": {},
+                }
+            ),
+            timeout=2,
+        )
 
 
 @pytest.mark.asyncio
@@ -233,6 +269,7 @@ async def test_turn_runtime_replays_events_and_materializes_messages(
     assert detail["messages"][1]["content"] == "Hello Frank"
     assert detail["preferences"] == {
         "capability": "chat",
+        "session_surface": "chat",
         "tools": [],
         "knowledge_bases": [],
         "language": "en",

@@ -8,6 +8,7 @@ import hashlib
 import json
 import logging
 from typing import Any, Protocol, TypeVar
+import unicodedata
 
 from pydantic import JsonValue
 
@@ -20,10 +21,15 @@ from exam_mem.storage.practice_checkpoint_repository import (
 )
 from exam_mem.storage.practice_trace_repository import PracticeTraceRepository
 
-from .checkpoint import PracticeWorkflowCheckpoint, checkpoint_key_for_context
+from .checkpoint import (
+    PracticeRuntimeSnapshot,
+    PracticeWorkflowCheckpoint,
+    checkpoint_key_for_context,
+)
 from .contracts import (
     AnswerSubmission,
     DiagnosisResult,
+    GradeArtifactIdentity,
     GradeResult,
     PracticeContext,
     PracticeState,
@@ -110,6 +116,10 @@ class PracticeWorkflowError(RuntimeError):
         super().__init__(error_code)
 
 
+class GraderContractVersionError(ValueError):
+    error_code = "grader_contract_version_mismatch"
+
+
 @dataclass(frozen=True, slots=True)
 class PracticeWorkflowResult:
     checkpoint: PracticeWorkflowCheckpoint
@@ -132,9 +142,15 @@ class ExamPracticeWorkflow:
         memory_writer: PracticeMemoryWriter,
         recommendation_tool: PracticeRecommendationTool,
         taxonomy_version: str = "math1_v1",
+        grader_contract_version: str = "answer_grader_v1",
+        config_revision: str = "exam_mem_default_v1",
+        runtime_snapshot: PracticeRuntimeSnapshot | None = None,
     ) -> None:
-        if not taxonomy_version.strip():
-            raise ValueError("taxonomy_version must not be blank")
+        if not all(
+            value.strip()
+            for value in (taxonomy_version, grader_contract_version, config_revision)
+        ):
+            raise ValueError("workflow versions must not be blank")
         self._checkpoints = checkpoint_repository
         self._traces = trace_repository
         self._answer_grader = answer_grader
@@ -144,6 +160,9 @@ class ExamPracticeWorkflow:
         self._memory_writer = memory_writer
         self._recommendation_tool = recommendation_tool
         self._taxonomy_version = taxonomy_version
+        self._grader_contract_version = grader_contract_version
+        self._config_revision = config_revision
+        self._runtime_snapshot = runtime_snapshot
 
     async def run(
         self,
@@ -174,7 +193,11 @@ class ExamPracticeWorkflow:
         replayed = record is not None
         if record is None:
             created = await self._checkpoints.create(
-                PracticeWorkflowCheckpoint(checkpoint_key=key, context=context)
+                PracticeWorkflowCheckpoint(
+                    checkpoint_key=key,
+                    context=context,
+                    runtime_snapshot=self._runtime_snapshot,
+                )
             )
             if created.status is not AppendStatus.CREATED or created.record is None:
                 raise PracticeWorkflowError(
@@ -184,7 +207,11 @@ class ExamPracticeWorkflow:
                 )
             record = created.record
         else:
-            _validate_replay_request(context, record.checkpoint)
+            _validate_replay_request(
+                context,
+                record.checkpoint,
+                runtime_snapshot=self._runtime_snapshot,
+            )
 
         resumed_from = record.checkpoint.context.step_state
         trace = PracticeTraceRecorder(self._traces, trace_id=context.trace_id)
@@ -274,19 +301,63 @@ class ExamPracticeWorkflow:
         assert question is not None and submission is not None
 
         if not _at_least(checkpoint, PracticeState.GRADED):
-            grade = await self._call_tool(
-                name="answer_grader",
-                span_name=PracticeSpanName.ANSWER_GRADED,
-                state=PracticeState.ANSWER_RECEIVED,
-                trace=trace,
-                stream=stream,
-                retry_count=retry_count,
-                input_summary={"question_id": question.question_id},
-                operation=lambda: self._answer_grader.grade(question, submission),
-                output_summary=lambda value: {"correct": value.correct, "score": value.score},
-                versions=lambda value: {"grader_version": value.grader_version},
-                llm_calls=1,
+            artifact_identity = grade_artifact_identity(
+                question,
+                submission,
+                grader_contract_version=self._grader_contract_version,
+                config_revision=self._config_revision,
             )
+            artifact = await self._checkpoints.find_grade_artifact(
+                _learning_context(checkpoint.context), artifact_identity
+            )
+            reuse_source = None
+            if artifact is not None:
+                grade = artifact.checkpoint.grade_result
+                assert grade is not None
+                reuse_source = (
+                    f"{artifact.checkpoint.context.practice_session_id}:"
+                    f"{artifact.checkpoint.checkpoint_key}"
+                )
+                grade = await self._call_tool(
+                    name="answer_grader",
+                    span_name=PracticeSpanName.ANSWER_GRADED,
+                    state=PracticeState.ANSWER_RECEIVED,
+                    trace=trace,
+                    stream=stream,
+                    retry_count=retry_count,
+                    input_summary={
+                        "question_id": question.question_id,
+                        "grade_artifact": artifact_identity.model_dump(mode="json"),
+                    },
+                    operation=lambda: _resolved(grade),
+                    output_summary=lambda value: {
+                        "correct": value.correct,
+                        "score": value.score,
+                        "grade_artifact_reused": True,
+                    },
+                    versions=lambda value: {"grader_version": value.grader_version},
+                )
+            else:
+                grade = await self._call_tool(
+                    name="answer_grader",
+                    span_name=PracticeSpanName.ANSWER_GRADED,
+                    state=PracticeState.ANSWER_RECEIVED,
+                    trace=trace,
+                    stream=stream,
+                    retry_count=retry_count,
+                    input_summary={
+                        "question_id": question.question_id,
+                        "grade_artifact": artifact_identity.model_dump(mode="json"),
+                    },
+                    operation=lambda: self._grade_with_contract(question, submission),
+                    output_summary=lambda value: {
+                        "correct": value.correct,
+                        "score": value.score,
+                        "grade_artifact_reused": False,
+                    },
+                    versions=lambda value: {"grader_version": value.grader_version},
+                    llm_calls=1,
+                )
             record = await self._advance(
                 record,
                 _update_checkpoint(
@@ -296,6 +367,8 @@ class ExamPracticeWorkflow:
                         step_state=PracticeState.GRADED,
                     ),
                     grade_result=grade,
+                    grade_artifact_identity=artifact_identity,
+                    grade_reused_from_checkpoint=reuse_source,
                 ),
             )
             checkpoint = record.checkpoint
@@ -582,7 +655,7 @@ class ExamPracticeWorkflow:
             )
             raise PracticeWorkflowError(
                 error_code,
-                retryable=True,
+                retryable=not isinstance(exc, GraderContractVersionError),
                 step_state=state,
                 checkpoint=failure_checkpoint,
             ) from exc
@@ -606,6 +679,53 @@ class ExamPracticeWorkflow:
                 metadata={"trace_id": trace.trace_id},
             )
         return result
+
+    async def _grade_with_contract(
+        self,
+        question: Question,
+        submission: AnswerSubmission,
+    ) -> GradeResult:
+        grade = await self._answer_grader.grade(question, submission)
+        if grade.grader_version != self._grader_contract_version:
+            raise GraderContractVersionError(
+                "grader result does not match the pinned contract version"
+            )
+        return grade
+
+
+async def _resolved(value: T) -> T:
+    return value
+
+
+def grade_artifact_identity(
+    question: Question,
+    submission: AnswerSubmission,
+    *,
+    grader_contract_version: str,
+    config_revision: str,
+) -> GradeArtifactIdentity:
+    """Build the exact cache identity without including exam-instance identity."""
+    question_payload = question.model_dump(mode="json", exclude={"grading_rubric"})
+    normalized_answer = " ".join(
+        unicodedata.normalize("NFKC", submission.answer).strip().split()
+    )
+    return GradeArtifactIdentity(
+        question_version=_canonical_hash(question_payload),
+        normalized_answer_hash=hashlib.sha256(normalized_answer.encode()).hexdigest(),
+        rubric_version=_canonical_hash(question.grading_rubric),
+        grader_contract_version=grader_contract_version,
+        config_revision=config_revision,
+    )
+
+
+def _canonical_hash(value: Any) -> str:
+    encoded = json.dumps(
+        value,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    ).encode()
+    return hashlib.sha256(encoded).hexdigest()
 
 
 def _mapped_ids(result: KnowledgePointNormalizationResult) -> tuple[str, ...]:
@@ -665,12 +785,18 @@ def _update_checkpoint(
 def _validate_replay_request(
     requested: PracticeContext,
     stored: PracticeWorkflowCheckpoint,
+    *,
+    runtime_snapshot: PracticeRuntimeSnapshot | None,
 ) -> None:
     stored_context = stored.context
     if (
         requested.practice_session_id != stored_context.practice_session_id
         or requested.scope != stored_context.scope
         or requested.trace_id != stored_context.trace_id
+        or (
+            stored.runtime_snapshot is not None
+            and stored.runtime_snapshot != runtime_snapshot
+        )
     ):
         raise PracticeWorkflowError(
             "practice_checkpoint_identity_conflict",
@@ -723,4 +849,5 @@ __all__ = [
     "PracticeWorkflowError",
     "PracticeWorkflowResult",
     "WorkflowEventSink",
+    "grade_artifact_identity",
 ]

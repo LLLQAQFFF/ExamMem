@@ -1,3 +1,5 @@
+import { apiFetch, apiUrl } from "@/lib/api";
+
 export type LearningMemoryNamespace = "mastery" | "error_pattern" | "plan";
 
 export interface LearningMemoryRecord {
@@ -68,4 +70,73 @@ export function memoryValueSummary(value: LearningMemoryRecord["value"]): string
     return `${String(value.goal ?? "plan")} · ${String(value.status ?? "unknown")}`;
   }
   return JSON.stringify(value);
+}
+
+async function requireOk(response: Response): Promise<void> {
+  if (response.ok) return;
+  const payload = (await response.json().catch(() => ({}))) as {
+    detail?: string | { message?: string };
+  };
+  const detail = payload.detail;
+  throw new Error(
+    typeof detail === "string"
+      ? detail
+      : detail?.message || `Learning Memory request failed (${response.status}).`,
+  );
+}
+
+export async function correctLearningMemory(options: {
+  memoryId: string;
+  namespace: LearningMemoryNamespace;
+  statement: string;
+  idempotencyKey: string;
+}): Promise<void> {
+  const params = learningMemoryQuery(
+    "postgraduate_entrance_exam",
+    "math_1",
+    options.namespace,
+  );
+  const response = await apiFetch(
+    apiUrl(`/api/v1/exam-mem/memories/${encodeURIComponent(options.memoryId)}/corrections?${params}`),
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        session_id: `correction:web:${options.idempotencyKey}`,
+        idempotency_key: options.idempotencyKey,
+        statement: options.statement,
+        occurred_at: new Date().toISOString(),
+        uncertain: true,
+        confirmed: true,
+      }),
+    },
+  );
+  await requireOk(response);
+}
+
+export async function cancelLearningPlan(options: {
+  memoryId: string;
+  reason: string;
+  idempotencyKey: string;
+}): Promise<void> {
+  const params = new URLSearchParams({
+    exam_id: "postgraduate_entrance_exam",
+    subject_id: "math_1",
+  });
+  const response = await apiFetch(
+    apiUrl(`/api/v1/exam-mem/plans/${encodeURIComponent(options.memoryId)}/transitions?${params}`),
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        kind: "user_cancellation",
+        session_id: `plan:web:${options.idempotencyKey}`,
+        idempotency_key: options.idempotencyKey,
+        reason: options.reason,
+        occurred_at: new Date().toISOString(),
+        confirmed: true,
+      }),
+    },
+  );
+  await requireOk(response);
 }

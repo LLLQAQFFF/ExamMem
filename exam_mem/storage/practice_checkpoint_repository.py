@@ -11,8 +11,8 @@ from sqlalchemy.dialects.postgresql import insert as postgresql_insert
 from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine
 
 from exam_mem.contracts import LearningContext
-from exam_mem.practice.checkpoint import PracticeWorkflowCheckpoint
-from exam_mem.practice.contracts import Question
+from exam_mem.practice.checkpoint import PracticeRuntimeSnapshot, PracticeWorkflowCheckpoint
+from exam_mem.practice.contracts import GradeArtifactIdentity, Question
 
 from .event_repository import AppendStatus
 from .models import practice_workflow_checkpoints
@@ -63,6 +63,24 @@ class PracticeCheckpointRepository(Protocol):
         practice_session_id: str,
         question_id: str,
     ) -> Question | None: ...
+
+    async def find_grade_artifact(
+        self,
+        context: LearningContext,
+        identity: GradeArtifactIdentity,
+    ) -> PracticeCheckpointRecord | None: ...
+
+    async def get_runtime_snapshot(
+        self,
+        context: LearningContext,
+        practice_session_id: str,
+    ) -> PracticeRuntimeSnapshot | None: ...
+
+    async def get_latest(
+        self,
+        context: LearningContext,
+        practice_session_id: str,
+    ) -> PracticeCheckpointRecord | None: ...
 
 
 class PostgresPracticeCheckpointRepository:
@@ -204,6 +222,91 @@ class PostgresPracticeCheckpointRepository:
                     return question
         return None
 
+    async def find_grade_artifact(
+        self,
+        context: LearningContext,
+        identity: GradeArtifactIdentity,
+    ) -> PracticeCheckpointRecord | None:
+        rows = (
+            (
+                await self._connection.execute(
+                    select(practice_workflow_checkpoints)
+                    .where(
+                        practice_workflow_checkpoints.c.step_state.in_(
+                            ("GRADED", "DIAGNOSED", "MEMORY_UPDATED", "RECOMMENDED")
+                        ),
+                        *_context_predicates(context),
+                    )
+                    .order_by(
+                        practice_workflow_checkpoints.c.updated_at.desc(),
+                        practice_workflow_checkpoints.c.checkpoint_key.desc(),
+                    )
+                )
+            )
+            .mappings()
+            .all()
+        )
+        for row in rows:
+            record = _record_from_row(row)
+            if record.checkpoint.grade_artifact_identity == identity:
+                return record
+        return None
+
+    async def get_runtime_snapshot(
+        self,
+        context: LearningContext,
+        practice_session_id: str,
+    ) -> PracticeRuntimeSnapshot | None:
+        if not practice_session_id.strip():
+            raise ValueError("practice_session_id must not be blank")
+        payloads = (
+            await self._connection.scalars(
+                select(practice_workflow_checkpoints.c.payload)
+                .where(
+                    practice_workflow_checkpoints.c.practice_session_id
+                    == practice_session_id,
+                    *_context_predicates(context),
+                )
+                .order_by(
+                    practice_workflow_checkpoints.c.updated_at.asc(),
+                    practice_workflow_checkpoints.c.checkpoint_key.asc(),
+                )
+            )
+        ).all()
+        for payload in payloads:
+            snapshot = PracticeWorkflowCheckpoint.model_validate(payload).runtime_snapshot
+            if snapshot is not None:
+                return snapshot
+        return None
+
+    async def get_latest(
+        self,
+        context: LearningContext,
+        practice_session_id: str,
+    ) -> PracticeCheckpointRecord | None:
+        if not practice_session_id.strip():
+            raise ValueError("practice_session_id must not be blank")
+        row = (
+            (
+                await self._connection.execute(
+                    select(practice_workflow_checkpoints)
+                    .where(
+                        practice_workflow_checkpoints.c.practice_session_id
+                        == practice_session_id,
+                        *_context_predicates(context),
+                    )
+                    .order_by(
+                        practice_workflow_checkpoints.c.updated_at.desc(),
+                        practice_workflow_checkpoints.c.checkpoint_key.desc(),
+                    )
+                    .limit(1)
+                )
+            )
+            .mappings()
+            .one_or_none()
+        )
+        return None if row is None else _record_from_row(row)
+
 
 class CommittedPostgresPracticeCheckpointRepository:
     """Persist every checkpoint operation in its own short transaction."""
@@ -254,6 +357,39 @@ class CommittedPostgresPracticeCheckpointRepository:
                 context,
                 practice_session_id,
                 question_id,
+            )
+
+    async def find_grade_artifact(
+        self,
+        context: LearningContext,
+        identity: GradeArtifactIdentity,
+    ) -> PracticeCheckpointRecord | None:
+        async with self._engine.connect() as connection:
+            return await PostgresPracticeCheckpointRepository(connection).find_grade_artifact(
+                context,
+                identity,
+            )
+
+    async def get_runtime_snapshot(
+        self,
+        context: LearningContext,
+        practice_session_id: str,
+    ) -> PracticeRuntimeSnapshot | None:
+        async with self._engine.connect() as connection:
+            return await PostgresPracticeCheckpointRepository(connection).get_runtime_snapshot(
+                context,
+                practice_session_id,
+            )
+
+    async def get_latest(
+        self,
+        context: LearningContext,
+        practice_session_id: str,
+    ) -> PracticeCheckpointRecord | None:
+        async with self._engine.connect() as connection:
+            return await PostgresPracticeCheckpointRepository(connection).get_latest(
+                context,
+                practice_session_id,
             )
 
 
@@ -309,12 +445,14 @@ def _validate_same_identity(
         existing_context.practice_session_id,
         existing_context.trace_id,
         existing_context.scope,
+        existing.runtime_snapshot,
     )
     immutable_proposed = (
         proposed.checkpoint_key,
         proposed_context.practice_session_id,
         proposed_context.trace_id,
         proposed_context.scope,
+        proposed.runtime_snapshot,
     )
     if immutable_existing != immutable_proposed:
         raise PracticeCheckpointIdentityError("checkpoint identity is immutable")

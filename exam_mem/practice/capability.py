@@ -97,6 +97,7 @@ class ExamPracticeCapability(BaseCapability):
             },
             "additionalProperties": False,
         },
+        session_surface="exam_practice",
     )
 
     def __init__(
@@ -394,11 +395,25 @@ def _result_payload(result: PracticeWorkflowResult) -> dict[str, Any]:
                 exclude={"user_id"},
             ),
             "step_state": checkpoint.context.step_state.value,
+            "runtime": (
+                None
+                if checkpoint.runtime_snapshot is None
+                else checkpoint.runtime_snapshot.model_dump(mode="json")
+            ),
             "question": None if question is None else _public_question(question),
             "grade_result": (
                 None
                 if checkpoint.grade_result is None
                 else checkpoint.grade_result.model_dump(mode="json")
+            ),
+            "grade_artifact": (
+                None
+                if checkpoint.grade_artifact_identity is None
+                else {
+                    "identity": checkpoint.grade_artifact_identity.model_dump(mode="json"),
+                    "reused": checkpoint.grade_reused_from_checkpoint is not None,
+                    "source_checkpoint": checkpoint.grade_reused_from_checkpoint,
+                }
             ),
             "diagnosis_result": (
                 None
@@ -424,11 +439,25 @@ def _public_practice_checkpoint(checkpoint) -> dict[str, Any]:  # noqa: ANN001
         "trace_id": checkpoint.context.trace_id,
         "scope": checkpoint.context.scope.model_dump(mode="json", exclude={"user_id"}),
         "step_state": checkpoint.context.step_state.value,
+        "runtime": (
+            None
+            if checkpoint.runtime_snapshot is None
+            else checkpoint.runtime_snapshot.model_dump(mode="json")
+        ),
         "question": None if question is None else _public_question(question),
         "grade_result": (
             None
             if checkpoint.grade_result is None
             else checkpoint.grade_result.model_dump(mode="json")
+        ),
+        "grade_artifact": (
+            None
+            if checkpoint.grade_artifact_identity is None
+            else {
+                "identity": checkpoint.grade_artifact_identity.model_dump(mode="json"),
+                "reused": checkpoint.grade_reused_from_checkpoint is not None,
+                "source_checkpoint": checkpoint.grade_reused_from_checkpoint,
+            }
         ),
         "diagnosis_result": (
             None

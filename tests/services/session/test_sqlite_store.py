@@ -76,6 +76,36 @@ def _make_items(*specs):
     return items
 
 
+def test_session_surface_filters_list_and_detail_at_repository_boundary(
+    store: SQLiteSessionStore,
+) -> None:
+    legacy = asyncio.run(store.create_session(title="Legacy chat"))
+    practice = asyncio.run(store.create_session(title="Practice"))
+    asyncio.run(
+        store.update_session_preferences(
+            practice["id"], {"session_surface": "exam_practice"}
+        )
+    )
+
+    all_sessions = asyncio.run(store.list_sessions())
+    chat_sessions = asyncio.run(store.list_sessions(surface="chat"))
+    practice_sessions = asyncio.run(store.list_sessions(surface="exam_practice"))
+
+    assert {item["id"] for item in all_sessions} == {legacy["id"], practice["id"]}
+    assert [item["id"] for item in chat_sessions] == [legacy["id"]]
+    assert [item["id"] for item in practice_sessions] == [practice["id"]]
+    assert asyncio.run(store.get_session(legacy["id"], surface="chat")) is not None
+    assert asyncio.run(store.get_session(practice["id"], surface="chat")) is None
+    assert (
+        asyncio.run(
+            store.get_session_with_messages(
+                practice["id"], surface="exam_practice"
+            )
+        )
+        is not None
+    )
+
+
 # ── Notebook entries ──────────────────────────────────────────────
 
 

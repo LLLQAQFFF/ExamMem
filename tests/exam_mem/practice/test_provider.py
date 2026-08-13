@@ -110,6 +110,19 @@ async def test_runtime_provider_builds_turn_bound_workflow_and_disposes_engine(
 ) -> None:
     engine = NoConnectionEngine()
     monkeypatch.setattr(provider_module, "load_database_settings", FakeDatabaseSettings)
+
+    class FakeCheckpointRepository:
+        def __init__(self, _engine) -> None:  # noqa: ANN001
+            pass
+
+        async def get_runtime_snapshot(self, _context, _practice_session_id):  # noqa: ANN001
+            return None
+
+    monkeypatch.setattr(
+        provider_module,
+        "CommittedPostgresPracticeCheckpointRepository",
+        FakeCheckpointRepository,
+    )
     unified = UnifiedContext(
         config_overrides={PRACTICE_QUESTIONS_METADATA_KEY: [_question().model_dump(mode="json")]},
         metadata={PRACTICE_QUESTIONS_METADATA_KEY: [{"invalid": "must-not-win"}]},

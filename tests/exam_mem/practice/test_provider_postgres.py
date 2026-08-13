@@ -120,8 +120,33 @@ async def test_real_capability_provider_commits_checkpoint_and_trace_in_isolated
 
         result = next(event for event in events if event.type is StreamEventType.RESULT)
         assert result.metadata["practice"]["step_state"] == "QUESTION_READY"
+        assert result.metadata["practice"]["runtime"]["backend_mode"] == "none"
         assert checkpoint_count == 1
         assert trace_count == 3
+
+        changed_capability = ExamPracticeCapability(
+            runtime_factory=PracticeRuntimeProvider(
+                settings=ExamMemSettings.model_validate({"memory_backend": "lifecycle"}),
+                engine_factory=engine_factory,
+            )
+        )
+        replay_stream = StreamBus()
+        await changed_capability.run(
+            UnifiedContext(
+                config_overrides={
+                    PRACTICE_CONTEXT_METADATA_KEY: _practice_context(),
+                    PRACTICE_QUESTIONS_METADATA_KEY: [_question()],
+                }
+            ),
+            replay_stream,
+        )
+        await replay_stream.close()
+        replay_events = [event async for event in replay_stream.subscribe()]
+        replay_result = next(
+            event for event in replay_events if event.type is StreamEventType.RESULT
+        )
+        assert replay_result.metadata["practice"]["replayed"] is True
+        assert replay_result.metadata["practice"]["runtime"]["backend_mode"] == "none"
     finally:
         async with administration_engine.begin() as connection:
             with suppress(Exception):

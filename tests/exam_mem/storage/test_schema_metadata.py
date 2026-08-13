@@ -13,6 +13,7 @@ EXPECTED_TABLES = {
     "baseline_memory_facts",
     "event_correction_targets",
     "event_plan_transition_targets",
+    "grade_review_events",
     "learning_events",
     "learning_memories",
     "lifecycle_decisions",
@@ -157,6 +158,19 @@ EXPECTED_COLUMNS = {
         "related_record_ids",
         "created_at",
     },
+    "grade_review_events": {
+        "review_event_id",
+        "review_chain_id",
+        "idempotency_key",
+        "action",
+        "user_id",
+        "exam_id",
+        "subject_id",
+        "practice_session_id",
+        "checkpoint_key",
+        "payload",
+        "created_at",
+    },
 }
 
 SCOPE_COLUMNS = ("user_id", "exam_id", "subject_id", "memory_namespace")
@@ -192,7 +206,7 @@ def _foreign_key_targets(table: Table) -> set[tuple[str, str]]:
     }
 
 
-def test_stage07_metadata_adds_only_frozen_practice_runtime_tables() -> None:
+def test_metadata_adds_only_frozen_runtime_and_adr_approved_review_tables() -> None:
     metadata = _load_metadata()
 
     assert set(metadata.tables) == EXPECTED_TABLES

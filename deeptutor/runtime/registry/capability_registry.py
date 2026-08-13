@@ -77,6 +77,7 @@ class CapabilityRegistry:
                 "cli_aliases": c.manifest.cli_aliases,
                 "request_schema": c.manifest.request_schema,
                 "config_defaults": c.manifest.config_defaults,
+                "session_surface": c.manifest.session_surface,
             }
             for c in self._capabilities.values()
         ]

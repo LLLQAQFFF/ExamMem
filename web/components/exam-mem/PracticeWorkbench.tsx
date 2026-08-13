@@ -8,6 +8,7 @@ import {
   CheckCircle2,
   CircleAlert,
   Database,
+  History,
   LoaderCircle,
   RotateCcw,
   ShieldCheck,
@@ -28,6 +29,11 @@ import {
   type PracticeIdentity,
   type PracticeTurnResponse,
 } from "@/lib/exam-mem-practice";
+import {
+  listPracticeHistory,
+  resumePractice,
+  type PracticeHistoryItem,
+} from "@/lib/exam-mem-product";
 
 function percent(value: number): string {
   return `${Math.round(value * 100)}%`;
@@ -43,6 +49,7 @@ export default function PracticeWorkbench() {
     useState<PracticeAnswerRequest | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [history, setHistory] = useState<PracticeHistoryItem[]>([]);
 
   useEffect(() => {
     const restored = loadPracticeSession(window.sessionStorage);
@@ -52,6 +59,10 @@ export default function PracticeWorkbench() {
     setAnswer(restored.answer);
     setAttemptNumber(restored.attemptNumber);
     setPendingRequest(restored.pendingRequest);
+  }, []);
+
+  useEffect(() => {
+    void listPracticeHistory().then(setHistory).catch(() => undefined);
   }, []);
 
   useEffect(() => {
@@ -124,6 +135,26 @@ export default function PracticeWorkbench() {
     }
   };
 
+  const resume = async (item: PracticeHistoryItem) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const resumed = await resumePractice(item.practice_session_id);
+      setIdentity({
+        practiceSessionId: item.practice_session_id,
+        traceId: item.trace_id,
+      });
+      setTurn(resumed);
+      setAnswer("");
+      setAttemptNumber(item.answer_count + 1);
+      setPendingRequest(null);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : t("Practice recovery failed."));
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const practice = turn?.practice;
   const question = practice?.question;
   const grade = practice?.grade_result;
@@ -160,6 +191,33 @@ export default function PracticeWorkbench() {
         <Info label={t("Frozen Scope")} value="postgraduate_entrance_exam / math_1" />
         <Info label={t("Recovery")} value={t("Server checkpoint + immutable retry key")} />
       </section>
+
+      {history.length ? (
+        <section className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-4">
+          <div className="flex items-center gap-2 text-sm font-semibold">
+            <History className="h-4 w-4 text-[var(--primary)]" />
+            {t("Practice history and server recovery")}
+          </div>
+          <div className="mt-3 grid gap-2 md:grid-cols-2">
+            {history.slice(0, 6).map((item) => (
+              <button
+                key={item.practice_session_id}
+                type="button"
+                onClick={() => void resume(item)}
+                disabled={loading}
+                className="min-w-0 rounded-lg border border-[var(--border)] p-3 text-left hover:bg-[var(--muted)]/40 disabled:opacity-50"
+              >
+                <span className="block truncate text-sm font-medium">
+                  {item.current_checkpoint.question?.stem ?? t("Practice session")}
+                </span>
+                <span className="mt-1 block text-xs text-[var(--muted-foreground)]">
+                  {item.step_state} · {item.answer_count} {t("answers")} · {item.runtime?.backend_mode ?? t("legacy configuration")}
+                </span>
+              </button>
+            ))}
+          </div>
+        </section>
+      ) : null}
 
       <div className="flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-xs text-amber-700 dark:text-amber-300">
         <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0" />
@@ -252,6 +310,8 @@ export default function PracticeWorkbench() {
                 <Identity label={t("Trace ID")} value={practice.trace_id} />
                 <Identity label={t("Practice session")} value={practice.practice_session_id} />
                 <Identity label={t("DeepTutor session")} value={turn?.session_id ?? ""} />
+                <Identity label={t("Pinned Backend")} value={practice.runtime?.backend_mode ?? "legacy"} />
+                <Identity label={t("Config revision")} value={practice.runtime?.config_revision ?? "legacy"} />
               </dl>
             </section>
             {diagnosis ? (
@@ -268,6 +328,16 @@ export default function PracticeWorkbench() {
                 {recommendation.source_memory_ids.length ? (
                   <Link href="/exam-mem/memories" className="mt-3 inline-block text-xs text-[var(--primary)] hover:underline">{t("Inspect recommendation evidence")}</Link>
                 ) : null}
+              </section>
+            ) : null}
+            {grade && practice.grade_artifact ? (
+              <section className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-4">
+                <h2 className="text-sm font-semibold">{t("Grade Artifact")}</h2>
+                <p className="mt-2 text-xs text-[var(--muted-foreground)]">
+                  {practice.grade_artifact.reused
+                    ? t("Grading computation was strictly reused; this answer still created new learning evidence.")
+                    : t("This submission produced a new grading computation.")}
+                </p>
               </section>
             ) : null}
           </aside>

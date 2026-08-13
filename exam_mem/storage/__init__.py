@@ -48,6 +48,18 @@ from .student_model_repository import (
 )
 
 _LAZY_EXPORTS = {
+    "GradeReviewAppendResult": (
+        ".grade_review_repository",
+        "GradeReviewAppendResult",
+    ),
+    "PostgresGradeReviewRepository": (
+        ".grade_review_repository",
+        "PostgresGradeReviewRepository",
+    ),
+    "PostgresExamProductRepository": (
+        ".product_repository",
+        "PostgresExamProductRepository",
+    ),
     "CommittedPostgresPracticeCheckpointRepository": (
         ".practice_checkpoint_repository",
         "CommittedPostgresPracticeCheckpointRepository",
@@ -117,6 +129,7 @@ __all__ = [
     "EventTargetValidationError",
     "EventLookupError",
     "EventWatermarkError",
+    "GradeReviewAppendResult",
     "LEARNING_MEMORY_EMBEDDING_DIMENSION",
     "LearningEventRepository",
     "LifecycleAuditRepository",
@@ -124,6 +137,8 @@ __all__ = [
     "MemoryProvenanceValidationError",
     "MemoryVersionConflict",
     "PostgresLearningMemoryRepository",
+    "PostgresGradeReviewRepository",
+    "PostgresExamProductRepository",
     "PostgresLifecycleAuditRepository",
     "PostgresLearningEventRepository",
     "PostgresPracticeCheckpointRepository",

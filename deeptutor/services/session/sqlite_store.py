@@ -453,7 +453,9 @@ class SQLiteSessionStore:
     ) -> dict[str, Any]:
         return await self._run(self._create_session_sync, title, session_id)
 
-    def _get_session_sync(self, session_id: str) -> dict[str, Any] | None:
+    def _get_session_sync(
+        self, session_id: str, surface: str | None = None
+    ) -> dict[str, Any] | None:
         with self._connect() as conn:
             row = conn.execute(
                 """
@@ -498,8 +500,15 @@ class SQLiteSessionStore:
                 FROM sessions
                 s
                 WHERE s.id = ?
+                  AND (
+                    ? IS NULL
+                    OR COALESCE(
+                        NULLIF(json_extract(s.preferences_json, '$.session_surface'), ''),
+                        'chat'
+                    ) = ?
+                  )
                 """,
-                (session_id,),
+                (session_id, surface, surface),
             ).fetchone()
         if not row:
             return None
@@ -508,8 +517,10 @@ class SQLiteSessionStore:
         payload["preferences"] = _json_loads(payload.pop("preferences_json", ""), {})
         return payload
 
-    async def get_session(self, session_id: str) -> dict[str, Any] | None:
-        return await self._run(self._get_session_sync, session_id)
+    async def get_session(
+        self, session_id: str, surface: str | None = None
+    ) -> dict[str, Any] | None:
+        return await self._run(self._get_session_sync, session_id, surface)
 
     async def ensure_session(
         self,
@@ -1385,12 +1396,24 @@ class SQLiteSessionStore:
     _WHERE_IMPORTED = r"WHERE s.id LIKE 'imported\_%' ESCAPE '\'"
 
     def _list_session_summaries_sync(
-        self, where_sql: str, limit: int, offset: int
+        self,
+        where_sql: str,
+        limit: int,
+        offset: int,
+        surface: str | None = None,
     ) -> list[dict[str, Any]]:
+        surface_sql = ""
+        params: tuple[Any, ...] = (limit, offset)
+        if surface is not None:
+            surface_sql = (
+                " AND COALESCE(NULLIF(json_extract(s.preferences_json, "
+                "'$.session_surface'), ''), 'chat') = ?"
+            )
+            params = (surface, limit, offset)
         with self._connect() as conn:
             rows = conn.execute(
-                self._SESSION_SUMMARY_SQL.format(where=where_sql),
-                (limit, offset),
+                self._SESSION_SUMMARY_SQL.format(where=f"{where_sql}{surface_sql}"),
+                params,
             ).fetchall()
         sessions = []
         for row in rows:
@@ -1404,10 +1427,13 @@ class SQLiteSessionStore:
         self,
         limit: int = 50,
         offset: int = 0,
+        surface: str | None = None,
     ) -> list[dict[str, Any]]:
         # Native chats only — imported histories surface under their own
         # Space category, not the regular history list.
-        return self._list_session_summaries_sync(self._WHERE_NATIVE, limit, offset)
+        return self._list_session_summaries_sync(
+            self._WHERE_NATIVE, limit, offset, surface
+        )
 
     def _list_imported_sessions_sync(
         self,
@@ -1420,8 +1446,9 @@ class SQLiteSessionStore:
         self,
         limit: int = 50,
         offset: int = 0,
+        surface: str | None = None,
     ) -> list[dict[str, Any]]:
-        return await self._run(self._list_sessions_sync, limit, offset)
+        return await self._run(self._list_sessions_sync, limit, offset, surface)
 
     async def list_imported_sessions(
         self,
@@ -1476,8 +1503,10 @@ class SQLiteSessionStore:
     ) -> bool:
         return await self._run(self._update_session_preferences_sync, session_id, preferences)
 
-    async def get_session_with_messages(self, session_id: str) -> dict[str, Any] | None:
-        session = await self.get_session(session_id)
+    async def get_session_with_messages(
+        self, session_id: str, surface: str | None = None
+    ) -> dict[str, Any] | None:
+        session = await self.get_session(session_id, surface=surface)
         if session is None:
             return None
         session["messages"] = await self.get_messages(session_id)

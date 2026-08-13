@@ -28,6 +28,7 @@ export interface SessionMessage {
 }
 
 export interface SessionPreferences {
+  session_surface?: string;
   capability?: string;
   tools?: string[];
   knowledge_bases?: string[];

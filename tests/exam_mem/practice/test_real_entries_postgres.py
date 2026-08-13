@@ -75,6 +75,7 @@ async def _install_schema(connection: AsyncConnection, schema_name: str) -> None
         "memory_change_log",
         "baseline_memory_facts",
         "practice_trace_spans",
+        "grade_review_events",
     ):
         await connection.execute(
             text(
@@ -215,6 +216,10 @@ def _wire_runtime(
 
     monkeypatch.setattr(
         "deeptutor.runtime.orchestrator.get_capability_registry", lambda: capabilities
+    )
+    monkeypatch.setattr(
+        "deeptutor.runtime.registry.capability_registry.get_capability_registry",
+        lambda: capabilities,
     )
     monkeypatch.setattr("deeptutor.runtime.orchestrator.get_tool_registry", lambda: tools)
     monkeypatch.setattr("deeptutor.services.llm.complete", _fixed_completion)
@@ -435,6 +440,88 @@ async def test_real_entry_runs_one_plugin_workflow_and_replays_without_duplicate
                     assert evidence_response.status_code == 200, evidence_response.text
                     assert detail_response.json()["snapshot"]["memory"]["memory_id"] == memory_id
                     assert evidence_response.json()["events"][0]["event_id"]
+                    history_response = await client.get(
+                        "/api/v1/exam-mem/practice/sessions"
+                    )
+                    assert history_response.status_code == 200, history_response.text
+                    [history] = history_response.json()["sessions"]
+                    assert history["practice_session_id"] == PRACTICE_SESSION_ID
+                    assert history["current_checkpoint"]["step_state"] == "RECOMMENDED"
+                    resume_response = await client.post(
+                        f"/api/v1/exam-mem/practice/sessions/{PRACTICE_SESSION_ID}/resume"
+                    )
+                    assert resume_response.status_code == 200, resume_response.text
+                    resumed = resume_response.json()
+                    assert resumed["practice"]["step_state"] == "RECOMMENDED"
+                    assert resumed["practice"]["question"]["question_id"] != question_id
+                    assert resumed["session_id"] != started["session_id"]
+                    review_response = await client.get(
+                        f"/api/v1/exam-mem/practice/sessions/{PRACTICE_SESSION_ID}"
+                    )
+                    assert review_response.status_code == 200, review_response.text
+                    review = review_response.json()
+                    assert review["trace"]
+                    assert review["lifecycle"]["decisions"]
+                    answer_checkpoint = next(
+                        item
+                        for item in review["checkpoints"]
+                        if item["grade_result"] is not None
+                    )
+                    dispute_body = {
+                        "practice_session_id": PRACTICE_SESSION_ID,
+                        "checkpoint_key": answer_checkpoint["checkpoint_key"],
+                        "idempotency_key": "grade-review:real-entry:001",
+                        "reason": "The learner disputes this controlled grade.",
+                    }
+                    dispute_response = await client.post(
+                        "/api/v1/exam-mem/grade-reviews/disputes",
+                        json=dispute_body,
+                    )
+                    assert dispute_response.status_code == 200, dispute_response.text
+                    replay_dispute_response = await client.post(
+                        "/api/v1/exam-mem/grade-reviews/disputes",
+                        json=dispute_body,
+                    )
+                    assert replay_dispute_response.status_code == 200
+                    assert replay_dispute_response.json()["status"] == "existing"
+                    issues_response = await client.get("/api/v1/exam-mem/issues")
+                    assert issues_response.status_code == 200, issues_response.text
+                    assert any(
+                        issue["type"] == "grade_disputed"
+                        and issue["status"] == "open"
+                        for issue in issues_response.json()["issues"]
+                    )
+                    review_chain_id = dispute_response.json()["review"]["review_chain_id"]
+                    disposition_response = await client.post(
+                        f"/api/v1/exam-mem/grade-reviews/{review_chain_id}/dispositions",
+                        json={
+                            "action": "uphold",
+                            "practice_session_id": PRACTICE_SESSION_ID,
+                            "checkpoint_key": answer_checkpoint["checkpoint_key"],
+                            "idempotency_key": "grade-review-disposition:real-entry:001",
+                            "reason": "The original grade matches the rubric.",
+                        },
+                    )
+                    assert disposition_response.status_code == 200, disposition_response.text
+                    assert disposition_response.json()["status"] == "created"
+                    replay_disposition_response = await client.post(
+                        f"/api/v1/exam-mem/grade-reviews/{review_chain_id}/dispositions",
+                        json={
+                            "action": "uphold",
+                            "practice_session_id": PRACTICE_SESSION_ID,
+                            "checkpoint_key": answer_checkpoint["checkpoint_key"],
+                            "idempotency_key": "grade-review-disposition:real-entry:001",
+                            "reason": "The original grade matches the rubric.",
+                        },
+                    )
+                    assert replay_disposition_response.status_code == 200
+                    assert replay_disposition_response.json()["status"] == "existing"
+                    resolved_issues_response = await client.get("/api/v1/exam-mem/issues")
+                    assert any(
+                        issue["type"] == "grade_disputed"
+                        and issue["status"] == "resolved"
+                        for issue in resolved_issues_response.json()["issues"]
+                    )
                     counts_after_answer = await _counts(administration_engine, schema_name)
                     replay_response = await client.post(
                         "/api/v1/exam-mem/practice/answer", json=answer_body
@@ -500,6 +587,15 @@ async def test_real_entry_runs_one_plugin_workflow_and_replays_without_duplicate
                     replayed = {"practice": replay_result["metadata"]["practice"]}
 
         assert started["practice"]["step_state"] == "QUESTION_READY"
+        session_record = await app.store.get_session(str(started["session_id"]))
+        assert session_record is not None
+        assert session_record["preferences"]["session_surface"] == "exam_practice"
+        assert (
+            await app.store.get_session(
+                str(started["session_id"]), surface="chat"
+            )
+            is None
+        )
         assert answered["practice"]["step_state"] == "RECOMMENDED"
         assert answered["practice"]["recommendation"]["source_memory_ids"]
         assert replayed["practice"]["replayed"] is True

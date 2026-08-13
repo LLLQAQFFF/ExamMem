@@ -14,6 +14,7 @@ def test_exam_mem_manifest_contributes_only_plugin_owned_surfaces() -> None:
     manager = _manager()
 
     assert [item.name for item in manager.capabilities()] == ["exam_practice"]
+    assert manager.capabilities()[0].manifest.session_surface == "exam_practice"
     assert [item.name for item in manager.tools()] == [
         "question_retriever",
         "answer_grader",
@@ -28,11 +29,14 @@ def test_exam_mem_manifest_contributes_only_plugin_owned_surfaces() -> None:
     ]
     assert [item.href for item in manager.navigation()] == [
         "/exam-mem/practice",
+        "/exam-mem/review",
         "/exam-mem/memories",
+        "/exam-mem/issues",
+        "/exam-mem/configuration",
     ]
     assert manager.settings()[0].namespace == "exam_mem"
     assert manager.plugins[0].manifest.migration is not None
-    assert manager.plugins[0].manifest.migration.expected_head == "0006_practice_workflow"
+    assert manager.plugins[0].manifest.migration.expected_head == "0007_grade_reviews"
 
 
 def test_exam_mem_registers_through_neutral_host_registries(monkeypatch) -> None:
@@ -60,4 +64,7 @@ def test_disabled_exam_mem_is_not_materialized() -> None:
     manager = PluginManager(factories={"exam_mem": factory}, disabled=("exam_mem",))
 
     assert manager.plugins == ()
+    assert manager.navigation() == ()
+    assert manager.routers() == ()
+    assert manager.settings() == ()
     assert called is False

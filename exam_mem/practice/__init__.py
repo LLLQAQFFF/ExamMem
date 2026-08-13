@@ -3,10 +3,15 @@
 from importlib import import_module
 
 from .catalog import stage07_practice_questions, stage07_question
-from .checkpoint import PracticeWorkflowCheckpoint, checkpoint_key_for_context
+from .checkpoint import (
+    PracticeRuntimeSnapshot,
+    PracticeWorkflowCheckpoint,
+    checkpoint_key_for_context,
+)
 from .contracts import (
     AnswerSubmission,
     DiagnosisResult,
+    GradeArtifactIdentity,
     GradeResult,
     PracticeContext,
     PracticeState,
@@ -55,6 +60,7 @@ from .recommendation import (
     RecommendationPolicyV1Config,
     RecommendationScore,
 )
+from .review import GradeReviewAction, GradeReviewEvent
 from .trace import (
     PracticeSpanName,
     PracticeSpanStatus,
@@ -146,6 +152,9 @@ __all__ = [
     "ExamPracticeCapability",
     "ExamPracticeWorkflow",
     "GradeResult",
+    "GradeArtifactIdentity",
+    "GradeReviewAction",
+    "GradeReviewEvent",
     "GradingCompletion",
     "KnowledgeMappingCompletion",
     "KnowledgeMapper",
@@ -178,6 +187,7 @@ __all__ = [
     "PracticeTraceSpan",
     "PracticeRecommendationTool",
     "PracticeRuntimeConfigurationError",
+    "PracticeRuntimeSnapshot",
     "PracticeRuntimeProvider",
     "PracticeProgressTransitionRequest",
     "PracticeWorkflowCheckpoint",
