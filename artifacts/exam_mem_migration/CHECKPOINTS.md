@@ -253,3 +253,34 @@ the source design remains deferred.
 - Success: five-backend parity, full regression, production build, migration
   head, Git, sensitive-content, source-integrity, report, Runbook, and deferred
   boundary gates all pass.
+
+### Result
+
+- Verified a clean Host in an isolated runtime home with
+  `EXAM_MEM_DATABASE_URL` absent and `exam_mem` disabled before import. The
+  manager reported `loaded_plugins=[]`; DeepTutor's native suite passed
+  `3829 passed, 9 skipped` without an ExamMem database connection.
+- Verified the entire repository with the first-party plugin enabled against
+  the disposable independent PostgreSQL database: `4258 passed, 9 skipped`.
+  The explicit five-Backend selection/isolation/idempotency matrix passed
+  `33 passed`, including fail-closed behavior and no cross-mode fallback.
+- Created a separate empty `exammem_acceptance` database, upgraded linearly
+  from base through `0007_grade_reviews`, and confirmed 13 public tables
+  including `alembic_version` plus six distinct append-only triggers. The
+  acceptance database was then deleted. Final `exammem_test` audit found head
+  `0007_grade_reviews`, zero random schemas, and zero public business rows.
+- Re-ran frozen migration hashes and chain contracts, Ruff, diff checks, Core
+  dependency-direction scan, changed-content sensitive scan, and frozen-source
+  integrity. All passed; migrations `0001`–`0006` remain byte-identical and no
+  DeepTutor Core module imports `exam_mem`.
+- Web ESLint passed with zero errors, Node tests passed `63/63`, and production
+  build compiled/type-checked 62 routes including Practice, Review, Learning
+  Memory, Issues and Configuration. The build's generated `next-env.d.ts`
+  change was intentionally not committed.
+- Added `MIGRATION_REPORT.md`, this Runbook, and `DEFERRED_ITEMS.md` to the target
+  repository. They record the real call chain, commits, test categories,
+  database side effects, product boundaries, operational checks and remaining
+  limitations without claiming live-model quality or future Stage 08 work.
+- The source repository remained completely unmodified. No push, release,
+  deployment, destructive production operation, credential migration, or
+  dependency installation occurred.
