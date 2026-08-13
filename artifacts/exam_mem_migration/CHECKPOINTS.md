@@ -25,6 +25,26 @@ the source design remains deferred.
   contributions load through a domain-neutral API; host-without-plugin has no
   plugin router, navigation, migration, or database side effects.
 
+### Result
+
+- Added the compile-time `deeptutor_plugins` namespace and standard
+  `deeptutor.plugins` entry-point discovery. Discovery returns lazy factories;
+  names listed in `plugins.json.disabled` are never imported.
+- Added immutable contribution contracts plus a process-scoped manager. It
+  materializes each enabled plugin once, rejects duplicate contributions and
+  Host Registry conflicts, rolls back partial startup, shuts down in reverse
+  order, and reports health without hiding an unhealthy plugin.
+- Capability and Tool registries, FastAPI router mounting/access dependencies,
+  API metadata, navigation, settings discovery, and application lifecycle now
+  consume only the neutral contract. No Host file names or imports ExamMem.
+- Contract/config tests: `29 passed`; full native regression:
+  `3821 passed, 9 skipped, 5 warnings`; Ruff passed; Web production build and
+  TypeScript passed with 57/57 routes.
+- Database side effects: none. ExamMem database variables were removed for the
+  full regression; this checkpoint added no database dependency or migration.
+- Deferred boundary: no ExamMem package, workflow, UI route, session surface,
+  or multi-source capability was added in this checkpoint.
+
 ## Checkpoint 3 — domain and storage
 
 - Goal: migrate ExamMem-owned contracts, taxonomy, normalization, five backends,

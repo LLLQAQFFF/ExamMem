@@ -24,18 +24,6 @@ def _import_capability_class(path: str) -> type[BaseCapability]:
     return getattr(module, class_name)
 
 
-def _load_plugin_hooks():
-    try:
-        module = importlib.import_module("deeptutor.plugins.loader")
-    except Exception:
-        logger.debug("Plugin loader unavailable; skipping plugin discovery.", exc_info=True)
-        return None, None
-    return (
-        getattr(module, "discover_plugins", None),
-        getattr(module, "load_plugin_capability", None),
-    )
-
-
 class CapabilityRegistry:
     """Registry of available capabilities."""
 
@@ -57,25 +45,17 @@ class CapabilityRegistry:
                 logger.warning("Failed to load capability %s", name, exc_info=True)
 
     def load_plugins(self) -> None:
-        discover_plugins, load_plugin_capability = _load_plugin_hooks()
-        if discover_plugins is None or load_plugin_capability is None:
-            return
+        from deeptutor.plugins import PluginLoadError, get_plugin_manager
 
-        for manifest in discover_plugins():
-            if manifest.name in self._capabilities:
+        for capability in get_plugin_manager().capabilities():
+            current = self._capabilities.get(capability.name)
+            if current is capability:
                 continue
-            if manifest.entry.endswith("tool.py"):
-                continue
-            try:
-                capability = load_plugin_capability(manifest)
-                if capability is not None:
-                    self.register(capability)
-            except Exception:
-                logger.warning(
-                    "Failed to load plugin capability %s",
-                    manifest.name,
-                    exc_info=True,
+            if current is not None:
+                raise PluginLoadError(
+                    f"plugin capability conflicts with registered capability: {capability.name}"
                 )
+            self.register(capability)
 
     def get(self, name: str) -> BaseCapability | None:
         return self._capabilities.get(name)

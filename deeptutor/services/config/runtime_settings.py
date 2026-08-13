@@ -66,6 +66,11 @@ DEFAULT_INTEGRATIONS_SETTINGS: dict[str, Any] = {
     "pocketbase_admin_password": "",
 }
 
+DEFAULT_PLUGINS_SETTINGS: dict[str, Any] = {
+    "version": 1,
+    "disabled": [],
+}
+
 # Document parsing settings. The parse layer (deeptutor/services/parsing)
 # supports several pluggable engines; one is active at a time. The persisted
 # shape is v2::
@@ -409,6 +414,18 @@ class RuntimeSettingsService:
         _atomic_write_json(self.path_for("integrations"), payload)
         return payload
 
+    def load_plugins(self) -> dict[str, Any]:
+        return self._load_or_create(
+            "plugins",
+            DEFAULT_PLUGINS_SETTINGS,
+            self._normalize_plugins,
+        )
+
+    def save_plugins(self, settings: dict[str, Any]) -> dict[str, Any]:
+        payload = self._normalize_plugins({**DEFAULT_PLUGINS_SETTINGS, **settings})
+        _atomic_write_json(self.path_for("plugins"), payload)
+        return payload
+
     def load_document_parsing(self, *, include_process_overrides: bool = True) -> dict[str, Any]:
         """Return the full v2 document-parsing structure (all engines)."""
         self._migrate_legacy_document_parsing_file()
@@ -508,6 +525,7 @@ class RuntimeSettingsService:
         self.load_system(include_process_overrides=False)
         self.load_auth(include_process_overrides=False)
         self.load_integrations(include_process_overrides=False)
+        self.load_plugins()
         self.load_mineru(include_process_overrides=False)
         self.load_pageindex(include_process_overrides=False)
         self.load_llamaindex(include_process_overrides=False)
@@ -963,6 +981,21 @@ class RuntimeSettingsService:
             "pocketbase_admin_password": _string(settings.get("pocketbase_admin_password")),
         }
 
+    def _normalize_plugins(self, settings: dict[str, Any]) -> dict[str, Any]:
+        disabled = settings.get("disabled", [])
+        if not isinstance(disabled, list):
+            disabled = []
+        return {
+            "version": 1,
+            "disabled": sorted(
+                {
+                    name
+                    for value in disabled
+                    if isinstance(value, str) and (name := value.strip())
+                }
+            ),
+        }
+
 
 def _bool_env(value: Any) -> str:
     return "true" if _coerce_bool(value, False) else "false"
@@ -1070,6 +1103,10 @@ def load_integrations_settings() -> dict[str, Any]:
     return get_runtime_settings_service().load_integrations()
 
 
+def load_plugins_settings() -> dict[str, Any]:
+    return get_runtime_settings_service().load_plugins()
+
+
 def load_mineru_settings() -> dict[str, Any]:
     return get_runtime_settings_service().load_mineru()
 
@@ -1106,6 +1143,7 @@ __all__ = [
     "DEFAULT_LLAMAINDEX_SETTINGS",
     "DEFAULT_MINERU_SETTINGS",
     "DEFAULT_PAGEINDEX_SETTINGS",
+    "DEFAULT_PLUGINS_SETTINGS",
     "DEFAULT_SYSTEM_SETTINGS",
     "DOCUMENT_PARSING_ENGINE_DOCLING",
     "DOCUMENT_PARSING_ENGINE_LITEPARSE",
@@ -1131,5 +1169,6 @@ __all__ = [
     "load_lightrag_settings",
     "load_llamaindex_settings",
     "load_mineru_settings",
+    "load_plugins_settings",
     "load_system_settings",
 ]

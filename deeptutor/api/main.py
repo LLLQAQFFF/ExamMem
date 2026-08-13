@@ -6,6 +6,7 @@ from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from deeptutor.logging import configure_logging
+from deeptutor.plugins import get_plugin_manager, mount_plugin_routers
 from deeptutor.services.config import (
     ensure_runtime_settings_files,
     export_runtime_settings_to_env,
@@ -110,6 +111,7 @@ async def lifespan(app: FastAPI):
 
     # Validate configuration consistency
     validate_tool_consistency()
+    await get_plugin_manager().startup()
 
     # Initialize LLM client early so OPENAI_* env vars are available before
     # any downstream provider integrations start.
@@ -173,6 +175,8 @@ async def lifespan(app: FastAPI):
 
     # Execute on shutdown
     logger.info("Application shutdown")
+
+    await get_plugin_manager().shutdown()
 
     # Stop cron scheduler
     try:
@@ -457,6 +461,12 @@ app.include_router(system.router, prefix="/api/v1/system", tags=["system"], depe
 app.include_router(voice.router, prefix="/api/v1/voice", tags=["voice"], dependencies=_auth)
 app.include_router(
     plugins_api.router, prefix="/api/v1/plugins", tags=["plugins"], dependencies=_auth
+)
+mount_plugin_routers(
+    app,
+    get_plugin_manager(),
+    authenticated_dependencies=_auth,
+    admin_dependencies=_admin,
 )
 app.include_router(
     agent_config.router, prefix="/api/v1/agent-config", tags=["agent-config"], dependencies=_auth

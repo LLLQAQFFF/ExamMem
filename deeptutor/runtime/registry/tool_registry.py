@@ -58,6 +58,20 @@ class ToolRegistry:
                 continue
             self.register(tool)
 
+    def load_plugins(self) -> None:
+        """Register validated compile-time plugin tools."""
+        from deeptutor.plugins import PluginLoadError, get_plugin_manager
+
+        for tool in get_plugin_manager().tools():
+            current = self._tools.get(tool.name)
+            if current is tool:
+                continue
+            if current is not None:
+                raise PluginLoadError(
+                    f"plugin tool conflicts with registered tool: {tool.name}"
+                )
+            self.register(tool)
+
     def _resolve_request(
         self,
         name: str,
@@ -150,4 +164,5 @@ def get_tool_registry() -> ToolRegistry:
     if _default_registry is None:
         _default_registry = ToolRegistry()
         _default_registry.load_builtins()
+        _default_registry.load_plugins()
     return _default_registry

@@ -26,6 +26,7 @@ from deeptutor.logging import (
     capture_process_logs,
     current_log_context,
 )
+from deeptutor.plugins import get_plugin_manager
 from deeptutor.runtime.registry.capability_registry import get_capability_registry
 from deeptutor.runtime.registry.tool_registry import get_tool_registry
 
@@ -33,15 +34,6 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 ANSI_ESCAPE_RE = re.compile(r"\x1B\[[0-?]*[ -/]*[@-~]")
-
-
-def _discover_plugins() -> list[Any]:
-    try:
-        from deeptutor.plugins.loader import discover_plugins
-    except Exception:
-        logger.debug("Plugin loader unavailable; returning no plugins.", exc_info=True)
-        return []
-    return discover_plugins()
 
 
 class ToolExecuteRequest(BaseModel):
@@ -68,7 +60,7 @@ class CapabilityExecuteRequest(BaseModel):
 async def list_plugins():
     tool_registry = get_tool_registry()
     capability_registry = get_capability_registry()
-    plugin_manifests = _discover_plugins()
+    plugin_manager = get_plugin_manager()
 
     tools = [
         {
@@ -92,23 +84,26 @@ async def list_plugins():
 
     capabilities = capability_registry.get_manifests()
 
-    plugins = [
-        {
-            "name": plugin.name,
-            "type": plugin.type,
-            "description": plugin.description,
-            "stages": plugin.stages,
-            "version": plugin.version,
-            "author": plugin.author,
-        }
-        for plugin in plugin_manifests
-    ]
-
     return {
         "tools": tools,
         "capabilities": capabilities,
-        "plugins": plugins,
+        "plugins": plugin_manager.describe(),
+        "navigation": [
+            {
+                "href": item.href,
+                "label": item.label,
+                "icon": item.icon,
+                "section": item.section,
+                "order": item.order,
+            }
+            for item in plugin_manager.navigation()
+        ],
     }
+
+
+@router.get("/health")
+async def plugin_health():
+    return {"plugins": await get_plugin_manager().health()}
 
 
 @router.post("/tools/{tool_name}/execute")

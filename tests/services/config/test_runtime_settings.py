@@ -57,6 +57,17 @@ def test_runtime_settings_creates_defaults_without_reading_dotenv(tmp_path: Path
     assert _read_json(service.path_for("auth"))["enabled"] is False
 
 
+def test_plugin_settings_are_normalized_and_do_not_import_plugins(tmp_path: Path) -> None:
+    service = RuntimeSettingsService(tmp_path / "settings")
+
+    saved = service.save_plugins(
+        {"disabled": [" second ", "first", "first", "", None]}
+    )
+
+    assert saved == {"version": 1, "disabled": ["first", "second"]}
+    assert service.load_plugins() == saved
+
+
 def test_runtime_process_env_is_explicit_override(tmp_path: Path) -> None:
     service = RuntimeSettingsService(
         tmp_path / "settings",
