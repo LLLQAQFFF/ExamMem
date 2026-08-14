@@ -14,7 +14,10 @@ import {
   preparePracticeAnswerRequest,
   savePracticeSession,
 } from "../lib/exam-mem-practice";
-import { listExamReviewHistory } from "../lib/exam-mem-product";
+import {
+  groupExamReviewHistory,
+  listExamReviewHistory,
+} from "../lib/exam-mem-product";
 import type { Assessment } from "../lib/exam-mem-study-plans";
 
 test("exam review history includes completed attempts from imported scopes", async () => {
@@ -35,6 +38,8 @@ test("exam review history includes completed attempts from imported scopes", asy
               updated_at: "2026-08-14T06:51:00Z",
               attempt_number: 1,
               answer_count: 4,
+              score: 0.75,
+              correct_count: 3,
               current_checkpoint: {
                 checkpoint_key: "answer:4",
                 step_state: "MEMORY_UPDATED",
@@ -43,6 +48,33 @@ test("exam review history includes completed attempts from imported scopes", asy
                 grade_artifact: null,
                 diagnosis_result: null,
                 recommendation: null,
+                answered_question_count: 4,
+                question_count: 4,
+                completed: true,
+              },
+              runtime: null,
+            },
+            {
+              practice_session_id: "practice:dynamic:v2",
+              trace_id: "trace:dynamic:v2",
+              started_at: "2026-08-14T07:00:00Z",
+              step_state: "MEMORY_UPDATED",
+              updated_at: "2026-08-14T07:15:00Z",
+              attempt_number: 2,
+              answer_count: 4,
+              score: 1,
+              correct_count: 4,
+              current_checkpoint: {
+                checkpoint_key: "answer:4",
+                step_state: "MEMORY_UPDATED",
+                question: null,
+                grade_result: { correct: true, score: 1, evidence: ["ok"] },
+                grade_artifact: null,
+                diagnosis_result: null,
+                recommendation: null,
+                answered_question_count: 4,
+                question_count: 4,
+                completed: true,
               },
               runtime: null,
             },
@@ -58,8 +90,17 @@ test("exam review history includes completed attempts from imported scopes", asy
       subject_id: "math",
       taxonomy_version: "ptest_s001_v1",
       knowledge_point_ids: ["ptest.s001.m001.k001"],
-      latest_version: 1,
+      latest_version: 2,
       attempts: [
+        {
+          attempt_id: "attempt:dynamic:v2",
+          assessment_version: 2,
+          practice_session_id: "practice:dynamic:v2",
+          trace_id: "trace:dynamic:v2",
+          status: "completed",
+          started_at: "2026-08-14T07:00:00Z",
+          completed_at: "2026-08-14T07:15:00Z",
+        },
         {
           attempt_id: "attempt:dynamic",
           assessment_version: 1,
@@ -74,12 +115,20 @@ test("exam review history includes completed attempts from imported scopes", asy
   ];
 
   try {
-    const [history] = await listExamReviewHistory(assessments);
+    const history = await listExamReviewHistory(assessments);
+    const [latest] = history;
+    const [group] = groupExamReviewHistory(history);
     assert.equal(requested.length, 2);
-    assert.equal(history.assessment_title, "动态知识点专项检测");
-    assert.equal(history.attempt_status, "completed");
-    assert.equal(history.exam_id, "plan:test");
-    assert.equal(history.subject_id, "math");
+    assert.equal(latest.assessment_title, "动态知识点专项检测");
+    assert.equal(latest.attempt_status, "completed");
+    assert.equal(latest.exam_id, "plan:test");
+    assert.equal(latest.subject_id, "math");
+    assert.equal(latest.score, 1);
+    assert.deepEqual(group.versions, [2, 1]);
+    assert.deepEqual(
+      group.attempts.map((attempt) => attempt.assessment_attempt_number),
+      [2, 1],
+    );
   } finally {
     globalThis.fetch = originalFetch;
   }
@@ -98,6 +147,7 @@ test("practice requests surface a plain-text proxy failure without a JSON parse 
         taxonomyVersion: "ptest_s001_v1",
         numQuestions: 4,
         difficulty: "auto",
+        language: "zh",
         attachments: [],
       }),
       (error: unknown) =>

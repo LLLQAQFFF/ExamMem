@@ -608,6 +608,8 @@ async def test_real_entry_runs_one_plugin_workflow_and_replays_without_duplicate
                     [history] = history_response.json()["sessions"]
                     assert history["practice_session_id"] == PRACTICE_SESSION_ID
                     assert history["attempt_number"] == 1
+                    assert history["score"] == 0.25
+                    assert history["correct_count"] == 0
                     assert history["current_checkpoint"]["step_state"] == "RECOMMENDED"
                     resume_response = await client.post(
                         f"/api/v1/exam-mem/practice/sessions/{PRACTICE_SESSION_ID}/resume"

@@ -40,6 +40,7 @@ def _question() -> Question:
         difficulty=0.6,
         reference_answer="P(A|B)=P(B|A)P(A)/P(B)",
         grading_rubric={
+            "response_language": "en",
             "required_steps": [
                 {"id": "identify_prior", "description": "Identify the prior."},
                 {"id": "apply_bayes", "description": "Apply Bayes' theorem."},
@@ -115,6 +116,63 @@ async def test_grader_uses_separated_untrusted_answer_and_strict_schema() -> Non
     assert "untrusted learner data" in str(call["system_prompt"])
     assert call["temperature"] == 0.0
     assert "grader_version" not in prompt["output_json_schema"]["properties"]
+    assert prompt["output_language"] == "en"
+    assert "Write every grading reason" in str(call["system_prompt"])
+
+
+@pytest.mark.asyncio
+async def test_chinese_exam_pins_chinese_grading_and_diagnosis_prompts() -> None:
+    question = _question().model_copy(
+        update={
+            "grading_rubric": {
+                **_question().grading_rubric,
+                "response_language": "zh",
+            }
+        }
+    )
+    grader_completion = RecordingCompletion(
+        response=json.dumps(
+            _grade_result().model_dump(mode="json", exclude={"grader_version"}),
+            ensure_ascii=False,
+        ),
+        calls=[],
+    )
+    analyzer_completion = RecordingCompletion(
+        response=json.dumps(
+            {
+                "knowledge_point_ids": ["math1.probability.bayes"],
+                "error_type": "concept_confusion",
+                "explanation": "先验概率与后验概率发生了混淆。",
+                "confidence": 0.82,
+                "analyzer_version": "error_analyzer_v1",
+            },
+            ensure_ascii=False,
+        ),
+        calls=[],
+    )
+
+    await DeepTutorAnswerGraderAdapter(completion=grader_completion).grade(
+        question, _submission()
+    )
+    await DeepTutorErrorAnalyzerAdapter(completion=analyzer_completion).analyze(
+        question,
+        _submission(),
+        _grade_result(),
+        ["math1.probability.bayes"],
+    )
+
+    assert "全部评分理由必须使用简体中文" in str(
+        grader_completion.calls[0]["system_prompt"]
+    )
+    assert "全部错因和理由必须使用简体中文" in str(
+        analyzer_completion.calls[0]["system_prompt"]
+    )
+    assert json.loads(str(grader_completion.calls[0]["prompt"]))[
+        "output_language"
+    ] == "zh"
+    assert json.loads(str(analyzer_completion.calls[0]["prompt"]))[
+        "output_language"
+    ] == "zh"
 
 
 @pytest.mark.asyncio
@@ -224,6 +282,7 @@ async def test_error_analyzer_accepts_only_mapped_ids_and_frozen_error_types() -
     prompt = json.loads(str(completion.calls[0]["prompt"]))
     assert prompt["student_answer"] == _submission().answer
     assert "ADD" not in prompt["error_type_vocabulary"]
+    assert prompt["output_language"] == "en"
 
 
 @pytest.mark.asyncio

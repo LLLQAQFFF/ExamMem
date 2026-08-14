@@ -15,6 +15,8 @@ from deeptutor_plugins.exam_mem.api import (
     GeneratedPracticeStartBody,
     _canonical_knowledge_point,
     _generate_practice_questions,
+    _practice_generation_prompt,
+    _practice_response_language,
     build_router,
 )
 from exam_mem.config import ExamMemSettings
@@ -139,6 +141,36 @@ def test_learning_path_point_maps_only_to_the_controlled_taxonomy() -> None:
     )
 
 
+def test_practice_generation_uses_two_explicit_language_prompts() -> None:
+    chinese = GeneratedPracticeStartBody(
+        practice_session_id="practice:zh",
+        trace_id="trace:zh",
+        learning_path_id="path:zh",
+        knowledge_point_id="point:zh",
+        knowledge_point_name="学习目标",
+        language="zh",
+    )
+    english = chinese.model_copy(
+        update={
+            "practice_session_id": "practice:en",
+            "trace_id": "trace:en",
+            "language": "en",
+        }
+    )
+
+    assert "必须使用简体中文" in _practice_generation_prompt(chinese)
+    assert "必须全程用中文回答" in _practice_generation_prompt(chinese)
+    assert "must respond in English" in _practice_generation_prompt(english)
+    assert "including all reasons" in _practice_generation_prompt(english)
+    assert (
+        _practice_response_language(
+            {"question_catalog": [{"grading_rubric": {"response_language": "en"}}]}
+        )
+        == "en"
+    )
+    assert _practice_response_language({"question_catalog": []}) == "zh"
+
+
 @pytest.mark.asyncio
 async def test_native_quiz_questions_are_versioned_and_server_side() -> None:
     deleted: list[str] = []
@@ -146,6 +178,8 @@ async def test_native_quiz_questions_are_versioned_and_server_side() -> None:
     class FakeHost:
         async def start_turn(self, request):
             assert request.capability == "deep_question"
+            assert request.language == "zh"
+            assert "必须使用简体中文" in request.content
             assert request.attachments[0]["filename"] == "lesson.pdf"
             return {"id": "generation-session"}, {"id": "generation-turn"}
 
@@ -212,6 +246,7 @@ async def test_native_quiz_questions_are_versioned_and_server_side() -> None:
             }
         ],
     }
+    assert questions[0].grading_rubric["response_language"] == "zh"
     assert deleted == ["generation-session"]
 
 

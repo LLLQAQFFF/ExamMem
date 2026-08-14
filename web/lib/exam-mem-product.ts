@@ -14,6 +14,9 @@ export interface PracticeCheckpointSummary {
   } | null;
   diagnosis_result: { error_type: string | null; explanation: string } | null;
   recommendation: { reason_codes: string[]; source_memory_ids: string[] } | null;
+  answered_question_count: number;
+  question_count: number;
+  completed: boolean;
 }
 
 export interface PracticeHistoryItem {
@@ -24,6 +27,8 @@ export interface PracticeHistoryItem {
   updated_at: string;
   attempt_number: number;
   answer_count: number;
+  score: number | null;
+  correct_count: number;
   current_checkpoint: PracticeCheckpointSummary;
   runtime: RuntimeSnapshot | null;
   exam_id: string;
@@ -36,6 +41,17 @@ export interface ExamReviewHistoryItem extends PracticeHistoryItem {
   assessment_version: number | null;
   attempt_status: AssessmentAttempt["status"] | null;
   completed_at: string | null;
+  assessment_attempt_number: number | null;
+}
+
+export interface ExamReviewGroup {
+  key: string;
+  assessment_id: string | null;
+  title: string;
+  exam_id: string;
+  subject_id: string;
+  versions: number[];
+  attempts: ExamReviewHistoryItem[];
 }
 
 export interface RuntimeSnapshot {
@@ -134,11 +150,16 @@ export async function listExamReviewHistory(
     {
       assessment: Assessment;
       attempt: AssessmentAttempt;
+      assessmentAttemptNumber: number;
     }
   >();
   for (const assessment of assessments) {
-    for (const attempt of assessment.attempts) {
-      attempts.set(attempt.practice_session_id, { assessment, attempt });
+    for (const [index, attempt] of assessment.attempts.entries()) {
+      attempts.set(attempt.practice_session_id, {
+        assessment,
+        attempt,
+        assessmentAttemptNumber: assessment.attempts.length - index,
+      });
     }
   }
 
@@ -152,9 +173,40 @@ export async function listExamReviewHistory(
         assessment_version: matched?.attempt.assessment_version ?? null,
         attempt_status: matched?.attempt.status ?? null,
         completed_at: matched?.attempt.completed_at ?? null,
+        assessment_attempt_number: matched?.assessmentAttemptNumber ?? null,
       };
     })
     .sort((left, right) => right.updated_at.localeCompare(left.updated_at));
+}
+
+export function groupExamReviewHistory(
+  history: ExamReviewHistoryItem[],
+): ExamReviewGroup[] {
+  const groups = new Map<string, ExamReviewGroup>();
+  for (const item of history) {
+    const key = item.assessment_id ?? `legacy:${item.exam_id}:${item.subject_id}`;
+    const group = groups.get(key) ?? {
+      key,
+      assessment_id: item.assessment_id,
+      title: item.assessment_title ?? "Legacy practice",
+      exam_id: item.exam_id,
+      subject_id: item.subject_id,
+      versions: [],
+      attempts: [],
+    };
+    group.attempts.push(item);
+    if (
+      item.assessment_version !== null &&
+      !group.versions.includes(item.assessment_version)
+    ) {
+      group.versions.push(item.assessment_version);
+      group.versions.sort((left, right) => right - left);
+    }
+    groups.set(key, group);
+  }
+  return [...groups.values()].sort((left, right) =>
+    right.attempts[0].updated_at.localeCompare(left.attempts[0].updated_at),
+  );
 }
 
 export async function resumePractice(

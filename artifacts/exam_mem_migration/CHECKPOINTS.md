@@ -325,3 +325,16 @@ the source design remains deferred.
   Turbopack production build compiled, type-checked and generated 63 routes.
 - The tracked `.next-deeptutor` runtime cache already present in the worktree
   was neither reset nor included in this checkpoint.
+
+### Follow-up acceptance
+
+- Review now groups persisted attempts by stable assessment and immutable
+  version, supports keyword/subject/status filtering, and derives the attempt
+  percentage from persisted question grades without adding write-side state.
+- Generated assessment versions pin a Chinese or English response language.
+  Generation, grading and diagnosis use two explicit prompt contracts, so the
+  question, answer feedback, reasons and explanations remain in the selected
+  language. Legacy checkpoints deterministically default to Chinese.
+- Focused Python contracts passed `16/16`; the Practice PostgreSQL suite passed
+  `111/111`; Web Node tests passed `64/64`; changed-file lint, type-checking,
+  locale parity and the 63-route production build passed.

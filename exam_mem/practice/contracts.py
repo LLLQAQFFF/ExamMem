@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from enum import Enum
-from typing import Annotated
+from typing import Annotated, Literal
 
 from pydantic import (
     AwareDatetime,
@@ -50,6 +50,12 @@ class Question(StrictPracticeModel):
     difficulty: Probability
     reference_answer: NonEmptyString
     grading_rubric: dict[str, JsonValue]
+
+    @property
+    def response_language(self) -> Literal["zh", "en"]:
+        """Return the server-pinned language for learner-facing LLM output."""
+
+        return "en" if self.grading_rubric.get("response_language") == "en" else "zh"
 
 
 class AnswerSubmission(StrictPracticeModel):

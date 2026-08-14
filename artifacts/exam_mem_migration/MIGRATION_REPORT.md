@@ -181,3 +181,19 @@ documentation-only descendant of the executable baseline; this work neither
 checked out nor modified the read-only source repository. Imported source
 content is not a tutoring knowledge base in this increment; source-aware
 Chat/RAG remains an explicit deferred item.
+
+## Review grouping and response-language follow-up
+
+The 2026-08-14 Checkpoint 8 follow-up changes the Review read model from a
+flat Practice-session list to `assessment -> immutable version -> attempt`.
+Learners can filter exams by keyword, subject and status, then open one exam to
+compare every attempted version. An attempt score is the arithmetic mean of
+its persisted per-question grades; the UI also shows the correct-answer count.
+This is derived read data and adds no table, migration or write-side effect.
+
+New generated assessment versions pin `zh` or `en` in each server-side question
+rubric. Generation, grading and error-analysis turns use separate explicit
+Chinese and English prompts, including an instruction that reasons and
+explanations use the selected language. Existing checkpoints without the field
+default to Chinese, preserving the previously shipped Chinese workflow without
+an indefinite compatibility branch.

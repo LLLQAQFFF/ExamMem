@@ -127,6 +127,7 @@ class GeneratedPracticeStartBody(PracticeStartBody):
     taxonomy_version: NonEmptyString = "math1_v1"
     num_questions: Annotated[int, Field(ge=2, le=10)] = 4
     difficulty: Literal["auto", "easy", "medium", "hard"] = "auto"
+    language: Literal["zh", "en"] = "zh"
     attachments: tuple[PracticeSourceAttachment, ...] = ()
     assessment_id: NonEmptyString | None = None
     assessment_title: Annotated[
@@ -346,6 +347,7 @@ def build_router(
                     generation={
                         "learning_path_id": body.learning_path_id,
                         "difficulty": body.difficulty,
+                        "language": body.language,
                         "source_files": [item.filename for item in body.attachments],
                     },
                 )
@@ -363,7 +365,11 @@ def build_router(
         try:
             result = await _run_practice_turn(
                 runtime_host(),
-                content=f"开始 {body.knowledge_point_name} 专项练习",
+                content=(
+                    f"Start the {body.knowledge_point_name} assessment"
+                    if body.language == "en"
+                    else f"开始 {body.knowledge_point_name} 专项练习"
+                ),
                 session_id=body.session_id,
                 context=context,
             )
@@ -380,6 +386,7 @@ def build_router(
             "knowledge_point_id": canonical_id,
             "knowledge_point_name": body.knowledge_point_name,
             "question_count": len(questions),
+            "language": body.language,
             "source_files": [item.filename for item in body.attachments],
         }
         result["assessment"] = {
@@ -462,9 +469,14 @@ def build_router(
             questions=stored["questions"],
         )
         try:
+            response_language = stored["questions"][0].response_language
             result = await _run_practice_turn(
                 runtime_host(),
-                content=f"重新开始检测 {assessment['title']}",
+                content=(
+                    f"Repeat assessment {assessment['title']}"
+                    if response_language == "en"
+                    else f"重新开始检测 {assessment['title']}"
+                ),
                 session_id=None,
                 context=context,
             )
@@ -751,7 +763,11 @@ def build_router(
             ).model_dump(mode="json")
         result = await _run_practice_turn(
             runtime_host(),
-            content="提交答案",
+            content=(
+                "Submit answer"
+                if _practice_response_language(context) == "en"
+                else "提交答案"
+            ),
             session_id=body.session_id,
             context=context,
         )
@@ -802,7 +818,14 @@ def build_router(
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Exam not found")
         result = await _run_practice_turn(
             runtime_host(),
-            content="恢复数学一练习",
+            content=(
+                "Resume assessment"
+                if _practice_response_language(
+                    latest.checkpoint.context.model_dump(mode="json")
+                )
+                == "en"
+                else "恢复练习"
+            ),
             session_id=None,
             context=latest.checkpoint.context.model_dump(mode="json"),
         )
@@ -1253,7 +1276,7 @@ async def _run_practice_turn(
                 content=content,
                 capability="exam_practice",
                 session_id=session_id,
-                language="zh",
+                language=_practice_response_language(context),
                 config={
                     "exam_practice_context": context,
                     "exam_practice_questions": questions,
@@ -1306,6 +1329,17 @@ async def _run_practice_turn(
         "response": metadata.get("response", ""),
         "practice": practice,
     }
+
+
+def _practice_response_language(context: dict[str, Any]) -> Literal["zh", "en"]:
+    catalog = context.get("question_catalog")
+    if isinstance(catalog, list) and catalog:
+        first = catalog[0]
+        if isinstance(first, dict):
+            rubric = first.get("grading_rubric")
+            if isinstance(rubric, dict) and rubric.get("response_language") == "en":
+                return "en"
+    return "zh"
 
 
 def _validate_controlled_scope(exam_id: str, subject_id: str) -> None:
@@ -1400,10 +1434,7 @@ async def _generate_practice_questions(
                 "sha256": hashlib.sha256(content).hexdigest(),
             }
         )
-    topic = (
-        f"围绕知识点“{body.knowledge_point_name}”生成 {body.num_questions} 道递进练习题。"
-        "题目必须能够独立作答，答案与解释必须明确；如有附件，只能依据附件内容出题。"
-    )
+    topic = _practice_generation_prompt(body)
     session: dict[str, Any] | None = None
     pairs: list[dict[str, Any]] = []
     generation_error: dict[str, Any] | None = None
@@ -1412,7 +1443,7 @@ async def _generate_practice_questions(
             PluginTurnRequest(
                 content=topic,
                 capability="deep_question",
-                language="zh",
+                language=body.language,
                 config={
                     "mode": "custom",
                     "topic": topic,
@@ -1470,6 +1501,7 @@ async def _generate_practice_questions(
                     "scope": [body.exam_id, body.subject_id],
                     "path": body.learning_path_id,
                     "knowledge_point": canonical_knowledge_point_id,
+                    "language": body.language,
                     "source_artifacts": source_artifacts,
                     "stem": stem,
                     "answer": answer,
@@ -1515,6 +1547,7 @@ async def _generate_practice_questions(
                 "difficulty": difficulty,
                 "reference_answer": str(pair["correct_answer"]).strip(),
                 "grading_rubric": {
+                    "response_language": body.language,
                     "required_steps": [
                         {
                             "id": "expected_answer",
@@ -1528,6 +1561,22 @@ async def _generate_practice_questions(
             }
         )
     return tuple(Question.model_validate(item) for item in questions)
+
+
+def _practice_generation_prompt(body: GeneratedPracticeStartBody) -> str:
+    if body.language == "en":
+        return (
+            f"Generate {body.num_questions} progressively challenging practice questions "
+            f'about the knowledge point "{body.knowledge_point_name}". '
+            "Every question must be independently answerable. Write every question, answer, "
+            "and explanation in English. You must respond in English, including all reasons and "
+            "explanations. If attachments are present, use only their content as source material."
+        )
+    return (
+        f"围绕知识点“{body.knowledge_point_name}”生成 {body.num_questions} 道递进练习题。"
+        "每道题都必须能够独立作答。所有题目、答案、解析和理由必须使用简体中文；"
+        "你必须全程用中文回答。如有附件，只能依据附件内容出题。"
+    )
 
 
 async def _study_plan_with_progress(

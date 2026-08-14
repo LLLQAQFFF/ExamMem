@@ -109,6 +109,7 @@ export interface GeneratedPracticeOptions {
   taxonomyVersion: string;
   numQuestions: number;
   difficulty: "auto" | "easy" | "medium" | "hard";
+  language: "zh" | "en";
   attachments: Array<{
     type: "file" | "pdf";
     filename: string;
@@ -293,6 +294,7 @@ export async function generateExamPractice(
       taxonomy_version: options.taxonomyVersion,
       num_questions: options.numQuestions,
       difficulty: options.difficulty,
+      language: options.language,
       attachments: options.attachments,
       assessment_id: options.assessmentId,
       assessment_title: options.assessmentTitle,

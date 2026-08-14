@@ -156,9 +156,13 @@ export default function PracticeWorkbench() {
         taxonomyVersion: plan.published.taxonomy_versions[subject.id],
         numQuestions: questionCount,
         difficulty,
+        language: zh ? "zh" : "en",
         attachments,
         assessmentId: regenerateAssessmentId,
-        assessmentTitle: `${knowledgePoint.name} 专项检测`,
+        assessmentTitle: tr(
+          `${knowledgePoint.name} 专项检测`,
+          `${knowledgePoint.name} assessment`,
+        ),
       }));
       setRegenerateAssessmentId(undefined);
       void listAssessments().then(setAssessments);
