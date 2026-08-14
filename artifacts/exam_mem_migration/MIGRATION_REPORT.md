@@ -142,6 +142,13 @@ schema cleanup or test result failed.
 4. `f2e466f0` — assemble recoverable practice plugin
 5. `572c763d` — expose real practice entry surfaces
 6. `0cf6095a` — productize review recovery and configuration
-7. Final documentation/baseline commit — recorded by the final handoff
+7. `0b06568b` — freeze the migrated production acceptance baseline
+8. Checkpoint 8 productization:
+   - `a5e62922` — consolidate the Smart Exam Prep product surface
+   - `af67f442` — connect Learning Paths to generated, scoped Practice
+
+Supporting local documentation/demo/localization commits are `38164c68`,
+`08a8f3ba`, and `a357df53`; they do not create additional migration
+checkpoints.
 
 No commit was pushed, released or deployed.
