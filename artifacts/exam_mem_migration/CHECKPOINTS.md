@@ -284,3 +284,29 @@ the source design remains deferred.
 - The source repository remained completely unmodified. No push, release,
   deployment, destructive production operation, credential migration, or
   dependency installation occurred.
+
+## Checkpoint 8 — Smart Exam Prep product information architecture
+
+- Goal: present ExamMem as one learner-facing smart exam-preparation product
+  instead of five competing sidebar products.
+- Assumptions: existing routes are public local contracts and must remain
+  stable; no native Quiz result may become Learning Memory evidence without a
+  provenance- and Taxonomy-preserving neutral Host contract.
+- Success: the plugin contributes one `Smart Exam Prep` navigation item;
+  Practice, Learning Profile, Review, Issues, and Configuration remain usable
+  through plugin-owned internal navigation; localization, plugin contracts,
+  lint, Node tests, and the production build pass without database writes.
+
+### Result
+
+- Replaced five top-level plugin contributions with one neutral navigation
+  contribution and added a plugin-owned internal shell across all five routes.
+- Preserved `/exam-mem/*` URLs, `exam_practice`, the independent PostgreSQL
+  boundary, migration head, checkpoints, idempotency, and audit semantics.
+- Plugin contract tests passed `3/3`; Web Node tests passed `64/64`; locale
+  parity passed; ESLint reported zero errors and the same 56 pre-existing
+  warnings; an isolated production build compiled, type-checked, and generated
+  all 62 routes.
+- No database was read or written. The tracked `.next-deeptutor` runtime cache
+  already present in the worktree was neither reset nor included in this
+  checkpoint.

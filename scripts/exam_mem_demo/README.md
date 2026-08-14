@@ -75,7 +75,7 @@ PostgreSQL，并保留演示数据。
 
 脚本不会生成测试模型、伪造评分或写入模型凭据。当前 workspace 若没有活动 LLM：
 
-- 可以查看五个 ExamMem 页面；
+- 可以通过单一「智能备考」入口查看五个内部工作区；
 - 可以验证插件、migration、PostgreSQL 和配置装配；
 - 提交真实答案前，需要在 DeepTutor 的 **Settings → Models** 配置一个可用模型。
 

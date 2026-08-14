@@ -63,7 +63,7 @@ class ExamMemPlugin(BaseFullStackPlugin):
         self.manifest = PluginManifest(
             name="exam_mem",
             version="1.0.0",
-            description="Exam practice and audited Learning Memory",
+            description="Smart exam preparation and audited Learning Memory",
             capability_factories=(self._build_practice_capability,),
             tool_factories=(
                 QuestionRetrieverTool,
@@ -89,38 +89,10 @@ class ExamMemPlugin(BaseFullStackPlugin):
             navigation=(
                 NavigationContribution(
                     href="/exam-mem/practice",
-                    label="Exam Practice",
-                    icon="BookOpenCheck",
-                    section="primary",
-                    order=45,
-                ),
-                NavigationContribution(
-                    href="/exam-mem/review",
-                    label="Exam Review",
-                    icon="FileCheck2",
-                    section="primary",
-                    order=46,
-                ),
-                NavigationContribution(
-                    href="/exam-mem/memories",
-                    label="Learning Memory",
+                    label="Smart Exam Prep",
                     icon="BrainCircuit",
-                    section="secondary",
+                    section="primary",
                     order=45,
-                ),
-                NavigationContribution(
-                    href="/exam-mem/issues",
-                    label="Memory Issues",
-                    icon="AlertOctagon",
-                    section="secondary",
-                    order=46,
-                ),
-                NavigationContribution(
-                    href="/exam-mem/configuration",
-                    label="ExamMem Configuration",
-                    icon="Settings2",
-                    section="secondary",
-                    order=47,
                 ),
             ),
             settings=settings_contribution,

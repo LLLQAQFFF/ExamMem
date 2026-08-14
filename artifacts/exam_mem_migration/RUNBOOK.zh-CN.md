@@ -203,7 +203,7 @@ GET /api/v1/exam-mem/configuration
 - 插件 `exam_mem`；
 - Capability `exam_practice`；
 - migration head `0007_grade_reviews`；
-- Practice、Review、Learning Memory、Issues、Configuration 五个导航入口。
+- 单一的「智能备考」导航入口；练习、学习档案、考试复盘、记忆问题和配置作为其内部工作区。
 
 注意：`/api/v1/plugins/health` 只表示插件生命周期装配成功。当前 ExamMem 没有主动连接
 数据库的 health hook，因此它不能替代以下两项检查：

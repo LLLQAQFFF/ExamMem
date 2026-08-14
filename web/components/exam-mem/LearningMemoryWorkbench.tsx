@@ -134,7 +134,7 @@ export default function LearningMemoryWorkbench() {
             <Database className="h-5 w-5" />
           </span>
           <div>
-            <h1 className="font-serif text-2xl font-semibold">{t("ExamMem Learning Memory")}</h1>
+            <h1 className="font-serif text-2xl font-semibold">{t("Learning Profile")}</h1>
             <p className="text-sm text-[var(--muted-foreground)]">{t("Typed lifecycle state, version chains, provenance, and correction eligibility.")}</p>
           </div>
         </div>

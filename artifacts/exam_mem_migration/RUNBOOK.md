@@ -111,8 +111,10 @@ GET /api/v1/exam-mem/configuration
 ```
 
 `/api/v1/plugins/list` must report plugin `exam_mem`, capability
-`exam_practice`, migration head `0007_grade_reviews`, and five navigation
-entries. `/api/v1/plugins/health` proves plugin lifecycle assembly only; ExamMem
+`exam_practice`, migration head `0007_grade_reviews`, and the single
+`Smart Exam Prep` navigation entry. Practice, Learning Profile, Review, Issues,
+and Configuration remain available as internal workspaces under that entry.
+`/api/v1/plugins/health` proves plugin lifecycle assembly only; ExamMem
 does not currently register an active database health hook. Verify PostgreSQL
 with `alembic current` and an authenticated read endpoint as separate checks.
 

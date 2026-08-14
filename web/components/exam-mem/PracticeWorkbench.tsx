@@ -169,7 +169,7 @@ export default function PracticeWorkbench() {
             <BookOpenCheck className="h-5 w-5" />
           </span>
           <div>
-            <h1 className="font-serif text-2xl font-semibold">{t("Exam Practice")}</h1>
+            <h1 className="font-serif text-2xl font-semibold">{t("Practice")}</h1>
             <p className="mt-1 max-w-2xl text-sm text-[var(--muted-foreground)]">
               {t("Question, grading, diagnosis, Learning Memory, and an explainable next recommendation in one recoverable turn.")}
             </p>

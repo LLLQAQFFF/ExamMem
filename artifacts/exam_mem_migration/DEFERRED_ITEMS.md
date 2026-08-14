@@ -19,6 +19,11 @@ is a product boundary, not an unfinished fallback path.
 
 - The controlled question catalog remains the migrated Stage 07 product set;
   there is no large-scale content administration workflow.
+- DeepTutor Native Quiz results are not automatically promoted to Learning
+  Memory evidence. Their current envelope has no pinned four-dimensional exam
+  Scope, canonical Taxonomy/knowledge-point identity, controlled question and
+  grading-policy revision, or sufficient provenance. A neutral assessment
+  contract plus explicit Smart Exam Prep opt-in is required before integration.
 - Automated tests fix external LLM/embedding results. They prove real transport,
   registry, workflow and database behavior, not live provider accuracy, latency
   or cost.

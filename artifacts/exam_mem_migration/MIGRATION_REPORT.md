@@ -101,9 +101,15 @@ model quality or provider availability.
 | Browser HTTP / Python SDK / unified WebSocket real entry suite | `3 passed` |
 | Frozen migrations/config/Session/WS gate | `45 passed` |
 | Python static gate | Ruff passed |
-| Web tests | Node `63/63`; ESLint 0 errors (56 pre-existing warnings outside ExamMem) |
+| Web tests | Node `64/64`; ESLint 0 errors (56 pre-existing warnings outside ExamMem) |
 | Web production build | compiled and type-checked; 62 routes, including five ExamMem routes |
 | Git/security | diff check, Core dependency scan, changed-file secret scan and source integrity passed |
+
+The post-migration product-information checkpoint consolidates the five
+ExamMem pages behind one learner-facing `Smart Exam Prep` plugin navigation
+entry. Existing routes, APIs, persistence, and audit semantics remain stable;
+the other pages are internal workspaces rather than competing top-level
+products.
 
 The recurring pytest warnings concern cleanup of pre-existing knowledge-base
 temporary directories under `/tmp/pytest-of-lh/garbage-*`; no ExamMem assertion,
