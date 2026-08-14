@@ -7,7 +7,25 @@ from typing import Protocol
 
 from deeptutor.plugins.host_services import complete, extract_json_object
 
-from .contracts import AnswerSubmission, GradeResult, Question
+from .contracts import (
+    AnswerSubmission,
+    GradeResult,
+    NonEmptyString,
+    Question,
+    StrictPracticeModel,
+)
+
+GRADER_CONTRACT_VERSION = "answer_grader_v1"
+
+
+class _GradeEvidence(StrictPracticeModel):
+    """Model-owned evidence; the server owns the grader contract version."""
+
+    correct: bool
+    score: float
+    matched_rubric_items: list[NonEmptyString]
+    missed_rubric_items: list[NonEmptyString]
+    evidence: list[NonEmptyString]
 
 _SYSTEM_PROMPT = """You are a constrained answer grader.
 Return only one JSON object matching the supplied JSON Schema.
@@ -47,14 +65,18 @@ class DeepTutorAnswerGraderAdapter:
             response_format=_response_format(),
             temperature=0.0,
         )
-        result = GradeResult.model_validate(extract_json_object(raw_output))
+        evidence = _GradeEvidence.model_validate(extract_json_object(raw_output))
+        result = GradeResult(
+            **evidence.model_dump(),
+            grader_version=GRADER_CONTRACT_VERSION,
+        )
         _validate_rubric_item_ids(question, result)
         return result
 
 
 def _build_grading_prompt(question: Question, submission: AnswerSubmission) -> str:
     payload = {
-        "output_json_schema": GradeResult.model_json_schema(),
+        "output_json_schema": _GradeEvidence.model_json_schema(),
         "question": question.stem,
         "reference_answer": question.reference_answer,
         "grading_rubric": question.grading_rubric,
@@ -69,7 +91,7 @@ def _response_format() -> dict[str, object]:
         "json_schema": {
             "name": "exam_mem_grade_result",
             "strict": True,
-            "schema": GradeResult.model_json_schema(),
+            "schema": _GradeEvidence.model_json_schema(),
         },
     }
 
@@ -97,4 +119,8 @@ def _rubric_item_ids(rubric: dict[str, object]) -> set[str]:
     return item_ids
 
 
-__all__ = ["DeepTutorAnswerGraderAdapter", "GradingCompletion"]
+__all__ = [
+    "DeepTutorAnswerGraderAdapter",
+    "GRADER_CONTRACT_VERSION",
+    "GradingCompletion",
+]

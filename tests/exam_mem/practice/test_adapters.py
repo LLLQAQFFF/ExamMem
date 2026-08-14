@@ -96,7 +96,9 @@ def test_question_adapter_reuses_quiz_pair_without_guessing_stage07_fields() -> 
 @pytest.mark.asyncio
 async def test_grader_uses_separated_untrusted_answer_and_strict_schema() -> None:
     completion = RecordingCompletion(
-        response=json.dumps(_grade_result().model_dump(mode="json")),
+        response=json.dumps(
+            _grade_result().model_dump(mode="json", exclude={"grader_version"})
+        ),
         calls=[],
     )
     grader = DeepTutorAnswerGraderAdapter(completion=completion)
@@ -112,6 +114,7 @@ async def test_grader_uses_separated_untrusted_answer_and_strict_schema() -> Non
     assert prompt["reference_answer"] == _question().reference_answer
     assert "untrusted learner data" in str(call["system_prompt"])
     assert call["temperature"] == 0.0
+    assert "grader_version" not in prompt["output_json_schema"]["properties"]
 
 
 @pytest.mark.asyncio
@@ -121,7 +124,9 @@ async def test_grader_rejects_unknown_rubric_item_ids() -> None:
     )
     grader = DeepTutorAnswerGraderAdapter(
         completion=RecordingCompletion(
-            response=json.dumps(invalid_result.model_dump(mode="json")),
+            response=json.dumps(
+                invalid_result.model_dump(mode="json", exclude={"grader_version"})
+            ),
             calls=[],
         )
     )

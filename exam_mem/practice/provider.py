@@ -60,6 +60,7 @@ from .corrections import (
     QueryServiceRecommendationRefresher,
     ResolvedCorrectionTarget,
 )
+from .grading import GRADER_CONTRACT_VERSION
 from .memory import MemoryWriter, MemoryWriteResult, PracticeMemoryCandidateBuilder
 from .memory_workbench import LearningMemoryQueryService
 from .plan_transitions import PlanTransitionService, ResolvedPlanTarget
@@ -465,7 +466,7 @@ class PracticeRuntimeProvider:
                     )
                 ),
                 taxonomy_version=taxonomy.taxonomy_version,
-                grader_contract_version="answer_grader_v1",
+                grader_contract_version=GRADER_CONTRACT_VERSION,
                 config_revision=runtime_snapshot.config_revision,
                 runtime_snapshot=runtime_snapshot,
             )

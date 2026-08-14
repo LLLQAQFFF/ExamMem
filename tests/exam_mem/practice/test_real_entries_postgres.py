@@ -147,7 +147,6 @@ async def _fixed_completion(**kwargs: object) -> str:
                 "matched_rubric_items": [],
                 "missed_rubric_items": [],
                 "evidence": ["The controlled answer is intentionally incorrect."],
-                "grader_version": "answer_grader_v1",
             }
         )
     if name == "exam_mem_knowledge_point_extraction":

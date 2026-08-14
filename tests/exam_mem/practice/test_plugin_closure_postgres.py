@@ -108,7 +108,6 @@ async def _fixed_completion(**kwargs: object) -> str:
             "matched_rubric_items": [],
             "missed_rubric_items": ["apply_bayes"],
             "evidence": ["The conditional direction was reversed."],
-            "grader_version": "answer_grader_v1",
         },
         "exam_mem_knowledge_point_extraction": {
             "primary": {"name": "贝叶斯公式", "confidence": 0.99},
