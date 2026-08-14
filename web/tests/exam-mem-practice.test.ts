@@ -7,11 +7,36 @@ import {
   buildPracticeAnswerRequest,
   clearPracticeSession,
   createPracticeIdentity,
+  generateExamPractice,
   loadPracticeSession,
   PRACTICE_SESSION_STORAGE_KEY,
+  PracticeRequestError,
   preparePracticeAnswerRequest,
   savePracticeSession,
 } from "../lib/exam-mem-practice";
+
+test("practice requests surface a plain-text proxy failure without a JSON parse error", async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => new Response("Internal Server Error", { status: 500 });
+  try {
+    await assert.rejects(
+      generateExamPractice({
+        identity: createPracticeIdentity("dynamic", "ptest", "ptest"),
+        learningPathId: "plan:test",
+        knowledgePointId: "ptest.module.point",
+        knowledgePointName: "Imported knowledge point",
+        taxonomyVersion: "ptest_s001_v1",
+        numQuestions: 4,
+        difficulty: "auto",
+        attachments: [],
+      }),
+      (error: unknown) =>
+        error instanceof PracticeRequestError && error.message === "Internal Server Error",
+    );
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
 
 test("browser sends only public question identity and stable retry material", () => {
   const identity = createPracticeIdentity("fixed-uuid");

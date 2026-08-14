@@ -98,8 +98,10 @@ class RecommendationPolicyV1:
         self,
         taxonomy_version: str = "math1_v1",
         config: RecommendationPolicyV1Config | None = None,
+        *,
+        taxonomy: Taxonomy | None = None,
     ) -> None:
-        self._taxonomy = load_taxonomy(taxonomy_version)
+        self._taxonomy = taxonomy or load_taxonomy(taxonomy_version)
         self._config = config or RecommendationPolicyV1Config()
         self._syllabus_order = _active_leaf_order(self._taxonomy)
 

@@ -216,7 +216,8 @@ export function clearPracticeSession(storage: Pick<Storage, "removeItem">): void
 }
 
 async function parsePracticeResponse(response: Response): Promise<PracticeTurnResponse> {
-  const payload = (await response.json()) as PracticeTurnResponse | {
+  const rawPayload = await response.text();
+  let payload: PracticeTurnResponse | {
     detail?: string | {
       message?: string;
       session_id?: string;
@@ -224,6 +225,15 @@ async function parsePracticeResponse(response: Response): Promise<PracticeTurnRe
       practice?: PracticeResult | null;
     };
   };
+  try {
+    payload = JSON.parse(rawPayload) as typeof payload;
+  } catch {
+    const fallback = rawPayload.trim();
+    throw new PracticeRequestError(
+      fallback || `Practice request failed (${response.status}).`,
+      null,
+    );
+  }
   if (!response.ok) {
     const detail = "detail" in payload ? payload.detail : undefined;
     const message =

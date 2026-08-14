@@ -34,9 +34,11 @@ class QuestionRetriever:
         self,
         catalog: QuestionCatalog,
         taxonomy_version: str = "math1_v1",
+        *,
+        taxonomy: Taxonomy | None = None,
     ) -> None:
         self._catalog = catalog
-        self._taxonomy = load_taxonomy(taxonomy_version)
+        self._taxonomy = taxonomy or load_taxonomy(taxonomy_version)
         self._syllabus_order = _active_leaf_order(self._taxonomy)
 
     async def retrieve(

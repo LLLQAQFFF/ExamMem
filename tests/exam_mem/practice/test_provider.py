@@ -8,6 +8,7 @@ from deeptutor.core.context import UnifiedContext
 from exam_mem.backends import BackendMode
 from exam_mem.config import ExamMemSettings
 from exam_mem.contracts import MemoryScope
+from exam_mem.domain import Taxonomy
 from exam_mem.practice import PracticeContext, Question
 import exam_mem.practice.provider as provider_module
 from exam_mem.practice.provider import (
@@ -39,6 +40,27 @@ def _question() -> Question:
         difficulty=0.5,
         reference_answer="Apply Bayes' theorem.",
         grading_rubric={"required_steps": ["apply_bayes"]},
+    )
+
+
+def _dynamic_taxonomy() -> Taxonomy:
+    return Taxonomy.model_validate(
+        {
+            "taxonomy_version": "ptest_s001_v1",
+            "nodes": [
+                {"id": "ptest", "name_zh": "Imported subject"},
+                {
+                    "id": "ptest.module",
+                    "name_zh": "Imported module",
+                    "parent_id": "ptest",
+                },
+                {
+                    "id": "ptest.module.point",
+                    "name_zh": "Imported knowledge point",
+                    "parent_id": "ptest.module",
+                },
+            ],
+        }
     )
 
 
@@ -91,6 +113,34 @@ async def test_non_lifecycle_recommendation_uses_neutral_policy_without_database
     assert recommendation.target_knowledge_point_id == "math1.probability.bayes"
     assert recommendation.reason_codes == ["coverage_gap"]
     assert recommendation.source_memory_ids == []
+
+
+async def test_non_lifecycle_recommendation_uses_resolved_dynamic_taxonomy() -> None:
+    taxonomy = _dynamic_taxonomy()
+    scope = SCOPE.model_copy(update={"exam_id": "ptest", "subject_id": "ptest"})
+    question = _question().model_copy(
+        update={
+            "question_id": "question:dynamic:001",
+            "knowledge_point_ids": ["ptest.module.point"],
+        }
+    )
+    context = _practice_context().model_copy(
+        update={"scope": scope, "taxonomy_version": taxonomy.taxonomy_version}
+    )
+    retriever = QuestionRetrieverTool(
+        QuestionRetriever(BoundQuestionCatalog(scope, [question]), taxonomy=taxonomy)
+    )
+    tool = RuntimeRecommendationTool(
+        NoConnectionEngine(),  # type: ignore[arg-type]
+        mode=BackendMode.NONE,
+        retriever=retriever,
+        taxonomy=taxonomy,
+    )
+
+    recommendation, selected = await tool.recommend(context)
+
+    assert selected == question
+    assert recommendation.target_knowledge_point_id == "ptest.module.point"
 
 
 async def test_runtime_provider_requires_structured_question_catalog_before_database_use(

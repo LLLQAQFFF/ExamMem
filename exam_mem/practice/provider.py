@@ -183,7 +183,7 @@ class RuntimeRecommendationTool:
         self._mode = mode
         self._retriever = retriever
         resolved_taxonomy = taxonomy or load_taxonomy(taxonomy_version)
-        self._policy = RecommendationPolicyV1(resolved_taxonomy.taxonomy_version)
+        self._policy = RecommendationPolicyV1(taxonomy=resolved_taxonomy)
         self._knowledge_point_ids = tuple(
             node.id
             for node in resolved_taxonomy.nodes
@@ -457,7 +457,8 @@ class PracticeRuntimeProvider:
                         mode=mode,
                         retriever=QuestionRetrieverTool(
                             QuestionRetriever(
-                                BoundQuestionCatalog(practice_context.scope, questions)
+                                BoundQuestionCatalog(practice_context.scope, questions),
+                                taxonomy=taxonomy,
                             )
                         ),
                         taxonomy=taxonomy,
