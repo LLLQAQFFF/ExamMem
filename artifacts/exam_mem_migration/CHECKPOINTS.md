@@ -285,28 +285,43 @@ the source design remains deferred.
   deployment, destructive production operation, credential migration, or
   dependency installation occurred.
 
-## Checkpoint 8 — Smart Exam Prep product information architecture
+## Checkpoint 8 — Smart Exam Prep product information architecture and learning loop
 
 - Goal: present ExamMem as one learner-facing smart exam-preparation product
   instead of five competing sidebar products.
 - Assumptions: existing routes are public local contracts and must remain
-  stable; no native Quiz result may become Learning Memory evidence without a
-  provenance- and Taxonomy-preserving neutral Host contract.
+  stable; native Mastery Path remains Host-owned; native Quiz correctness is
+  never Learning Memory evidence; the explicitly requested file-assisted
+  generation is limited to one Practice and does not authorize Stage 08
+  ingestion.
 - Success: the plugin contributes one `Smart Exam Prep` navigation item;
-  Practice, Learning Profile, Review, Issues, and Configuration remain usable
-  through plugin-owned internal navigation; localization, plugin contracts,
-  lint, Node tests, and the production build pass without database writes.
+  Learning Paths, Practice, Learning Memory, Review and Configuration remain
+  usable through plugin-owned internal navigation; Practice can select a
+  controlled Scope and learned objective, optionally use PDF/TXT/Markdown to
+  generate a pinned catalog, and list repeated attempts under one exam Scope;
+  localization, contracts, PostgreSQL integration, lint, Node tests and the
+  production build pass.
 
 ### Result
 
 - Replaced five top-level plugin contributions with one neutral navigation
-  contribution and added a plugin-owned internal shell across all five routes.
+  contribution. Moved the learner-facing Mastery Path entry into the plugin as
+  `Learning Paths`, while reusing Host progress APIs and tutoring sessions.
+- Merged derived Memory Issues into Learning Memory without creating a mutable
+  issue ledger; kept old deep-link routes compatible.
+- Added a controlled Scope catalog and explicit attempt numbers. Each attempt
+  keeps the same exam/subject IDs and receives its own Practice session/Trace.
+- Added a neutral Host attachment/turn seam for the existing native Quiz
+  capability. Generated questions, canonical knowledge-point IDs, source
+  hashes, reference answers and rubrics are pinned server-side in the existing
+  checkpoint JSON; no migration was added and browser responses stay public.
 - Preserved `/exam-mem/*` URLs, `exam_practice`, the independent PostgreSQL
   boundary, migration head, checkpoints, idempotency, and audit semantics.
-- Plugin contract tests passed `3/3`; Web Node tests passed `64/64`; locale
-  parity passed; ESLint reported zero errors and the same 56 pre-existing
-  warnings; an isolated production build compiled, type-checked, and generated
-  all 62 routes.
-- No database was read or written. The tracked `.next-deeptutor` runtime cache
-  already present in the worktree was neither reset nor included in this
-  checkpoint.
+- The generated Practice PostgreSQL test passed with random-schema cleanup,
+  including answer, checkpoint provenance, two ordered attempts and transient
+  Host-session deletion. The full suite passed `4268` tests with `9` skips; the
+  disabled-plugin/no-DSN Host suite passed `3836` with `9` skips. Node passed
+  `64/64`; ESLint reported zero errors and 56 pre-existing warnings. A clean
+  Turbopack production build compiled, type-checked and generated 63 routes.
+- The tracked `.next-deeptutor` runtime cache already present in the worktree
+  was neither reset nor included in this checkpoint.

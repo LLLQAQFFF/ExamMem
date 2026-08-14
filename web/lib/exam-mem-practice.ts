@@ -58,6 +58,8 @@ export interface PracticeTurnResponse {
 export interface PracticeIdentity {
   practiceSessionId: string;
   traceId: string;
+  examId: string;
+  subjectId: string;
 }
 
 export interface PracticeAnswerRequest {
@@ -68,6 +70,42 @@ export interface PracticeAnswerRequest {
   answer: string;
   submitted_at: string;
   idempotency_key: string;
+  exam_id: string;
+  subject_id: string;
+}
+
+export interface ExamScopeOption {
+  exam_id: string;
+  exam_name: string;
+  subject_id: string;
+  subject_name: string;
+  taxonomy_version: string;
+}
+
+export interface ExamKnowledgePointOption {
+  id: string;
+  name: string;
+  aliases: string[];
+}
+
+export interface ExamMemCatalog {
+  scopes: ExamScopeOption[];
+  knowledge_points: ExamKnowledgePointOption[];
+}
+
+export interface GeneratedPracticeOptions {
+  identity: PracticeIdentity;
+  learningPathId: string;
+  knowledgePointId: string;
+  knowledgePointName: string;
+  numQuestions: number;
+  difficulty: "auto" | "easy" | "medium" | "hard";
+  attachments: Array<{
+    type: "file" | "pdf";
+    filename: string;
+    mime_type: string;
+    base64: string;
+  }>;
 }
 
 export interface PracticeSessionSnapshot {
@@ -90,10 +128,16 @@ export class PracticeRequestError extends Error {
 
 export const PRACTICE_SESSION_STORAGE_KEY = "exam-mem:practice:active-session:v1";
 
-export function createPracticeIdentity(uuid: string): PracticeIdentity {
+export function createPracticeIdentity(
+  uuid: string,
+  examId = "postgraduate_entrance_exam",
+  subjectId = "math_1",
+): PracticeIdentity {
   return {
     practiceSessionId: `practice:web:${uuid}`,
     traceId: `trace:web:${uuid}`,
+    examId,
+    subjectId,
   };
 }
 
@@ -113,6 +157,8 @@ export function buildPracticeAnswerRequest(options: {
     answer: options.answer,
     submitted_at: options.submittedAt,
     idempotency_key: `answer:web:${options.identity.practiceSessionId}:${options.attemptNumber}`,
+    exam_id: options.identity.examId,
+    subject_id: options.identity.subjectId,
   };
 }
 
@@ -139,6 +185,8 @@ export function loadPracticeSession(
     ) {
       return null;
     }
+    value.identity.examId ||= "postgraduate_entrance_exam";
+    value.identity.subjectId ||= "math_1";
     return value;
   } catch {
     return null;
@@ -194,6 +242,36 @@ export async function startExamPractice(
     body: JSON.stringify({
       practice_session_id: identity.practiceSessionId,
       trace_id: identity.traceId,
+      exam_id: identity.examId,
+      subject_id: identity.subjectId,
+    }),
+  });
+  return parsePracticeResponse(response);
+}
+
+export async function getExamMemCatalog(): Promise<ExamMemCatalog> {
+  const response = await apiFetch(apiUrl("/api/v1/exam-mem/catalog"));
+  if (!response.ok) throw new Error(`Catalog request failed (${response.status}).`);
+  return response.json() as Promise<ExamMemCatalog>;
+}
+
+export async function generateExamPractice(
+  options: GeneratedPracticeOptions,
+): Promise<PracticeTurnResponse> {
+  const response = await apiFetch(apiUrl("/api/v1/exam-mem/practice/generate"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      practice_session_id: options.identity.practiceSessionId,
+      trace_id: options.identity.traceId,
+      exam_id: options.identity.examId,
+      subject_id: options.identity.subjectId,
+      learning_path_id: options.learningPathId,
+      knowledge_point_id: options.knowledgePointId,
+      knowledge_point_name: options.knowledgePointName,
+      num_questions: options.numQuestions,
+      difficulty: options.difficulty,
+      attachments: options.attachments,
     }),
   });
   return parsePracticeResponse(response);

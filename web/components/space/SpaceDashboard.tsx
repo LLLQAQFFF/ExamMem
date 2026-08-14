@@ -6,7 +6,6 @@ import { useTranslation } from "react-i18next";
 import {
   ArrowUpRight,
   ClipboardList,
-  GraduationCap,
   History,
   NotebookPen,
   Plug,
@@ -22,7 +21,6 @@ import { listSessions } from "@/lib/session-api";
 import { listNotebooks, listNotebookEntries } from "@/lib/notebook-api";
 import { listPersonas } from "@/lib/personas-api";
 import { listSkills } from "@/lib/skills-api";
-import { fetchAllProgress } from "@/lib/learning-api";
 
 /**
  * Learning Space dashboard — the hub of `/space`.
@@ -42,8 +40,7 @@ type DashKey =
   | "personas"
   | "skills"
   | "mcp"
-  | "cli_apps"
-  | "mastery_path";
+  | "cli_apps";
 
 interface DashboardItem {
   key: DashKey;
@@ -111,21 +108,6 @@ const GROUPS: DashboardGroup[] = [
   {
     label: { zh: "个性化", en: "Personalization" },
     items: [
-      {
-        key: "mastery_path",
-        href: "/space/learning",
-        icon: GraduationCap,
-        title: { zh: "精通之路", en: "Mastery Path" },
-        blurb: {
-          zh: "掌握式学习：硬门槛与间隔复习。",
-          en: "Mastery-based learning: hard gate and spaced review.",
-        },
-        unit: { zh: "条路径", en: "paths" },
-        tile: "bg-teal-500/10 text-teal-600 dark:text-teal-400",
-        load: async () =>
-          (await fetchAllProgress()).summaries.filter((s) => s.kp_count > 0)
-            .length,
-      },
       {
         key: "personas",
         href: "/space/personas",

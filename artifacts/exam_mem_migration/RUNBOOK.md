@@ -112,8 +112,10 @@ GET /api/v1/exam-mem/configuration
 
 `/api/v1/plugins/list` must report plugin `exam_mem`, capability
 `exam_practice`, migration head `0007_grade_reviews`, and the single
-`Smart Exam Prep` navigation entry. Practice, Learning Profile, Review, Issues,
-and Configuration remain available as internal workspaces under that entry.
+`Smart Exam Prep` navigation entry. Learning Paths, Practice, Learning Memory,
+Review and Configuration remain available as internal workspaces under that
+entry; the old Issues deep link remains compatible while its UI is embedded in
+Learning Memory.
 `/api/v1/plugins/health` proves plugin lifecycle assembly only; ExamMem
 does not currently register an active database health hook. Verify PostgreSQL
 with `alembic current` and an authenticated read endpoint as separate checks.
@@ -122,11 +124,25 @@ Browser routes:
 
 ```text
 /exam-mem/practice
+/exam-mem/learning
 /exam-mem/review
 /exam-mem/memories
 /exam-mem/issues
 /exam-mem/configuration
 ```
+
+Learning Paths reuses Host Mastery Path progress and tutoring. Practice may
+select the current controlled exam Scope and an objective, then ask the native
+Quiz capability through the neutral Host Turn contract to generate 2–10
+questions. Optional sources are limited to PDF, TXT and Markdown for that one
+generation request. ExamMem does not persist source content: it pins the
+generated catalog, canonical Taxonomy ID, filename/MIME/SHA-256 provenance,
+answers and rubric in the existing server-side checkpoint. Native Quiz's own
+correctness result is never imported as Learning Memory evidence.
+
+Repeated attempts keep the same exam/subject IDs and receive distinct Practice
+session/Trace identities. The history API returns a derived `attempt_number`;
+it is not a mutable database counter.
 
 ## 5. Recovery, correction and review
 

@@ -1,6 +1,6 @@
 # ExamMem → DeepTutor migration report
 
-Date: 2026-08-13
+Date: 2026-08-14
 Target branch: `feat/exam-mem-plugin-migration`
 DeepTutor base: `9228d10abc114ec87321c6861e7e384db022e8ce`
 Frozen ExamMem executable baseline: `747958725b6e681a3a846a0430b5a21deb163188`
@@ -26,6 +26,13 @@ Browser HTTP / Python SDK / unified WebSocket
   -> selected Memory Backend
   -> Recommendation -> checkpoint + append-only Trace
   -> server-side Resume / Correction / Review / derived Issues
+
+Host Mastery Path -> Smart Exam Prep Learning Paths
+  -> controlled exam Scope + canonical knowledge point
+  -> optional transient PDF/TXT/Markdown context
+  -> neutral Host Turn -> native Quiz generation
+  -> immutable per-Practice question catalog in checkpoint
+  -> the same Grade -> Memory -> Recommendation loop above
 ```
 
 External model results are deterministic fakes in automated acceptance tests;
@@ -75,6 +82,16 @@ model quality or provider availability.
 - Review derives checkpoints, Trace, lifecycle and audit facts. Issues are
   derived views (`workflow_failure`, `grade_disputed`, `contested_evidence`,
   `projection_pending`, `memory_inaccurate`), not a second mutable issue ledger.
+- Host Mastery Path remains the learning-progress source of truth. Smart Exam
+  Prep owns its learner-facing placement and links objectives to independent
+  Practice; it does not copy Host progress into Learning Memory.
+- Native Quiz is used only as an explicitly requested question generator.
+  ExamMem maps the selected objective to its canonical Taxonomy, pins the full
+  question/rubric catalog and source SHA-256 provenance in the Practice
+  checkpoint, and grades answers itself. Native Quiz correctness is ignored.
+- Multiple attempts share one controlled exam/subject Scope while using
+  different Practice session and Trace identities. Attempt numbers are a
+  derived ordered read model, not a mutable counter.
 
 ## Database and migration result
 
@@ -86,7 +103,9 @@ model quality or provider availability.
   revisions and produced 13 public tables including `alembic_version` and six
   distinct append-only triggers.
 - Integration tests use random schemas and transactions. Final audit found no
-  random schema and zero rows in the disposable public business tables.
+  random schema. The reused local demo database retained its pre-existing two
+  Practice checkpoints and seven Trace spans; the acceptance suite did not
+  clear or repurpose those public rows.
 - No DeepTutor SQLite, PocketBase or Native Memory store is read or written by
   an ExamMem repository. Host entry tests use isolated temporary Host storage.
 
@@ -94,15 +113,15 @@ model quality or provider availability.
 
 | Category | Result |
 | --- | --- |
-| Host with ExamMem disabled and DSN absent | `3829 passed, 9 skipped`; plugin probe returned `loaded_plugins=[]` |
-| Full repository with ExamMem and isolated PostgreSQL | `4258 passed, 9 skipped` |
+| Host with ExamMem disabled and DSN absent | `3836 passed, 9 skipped`; plugin probe returned `loaded_plugins=[]` |
+| Full repository with ExamMem and isolated PostgreSQL | `4268 passed, 9 skipped` |
 | CP6 focused backend/entry/product suite | `484 passed` |
 | Five Backend matrix | `33 passed` |
 | Browser HTTP / Python SDK / unified WebSocket real entry suite | `3 passed` |
 | Frozen migrations/config/Session/WS gate | `45 passed` |
 | Python static gate | Ruff passed |
 | Web tests | Node `64/64`; ESLint 0 errors (56 pre-existing warnings outside ExamMem) |
-| Web production build | compiled and type-checked; 62 routes, including five ExamMem routes |
+| Web production build | Turbopack compiled and type-checked; 63 routes, including six ExamMem routes |
 | Git/security | diff check, Core dependency scan, changed-file secret scan and source integrity passed |
 
 The post-migration product-information checkpoint consolidates the five

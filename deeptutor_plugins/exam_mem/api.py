@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+import base64
+import binascii
 from contextlib import AbstractAsyncContextManager
 from datetime import datetime, timezone
 import hashlib
+import json
 from typing import Annotated, Any, Literal, Protocol
 
 from fastapi import APIRouter, HTTPException, Query, status
@@ -30,7 +33,13 @@ from deeptutor.plugins.host_services import (
 )
 from exam_mem.config import ExamMemSettings, backend_side_effects, settings_revision
 from exam_mem.contracts import LearningContext, LifecycleState, MemoryNamespace, MemoryValue
+from exam_mem.domain import (
+    KnowledgePointStatus,
+    RuleBasedKnowledgePointNormalizer,
+    load_taxonomy,
+)
 from exam_mem.practice import (
+    AnswerSubmission,
     CorrectionError,
     ExplicitCorrectionRequest,
     GradeResult,
@@ -40,10 +49,11 @@ from exam_mem.practice import (
     PlanTransitionError,
     PracticeProgressTransitionRequest,
     PracticeRuntimeConfigurationError,
+    PracticeState,
+    Question,
     SystemPlanExpirationRequest,
     UserPlanCancellationRequest,
     stage07_practice_questions,
-    stage07_question,
 )
 from exam_mem.storage import AppendStatus
 
@@ -60,6 +70,8 @@ class PracticeStartBody(StrictApiModel):
     practice_session_id: NonEmptyString
     trace_id: NonEmptyString
     session_id: NonEmptyString | None = None
+    exam_id: NonEmptyString = _EXAM_ID
+    subject_id: NonEmptyString = _SUBJECT_ID
 
 
 class PracticeAnswerBody(StrictApiModel):
@@ -70,6 +82,38 @@ class PracticeAnswerBody(StrictApiModel):
     answer: NonEmptyString
     submitted_at: AwareDatetime
     idempotency_key: NonEmptyString
+    exam_id: NonEmptyString = _EXAM_ID
+    subject_id: NonEmptyString = _SUBJECT_ID
+
+
+class PracticeSourceAttachment(StrictApiModel):
+    type: Literal["file", "pdf"] = "file"
+    filename: NonEmptyString
+    mime_type: NonEmptyString
+    base64: NonEmptyString
+
+    @model_validator(mode="after")
+    def validate_practice_source_type(self) -> PracticeSourceAttachment:
+        suffix = self.filename.lower().rsplit(".", maxsplit=1)[-1]
+        allowed = {
+            "pdf": {"application/pdf"},
+            "txt": {"text/plain"},
+            "md": {"text/markdown", "text/plain"},
+        }
+        if suffix not in allowed or self.mime_type.lower() not in allowed[suffix]:
+            raise ValueError("practice sources currently support only PDF, TXT and Markdown")
+        if (suffix == "pdf") != (self.type == "pdf"):
+            raise ValueError("PDF sources must use type=pdf and other sources type=file")
+        return self
+
+
+class GeneratedPracticeStartBody(PracticeStartBody):
+    learning_path_id: NonEmptyString
+    knowledge_point_id: NonEmptyString
+    knowledge_point_name: NonEmptyString
+    num_questions: Annotated[int, Field(ge=2, le=10)] = 4
+    difficulty: Literal["auto", "easy", "medium", "hard"] = "auto"
+    attachments: tuple[PracticeSourceAttachment, ...] = ()
 
 
 class CorrectionBody(StrictApiModel):
@@ -166,9 +210,14 @@ def build_router(
 
     @router.post("/practice/start")
     async def start_practice(body: PracticeStartBody) -> dict[str, Any]:
+        _validate_controlled_scope(body.exam_id, body.subject_id)
+        questions = tuple(stage07_practice_questions())
         context = _practice_context_payload(
             practice_session_id=body.practice_session_id,
             trace_id=body.trace_id,
+            exam_id=body.exam_id,
+            subject_id=body.subject_id,
+            questions=questions,
         )
         return await _run_practice_turn(
             runtime_host(),
@@ -177,29 +226,119 @@ def build_router(
             context=context,
         )
 
-    @router.post("/practice/answer")
-    async def answer_practice(body: PracticeAnswerBody) -> dict[str, Any]:
-        question = stage07_question(body.question_id)
-        if question is None:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail={
-                    "error_code": "practice_question_not_found",
-                    "message": "Question is not in the Stage 07 practice catalog.",
-                },
-            )
+    @router.post("/practice/generate")
+    async def generate_practice(body: GeneratedPracticeStartBody) -> dict[str, Any]:
+        _validate_controlled_scope(body.exam_id, body.subject_id)
+        canonical_id = _canonical_knowledge_point(
+            body.knowledge_point_id,
+            body.knowledge_point_name,
+        )
+        questions = await _generate_practice_questions(
+            runtime_host(),
+            body=body,
+            canonical_knowledge_point_id=canonical_id,
+        )
         context = _practice_context_payload(
             practice_session_id=body.practice_session_id,
             trace_id=body.trace_id,
-            question=question.model_dump(mode="json"),
-            submission={
+            exam_id=body.exam_id,
+            subject_id=body.subject_id,
+            questions=questions,
+        )
+        result = await _run_practice_turn(
+            runtime_host(),
+            content=f"开始 {body.knowledge_point_name} 专项练习",
+            session_id=body.session_id,
+            context=context,
+        )
+        result["generation"] = {
+            "learning_path_id": body.learning_path_id,
+            "knowledge_point_id": canonical_id,
+            "knowledge_point_name": body.knowledge_point_name,
+            "question_count": len(questions),
+            "source_files": [item.filename for item in body.attachments],
+        }
+        return result
+
+    @router.get("/catalog")
+    async def get_catalog() -> dict[str, Any]:
+        taxonomy = load_taxonomy("math1_v1")
+        leaves = [
+            node
+            for node in taxonomy.nodes
+            if node.status is KnowledgePointStatus.ACTIVE
+            and not taxonomy.children_of(node.id)
+        ]
+        return {
+            "scopes": [
+                {
+                    "exam_id": _EXAM_ID,
+                    "exam_name": "全国硕士研究生招生考试",
+                    "subject_id": _SUBJECT_ID,
+                    "subject_name": "数学一",
+                    "taxonomy_version": taxonomy.taxonomy_version,
+                }
+            ],
+            "knowledge_points": [
+                {"id": node.id, "name": node.name_zh, "aliases": list(node.aliases)}
+                for node in leaves
+            ],
+        }
+
+    @router.post("/practice/answer")
+    async def answer_practice(body: PracticeAnswerBody) -> dict[str, Any]:
+        _validate_controlled_scope(body.exam_id, body.subject_id)
+        learning_context = _authenticated_context(
+            exam_id=body.exam_id,
+            subject_id=body.subject_id,
+        )
+        async with runtime_provider.open_product() as runtime:
+            replay = await runtime.checkpoints.get(
+                learning_context,
+                body.practice_session_id,
+                f"answer:{body.idempotency_key}",
+            )
+            latest = replay or await runtime.checkpoints.get_latest(
+                learning_context,
+                body.practice_session_id,
+            )
+        if latest is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail={
+                    "error_code": "practice_session_not_found",
+                    "message": "Practice session was not found.",
+                },
+            )
+        if replay is not None:
+            context = replay.checkpoint.context.model_dump(mode="json")
+        else:
+            checkpoint = latest.checkpoint
+            question = checkpoint.recommended_question or checkpoint.context.current_question
+            if question is None or question.question_id != body.question_id:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail={
+                        "error_code": "practice_question_not_issued",
+                        "message": "Question does not match the latest issued question.",
+                    },
+                )
+            submission = AnswerSubmission.model_validate(
+                {
                 "practice_session_id": body.practice_session_id,
                 "question_id": question.question_id,
                 "answer": body.answer,
                 "submitted_at": body.submitted_at.isoformat(),
                 "idempotency_key": body.idempotency_key,
-            },
-        )
+                }
+            )
+            context = checkpoint.context.model_copy(
+                update={
+                    "current_question": question,
+                    "submitted_answer": submission,
+                    "step_state": PracticeState.ANSWER_RECEIVED,
+                }
+            ).model_dump(mode="json")
         return await _run_practice_turn(
             runtime_host(),
             content="提交答案",
@@ -233,8 +372,13 @@ def build_router(
         return review
 
     @router.post("/practice/sessions/{practice_session_id}/resume")
-    async def resume_practice(practice_session_id: NonEmptyString) -> dict[str, Any]:
-        context = _authenticated_context(exam_id=_EXAM_ID, subject_id=_SUBJECT_ID)
+    async def resume_practice(
+        practice_session_id: NonEmptyString,
+        exam_id: NonEmptyString = _EXAM_ID,
+        subject_id: NonEmptyString = _SUBJECT_ID,
+    ) -> dict[str, Any]:
+        _validate_controlled_scope(exam_id, subject_id)
+        context = _authenticated_context(exam_id=exam_id, subject_id=subject_id)
         async with runtime_provider.open_product() as runtime:
             latest = await runtime.checkpoints.get_latest(context, practice_session_id)
         if latest is None:
@@ -649,6 +793,9 @@ def _practice_context_payload(
     *,
     practice_session_id: str,
     trace_id: str,
+    exam_id: str = _EXAM_ID,
+    subject_id: str = _SUBJECT_ID,
+    questions=(),  # noqa: ANN001
     question: dict[str, Any] | None = None,
     submission: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
@@ -656,12 +803,13 @@ def _practice_context_payload(
         "practice_session_id": practice_session_id,
         "scope": {
             "user_id": current_user_id(),
-            "exam_id": _EXAM_ID,
-            "subject_id": _SUBJECT_ID,
+            "exam_id": exam_id,
+            "subject_id": subject_id,
             "memory_namespace": MemoryNamespace.MASTERY.value,
         },
         "step_state": "IDLE" if submission is None else "ANSWER_RECEIVED",
         "trace_id": trace_id,
+        "question_catalog": [item.model_dump(mode="json") for item in questions],
     }
     if question is not None:
         payload["current_question"] = question
@@ -677,7 +825,9 @@ async def _run_practice_turn(
     session_id: str | None,
     context: dict[str, Any],
 ) -> dict[str, Any]:
-    questions = [question.model_dump(mode="json") for question in stage07_practice_questions()]
+    questions = list(context.get("question_catalog") or ())
+    if not questions:
+        questions = [question.model_dump(mode="json") for question in stage07_practice_questions()]
     try:
         session, turn = await host.start_turn(
             PluginTurnRequest(
@@ -737,6 +887,196 @@ async def _run_practice_turn(
         "response": metadata.get("response", ""),
         "practice": practice,
     }
+
+
+def _validate_controlled_scope(exam_id: str, subject_id: str) -> None:
+    if exam_id != _EXAM_ID or subject_id != _SUBJECT_ID:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={
+                "error_code": "practice_scope_not_supported",
+                "message": "The selected exam scope is not available in the controlled catalog.",
+            },
+        )
+
+
+def _canonical_knowledge_point(knowledge_point_id: str, knowledge_point_name: str) -> str:
+    taxonomy = load_taxonomy("math1_v1")
+    candidate = taxonomy.get(knowledge_point_id)
+    if (
+        candidate is not None
+        and candidate.status is KnowledgePointStatus.ACTIVE
+        and not taxonomy.children_of(candidate.id)
+    ):
+        return candidate.id
+    normalized = RuleBasedKnowledgePointNormalizer(taxonomy).normalize(
+        knowledge_point_name,
+        1.0,
+    )
+    if normalized.knowledge_point_id == "unknown":
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={
+                "error_code": "learning_path_knowledge_point_unmapped",
+                "message": "This learning-path knowledge point is not in the selected exam taxonomy.",
+            },
+        )
+    return normalized.knowledge_point_id
+
+
+async def _generate_practice_questions(
+    host: PluginTurnHost,
+    *,
+    body: GeneratedPracticeStartBody,
+    canonical_knowledge_point_id: str,
+) -> tuple[Question, ...]:
+    source_artifacts = []
+    for attachment in body.attachments:
+        try:
+            content = base64.b64decode(attachment.base64, validate=True)
+        except (binascii.Error, ValueError) as exc:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail={
+                    "error_code": "invalid_practice_attachment",
+                    "message": f"Attachment {attachment.filename!r} is not valid base64.",
+                },
+            ) from exc
+        source_artifacts.append(
+            {
+                "filename": attachment.filename,
+                "mime_type": attachment.mime_type,
+                "sha256": hashlib.sha256(content).hexdigest(),
+            }
+        )
+    topic = (
+        f"围绕知识点“{body.knowledge_point_name}”生成 {body.num_questions} 道递进练习题。"
+        "题目必须能够独立作答，答案与解释必须明确；如有附件，只能依据附件内容出题。"
+    )
+    session: dict[str, Any] | None = None
+    pairs: list[dict[str, Any]] = []
+    generation_error: dict[str, Any] | None = None
+    try:
+        session, turn = await host.start_turn(
+            PluginTurnRequest(
+                content=topic,
+                capability="deep_question",
+                language="zh",
+                config={
+                    "mode": "custom",
+                    "topic": topic,
+                    "num_questions": body.num_questions,
+                    "difficulty": body.difficulty,
+                    "question_types": ["concept", "short_answer", "written"],
+                    "per_type_counts": {},
+                    "_persist_user_message": False,
+                },
+                attachments=tuple(item.model_dump(mode="json") for item in body.attachments),
+            )
+        )
+        async for event in host.stream_turn(turn["id"]):
+            metadata = event.get("metadata") or {}
+            if event.get("type") == "error":
+                generation_error = event
+            if metadata.get("call_kind") == "quiz_question_emitted":
+                pair = metadata.get("qa_pair")
+                if isinstance(pair, dict):
+                    pairs.append(pair)
+            if event.get("type") == "result" and event.get("source") == "deep_question":
+                summary = metadata.get("summary") or {}
+                for item in summary.get("results") or []:
+                    pair = item.get("qa_pair") if isinstance(item, dict) else None
+                    if isinstance(pair, dict):
+                        pairs.append(pair)
+    except RuntimeError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={"error_code": "question_generation_failed", "message": str(exc)},
+        ) from exc
+    finally:
+        if session is not None:
+            await host.delete_session(session["id"])
+
+    if generation_error is not None:
+        metadata = generation_error.get("metadata") or {}
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={
+                "error_code": metadata.get("error_code", "question_generation_failed"),
+                "message": generation_error.get("content", "Question generation failed."),
+            },
+        )
+
+    unique_pairs: dict[str, dict[str, Any]] = {}
+    for pair in pairs:
+        stem = str(pair.get("question") or "").strip()
+        answer = str(pair.get("correct_answer") or "").strip()
+        if not stem or not answer:
+            continue
+        identity = hashlib.sha256(
+            json.dumps(
+                {
+                    "scope": [body.exam_id, body.subject_id],
+                    "path": body.learning_path_id,
+                    "knowledge_point": canonical_knowledge_point_id,
+                    "source_artifacts": source_artifacts,
+                    "stem": stem,
+                    "answer": answer,
+                },
+                ensure_ascii=False,
+                sort_keys=True,
+                separators=(",", ":"),
+            ).encode()
+        ).hexdigest()[:24]
+        unique_pairs.setdefault(identity, pair)
+    if len(unique_pairs) < 2:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={
+                "error_code": "question_generation_incomplete",
+                "message": "The native Quiz pipeline did not produce enough validated questions.",
+            },
+        )
+
+    source = {
+        "kind": "deeptutor_native_quiz",
+        "learning_path_id": body.learning_path_id,
+        "knowledge_point_id": canonical_knowledge_point_id,
+        "source_artifacts": source_artifacts,
+    }
+    questions = []
+    for identity, pair in list(unique_pairs.items())[: body.num_questions]:
+        options = pair.get("options")
+        option_text = ""
+        if isinstance(options, dict) and options:
+            option_text = "\n" + "\n".join(
+                f"{key}. {value}" for key, value in options.items()
+            )
+        difficulty = {"easy": 0.3, "medium": 0.55, "hard": 0.8}.get(
+            str(pair.get("difficulty") or body.difficulty).lower(),
+            0.5,
+        )
+        questions.append(
+            {
+                "question_id": f"generated:{identity}",
+                "stem": f"{str(pair['question']).strip()}{option_text}",
+                "knowledge_point_ids": [canonical_knowledge_point_id],
+                "difficulty": difficulty,
+                "reference_answer": str(pair["correct_answer"]).strip(),
+                "grading_rubric": {
+                    "required_steps": [
+                        {
+                            "id": "expected_answer",
+                            "description": str(
+                                pair.get("explanation") or pair["correct_answer"]
+                            ).strip(),
+                        }
+                    ],
+                    "source": source,
+                },
+            }
+        )
+    return tuple(Question.model_validate(item) for item in questions)
 
 
 def _query_trace_id(context: LearningContext, operation: str) -> str:

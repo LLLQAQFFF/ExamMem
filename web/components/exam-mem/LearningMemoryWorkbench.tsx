@@ -15,6 +15,7 @@ import {
   type LearningMemoryEvidence,
   type LearningMemorySummary,
 } from "@/lib/exam-mem-memory";
+import MemoryIssuesWorkbench from "@/components/exam-mem/MemoryIssuesWorkbench";
 
 const EXAM_ID = "postgraduate_entrance_exam";
 const SUBJECT_ID = "math_1";
@@ -134,7 +135,7 @@ export default function LearningMemoryWorkbench() {
             <Database className="h-5 w-5" />
           </span>
           <div>
-            <h1 className="font-serif text-2xl font-semibold">{t("Learning Profile")}</h1>
+            <h1 className="font-serif text-2xl font-semibold">{t("Learning Memory")}</h1>
             <p className="text-sm text-[var(--muted-foreground)]">{t("Typed lifecycle state, version chains, provenance, and correction eligibility.")}</p>
           </div>
         </div>
@@ -250,6 +251,7 @@ export default function LearningMemoryWorkbench() {
           )}
         </aside>
       </div>
+      <MemoryIssuesWorkbench embedded />
     </div>
   );
 }

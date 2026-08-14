@@ -73,3 +73,73 @@ async def test_plugin_turn_host_delegates_to_the_public_facade(monkeypatch) -> N
         }
     ]
     assert events == [{"type": "done"}]
+
+
+@pytest.mark.asyncio
+async def test_plugin_turn_host_forwards_explicit_attachments(monkeypatch) -> None:
+    requests: list[dict[str, object]] = []
+
+    class FakeApp:
+        async def start_turn(self, request):
+            requests.append(request)
+            return {"id": "session-1"}, {"id": "turn-1"}
+
+    monkeypatch.setattr("deeptutor.app.DeepTutorApp", FakeApp)
+    host = host_services.PluginTurnHost()
+    await host.start_turn(
+        host_services.PluginTurnRequest(
+            content="generate",
+            capability="neutral_capability",
+            attachments=(
+                {
+                    "type": "file",
+                    "filename": "lesson.txt",
+                    "mime_type": "text/plain",
+                    "base64": "bGVzc29u",
+                },
+            ),
+        )
+    )
+
+    assert requests[0]["attachments"] == [
+        {
+            "type": "file",
+            "filename": "lesson.txt",
+            "mime_type": "text/plain",
+            "base64": "bGVzc29u",
+        }
+    ]
+
+
+@pytest.mark.asyncio
+async def test_plugin_turn_host_deletes_transient_session_and_attachments(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    deleted: list[tuple[str, str]] = []
+
+    class FakeApp:
+        pass
+
+    class SessionStore:
+        async def delete_session(self, session_id):
+            deleted.append(("session", session_id))
+            return True
+
+    class AttachmentStore:
+        async def delete_session(self, session_id):
+            deleted.append(("attachments", session_id))
+
+    monkeypatch.setattr("deeptutor.app.DeepTutorApp", FakeApp)
+    monkeypatch.setattr(
+        "deeptutor.services.session.get_session_store", lambda: SessionStore()
+    )
+    monkeypatch.setattr(
+        "deeptutor.services.storage.attachment_store.get_attachment_store",
+        lambda: AttachmentStore(),
+    )
+
+    assert await host_services.PluginTurnHost().delete_session("transient-1") is True
+    assert deleted == [
+        ("session", "transient-1"),
+        ("attachments", "transient-1"),
+    ]

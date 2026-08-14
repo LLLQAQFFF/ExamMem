@@ -3,7 +3,9 @@ from __future__ import annotations
 import asyncio
 from collections.abc import AsyncIterator, Callable
 from contextlib import asynccontextmanager, suppress
+from dataclasses import asdict
 from datetime import datetime, timezone
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -19,7 +21,7 @@ from sqlalchemy.schema import CreateSchema, DropSchema
 
 from deeptutor.api.routers.unified_ws import unified_websocket
 from deeptutor.app import DeepTutorApp, TurnRequest
-from deeptutor.multi_user.context import set_current_user
+from deeptutor.multi_user.context import reset_current_user, set_current_user
 from deeptutor.multi_user.paths import local_admin_user
 from deeptutor.plugins import PluginManager
 from deeptutor.runtime.registry.capability_registry import CapabilityRegistry
@@ -30,6 +32,7 @@ from deeptutor.services.path_service import PathService
 from deeptutor.services.session.sqlite_store import SQLiteSessionStore
 from deeptutor.services.session.turn_runtime import TurnRuntimeManager
 from deeptutor_plugins.exam_mem import ExamMemPlugin
+from deeptutor_plugins.exam_mem.api import build_router
 from exam_mem.config import ExamMemSettings
 from exam_mem.practice import stage07_practice_questions, stage07_question
 from exam_mem.practice.capability import (
@@ -201,7 +204,7 @@ def _wire_runtime(
     monkeypatch: pytest.MonkeyPatch,
     engine_factory: Callable[[str], AsyncEngine],
     tmp_path: Path,
-) -> tuple[PluginManager, DeepTutorApp, PathService]:
+) -> tuple[PluginManager, ExamMemPlugin, DeepTutorApp, PathService]:
     plugin = ExamMemPlugin(
         ExamMemSettings(memory_backend="lifecycle"),
         engine_factory=engine_factory,
@@ -238,7 +241,7 @@ def _wire_runtime(
         TurnRuntimeManager, "_mirror_events_to_workspace", lambda *_a, **_k: _completed()
     )
     app = _build_app(capabilities, tmp_path / "entry-chat.db")
-    return manager, app, PathService(workspace_root=tmp_path / "runtime")
+    return manager, plugin, app, PathService(workspace_root=tmp_path / "runtime")
 
 
 def _questions() -> list[dict[str, object]]:
@@ -345,6 +348,45 @@ async def _websocket_turn(
     return {"id": result["session_id"]}, result, socket.events
 
 
+class _GeneratedQuestionTurnHost:
+    """Fake only native Quiz generation while keeping ExamMem on the real Host runtime."""
+
+    def __init__(self, app: DeepTutorApp) -> None:
+        self._app = app
+        self.deleted_sessions: list[str] = []
+
+    async def start_turn(self, request):  # noqa: ANN001, ANN201
+        if request.capability == "deep_question":
+            return {"id": "transient-generation"}, {"id": "generated-turn"}
+        payload = asdict(request)
+        if not request.attachments:
+            payload.pop("attachments")
+        return await self._app.start_turn(payload)
+
+    async def stream_turn(self, turn_id: str):  # noqa: ANN201
+        if turn_id == "generated-turn":
+            for index in range(2):
+                yield {
+                    "type": "content",
+                    "metadata": {
+                        "call_kind": "quiz_question_emitted",
+                        "qa_pair": {
+                            "question": f"贝叶斯专项题 {index + 1}",
+                            "correct_answer": f"受控答案 {index + 1}",
+                            "explanation": f"受控解析 {index + 1}",
+                            "difficulty": "medium",
+                        },
+                    },
+                }
+            return
+        async for event in self._app.stream_turn(turn_id):
+            yield event
+
+    async def delete_session(self, session_id: str) -> bool:
+        self.deleted_sessions.append(session_id)
+        return True
+
+
 async def _counts(engine: AsyncEngine, schema_name: str) -> tuple[int, ...]:
     tables = (
         learning_events,
@@ -365,6 +407,124 @@ async def _counts(engine: AsyncEngine, schema_name: str) -> tuple[int, ...]:
         return tuple(counts)
 
 
+async def test_generated_questions_are_checkpointed_and_attempts_share_exam_scope(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    async with _isolated_database("generated_http") as (
+        administration_engine,
+        schema_name,
+        engine_factory,
+    ):
+        _manager, plugin, app, path_service = _wire_runtime(
+            monkeypatch, engine_factory, tmp_path
+        )
+        host = _GeneratedQuestionTurnHost(app)
+        api = FastAPI()
+        api.include_router(
+            build_router(plugin._runtime_provider, turn_host=host),  # noqa: SLF001
+            prefix="/api/v1/exam-mem",
+        )
+        user_token = set_current_user(local_admin_user())
+        try:
+            with memory_path_service_override(path_service):
+                async with AsyncClient(
+                    transport=ASGITransport(app=api), base_url="http://test"
+                ) as client:
+                    generated_response = await client.post(
+                        "/api/v1/exam-mem/practice/generate",
+                        json={
+                            "practice_session_id": "practice:generated:001",
+                            "trace_id": "trace:generated:001",
+                            "learning_path_id": "path:probability",
+                            "knowledge_point_id": "native:bayes",
+                            "knowledge_point_name": "贝叶斯公式",
+                            "num_questions": 2,
+                            "attachments": [
+                                {
+                                    "type": "file",
+                                    "filename": "lesson.txt",
+                                    "mime_type": "text/plain",
+                                    "base64": "bGVzc29u",
+                                }
+                            ],
+                        },
+                    )
+                    assert generated_response.status_code == 200, generated_response.text
+                    generated = generated_response.json()
+                    serialized = generated_response.text
+                    assert generated["practice"]["question"]["question_id"].startswith(
+                        "generated:"
+                    )
+                    assert "reference_answer" not in serialized
+                    assert "grading_rubric" not in serialized
+                    answer_response = await client.post(
+                        "/api/v1/exam-mem/practice/answer",
+                        json={
+                            "practice_session_id": "practice:generated:001",
+                            "trace_id": "trace:generated:001",
+                            "session_id": generated["session_id"],
+                            "question_id": generated["practice"]["question"]["question_id"],
+                            "answer": "controlled incorrect answer",
+                            "submitted_at": NOW.isoformat(),
+                            "idempotency_key": "answer:generated:001",
+                        },
+                    )
+                    assert answer_response.status_code == 200, answer_response.text
+                    second_response = await client.post(
+                        "/api/v1/exam-mem/practice/start",
+                        json={
+                            "practice_session_id": "practice:generated:002",
+                            "trace_id": "trace:generated:002",
+                        },
+                    )
+                    assert second_response.status_code == 200, second_response.text
+                    resumed_first = await client.post(
+                        "/api/v1/exam-mem/practice/sessions/practice:generated:001/resume"
+                    )
+                    assert resumed_first.status_code == 200, resumed_first.text
+                    history_response = await client.get(
+                        "/api/v1/exam-mem/practice/sessions"
+                    )
+                    assert history_response.status_code == 200, history_response.text
+                    history = history_response.json()["sessions"]
+                    assert [item["attempt_number"] for item in history] == [2, 1]
+                    assert {
+                        item["practice_session_id"]: item["attempt_number"]
+                        for item in history
+                    } == {
+                        "practice:generated:001": 1,
+                        "practice:generated:002": 2,
+                    }
+                    assert all(
+                        item["practice_session_id"].startswith("practice:generated:")
+                        for item in history
+                    )
+        finally:
+            reset_current_user(user_token)
+
+        async with administration_engine.connect() as connection:
+            await connection.execute(text(f'SET search_path TO "{schema_name}", public'))
+            payload = await connection.scalar(
+                select(practice_workflow_checkpoints.c.payload)
+                .where(
+                    practice_workflow_checkpoints.c.practice_session_id
+                    == "practice:generated:001"
+                )
+                .order_by(practice_workflow_checkpoints.c.updated_at.desc())
+                .limit(1)
+            )
+        assert payload is not None
+        catalog = payload["context"]["question_catalog"]
+        assert len(catalog) == 2
+        source = catalog[0]["grading_rubric"]["source"]
+        assert source["kind"] == "deeptutor_native_quiz"
+        assert source["source_artifacts"][0]["sha256"] == hashlib.sha256(
+            b"lesson"
+        ).hexdigest()
+        assert host.deleted_sessions == ["transient-generation"]
+
+
 @pytest.mark.parametrize("entry", ["sdk", "http", "websocket"])
 async def test_real_entry_runs_one_plugin_workflow_and_replays_without_duplicates(
     entry: str,
@@ -376,7 +536,9 @@ async def test_real_entry_runs_one_plugin_workflow_and_replays_without_duplicate
         schema_name,
         engine_factory,
     ):
-        manager, app, path_service = _wire_runtime(monkeypatch, engine_factory, tmp_path)
+        manager, _plugin, app, path_service = _wire_runtime(
+            monkeypatch, engine_factory, tmp_path
+        )
         monkeypatch.setattr("deeptutor.app.DeepTutorApp", lambda: app)
 
         with memory_path_service_override(path_service):
@@ -446,6 +608,7 @@ async def test_real_entry_runs_one_plugin_workflow_and_replays_without_duplicate
                     assert history_response.status_code == 200, history_response.text
                     [history] = history_response.json()["sessions"]
                     assert history["practice_session_id"] == PRACTICE_SESSION_ID
+                    assert history["attempt_number"] == 1
                     assert history["current_checkpoint"]["step_state"] == "RECOMMENDED"
                     resume_response = await client.post(
                         f"/api/v1/exam-mem/practice/sessions/{PRACTICE_SESSION_ID}/resume"

@@ -36,6 +36,7 @@ class PostgresExamProductRepository:
         sessions = []
         for practice_session_id, session_rows in by_session.items():
             latest = session_rows[0]
+            started_at = min(row["created_at"] for row in session_rows)
             checkpoints = [PracticeWorkflowCheckpoint.model_validate(row["payload"]) for row in session_rows]
             latest_checkpoint = checkpoints[0]
             answer_count = sum(item.context.submitted_answer is not None for item in checkpoints)
@@ -43,6 +44,7 @@ class PostgresExamProductRepository:
                 {
                     "practice_session_id": practice_session_id,
                     "trace_id": latest["trace_id"],
+                    "started_at": started_at.isoformat(),
                     "step_state": latest["step_state"],
                     "updated_at": latest["updated_at"].isoformat(),
                     "answer_count": answer_count,
@@ -54,6 +56,13 @@ class PostgresExamProductRepository:
                     ),
                 }
             )
+        sessions.sort(
+            key=lambda session: (session["started_at"], session["practice_session_id"]),
+            reverse=True,
+        )
+        total_attempts = len(sessions)
+        for index, session in enumerate(sessions):
+            session["attempt_number"] = total_attempts - index
         return sessions
 
     async def get_practice_session(

@@ -53,7 +53,9 @@ test("every static ExamMem UI string exists in both interface languages", () => 
 test("ExamMem navigation and derived issue labels have Chinese copy", () => {
   const expected = {
     "Smart Exam Prep": "智能备考",
+    "Learning Paths": "学习路径",
     Practice: "练习",
+    "Learning Memory": "学习记忆",
     "Learning Profile": "学习档案",
     "Exam Review": "考试复盘",
     "Memory Issues": "记忆问题",

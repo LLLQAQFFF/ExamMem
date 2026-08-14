@@ -18,8 +18,10 @@ export interface PracticeCheckpointSummary {
 export interface PracticeHistoryItem {
   practice_session_id: string;
   trace_id: string;
+  started_at: string;
   step_state: string;
   updated_at: string;
+  attempt_number: number;
   answer_count: number;
   current_checkpoint: PracticeCheckpointSummary;
   runtime: RuntimeSnapshot | null;
@@ -82,17 +84,26 @@ async function jsonOrThrow<T>(response: Response): Promise<T> {
   return (await response.json()) as T;
 }
 
-export async function listPracticeHistory(): Promise<PracticeHistoryItem[]> {
+export async function listPracticeHistory(
+  examId = "postgraduate_entrance_exam",
+  subjectId = "math_1",
+): Promise<PracticeHistoryItem[]> {
+  const query = new URLSearchParams({ exam_id: examId, subject_id: subjectId });
   const payload = await jsonOrThrow<{ sessions: PracticeHistoryItem[] }>(
-    await apiFetch(apiUrl("/api/v1/exam-mem/practice/sessions")),
+    await apiFetch(apiUrl(`/api/v1/exam-mem/practice/sessions?${query}`)),
   );
   return payload.sessions;
 }
 
-export async function resumePractice(id: string): Promise<PracticeTurnResponse> {
+export async function resumePractice(
+  id: string,
+  examId = "postgraduate_entrance_exam",
+  subjectId = "math_1",
+): Promise<PracticeTurnResponse> {
+  const query = new URLSearchParams({ exam_id: examId, subject_id: subjectId });
   return jsonOrThrow<PracticeTurnResponse>(
     await apiFetch(
-      apiUrl(`/api/v1/exam-mem/practice/sessions/${encodeURIComponent(id)}/resume`),
+      apiUrl(`/api/v1/exam-mem/practice/sessions/${encodeURIComponent(id)}/resume?${query}`),
       { method: "POST" },
     ),
   );

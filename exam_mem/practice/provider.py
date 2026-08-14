@@ -413,7 +413,7 @@ class PracticeRuntimeProvider:
         settings = self._settings
         if not settings.enabled or not settings.capabilities.exam_practice:
             raise PracticeRuntimeConfigurationError("exam_practice is disabled")
-        questions = _runtime_questions(unified_context)
+        questions = practice_context.question_catalog or _runtime_questions(unified_context)
         engine = self._engine_factory(load_database_settings().sqlalchemy_url())
         try:
             checkpoints = CommittedPostgresPracticeCheckpointRepository(engine)

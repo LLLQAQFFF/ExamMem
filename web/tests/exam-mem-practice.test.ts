@@ -27,8 +27,12 @@ test("browser sends only public question identity and stable retry material", ()
   assert.deepEqual(identity, {
     practiceSessionId: "practice:web:fixed-uuid",
     traceId: "trace:web:fixed-uuid",
+    examId: "postgraduate_entrance_exam",
+    subjectId: "math_1",
   });
   assert.equal(request.idempotency_key, "answer:web:practice:web:fixed-uuid:2");
+  assert.equal(request.exam_id, "postgraduate_entrance_exam");
+  assert.equal(request.subject_id, "math_1");
   assert.equal("reference_answer" in request, false);
   assert.equal("grading_rubric" in request, false);
 });
@@ -109,4 +113,32 @@ test("practice route owns scrolling and narrow screens defer the side column", (
     workbench,
     /xl:grid-cols-\[minmax\(0,1fr\)_minmax\(280px,340px\)\]/,
   );
+});
+
+test("smart exam prep owns learning paths, scoped generation, and merged memory issues", () => {
+  const shell = readFileSync(
+    path.resolve(process.cwd(), "components/exam-mem/SmartExamPrepShell.tsx"),
+    "utf8",
+  );
+  const learningSpace = readFileSync(
+    path.resolve(process.cwd(), "components/space/SpaceDashboard.tsx"),
+    "utf8",
+  );
+  const practice = readFileSync(
+    path.resolve(process.cwd(), "components/exam-mem/PracticeWorkbench.tsx"),
+    "utf8",
+  );
+  const memory = readFileSync(
+    path.resolve(process.cwd(), "components/exam-mem/LearningMemoryWorkbench.tsx"),
+    "utf8",
+  );
+
+  assert.match(shell, /href: "\/exam-mem\/learning"/);
+  assert.doesNotMatch(shell, /href: "\/exam-mem\/issues"/);
+  assert.doesNotMatch(learningSpace, /mastery_path/);
+  assert.match(practice, /generateExamPractice/);
+  assert.match(practice, /value=\{selectedScope\}/);
+  assert.match(practice, /accept="\.pdf,\.txt,\.md"/);
+  assert.doesNotMatch(practice, /\.pptx|\.docx/);
+  assert.match(memory, /<MemoryIssuesWorkbench embedded/);
 });

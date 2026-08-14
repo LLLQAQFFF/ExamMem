@@ -7,23 +7,29 @@ is a product boundary, not an unfinished fallback path.
 
 | Item | Why deferred | Entry condition |
 | --- | --- | --- |
-| File/document ingestion | Multi-source source identity, parsing provenance, authorization and retention are not part of the frozen current loop. | Approved Stage 08 design, source contract and end-to-end acceptance. |
+| Durable file/document ingestion | Multi-source source identity, reusable parsing provenance, authorization, retention and content administration are not part of the current loop. The implemented PDF/TXT/Markdown option is transient context for one explicitly requested generated Practice only. | Approved Stage 08 design, source contract and end-to-end acceptance. |
 | Video, image and audio ingestion | Requires modality-specific extraction, timestamps/regions, evidence rendering and model-quality evaluation. | Separate modality ADRs and privacy/cost controls. |
 | Notes and PPT ingestion | Requires source versioning and conflict semantics; must not be treated as plain Practice evidence. | Multi-source provenance model approved. |
 | Learning Journey Memory | Has a different longitudinal aggregation and product lifecycle from current Learning Memory. | Dedicated schema/invariants and migration plan. |
 | Course question answering | Is not Exam Practice and must not reuse Practice sessions or grading checkpoints. | Separate capability and session-surface contract. |
-| Source-driven question generation | Requires content licensing, question/rubric version governance and evaluation. | Approved question-content pipeline and quality gates. |
+| Large-scale source-driven question pipeline | The narrow current feature pins native Quiz output, canonical Taxonomy identity, source hashes and rubric inside one Practice checkpoint. Reusable content libraries, automatic ingestion, licensing workflow and quality evaluation remain absent. | Approved question-content pipeline and quality gates. |
 | Stage 08 optimization/evaluation | No experiment ledger, online metrics or model-quality benchmark was authorized in this migration. | Explicit Stage 08 scope and reproducible evaluation baseline. |
 
 ## Known current limitations
 
-- The controlled question catalog remains the migrated Stage 07 product set;
-  there is no large-scale content administration workflow.
-- DeepTutor Native Quiz results are not automatically promoted to Learning
-  Memory evidence. Their current envelope has no pinned four-dimensional exam
-  Scope, canonical Taxonomy/knowledge-point identity, controlled question and
-  grading-policy revision, or sufficient provenance. A neutral assessment
-  contract plus explicit Smart Exam Prep opt-in is required before integration.
+- Practice may use the migrated Stage 07 catalog or an explicitly requested,
+  per-session generated catalog. Generated questions are immutable checkpoint
+  snapshots; there is no reusable question bank or content administration UI.
+- PDF, TXT and Markdown attachments are passed through the neutral Host Turn
+  contract to one transient native Quiz session. ExamMem persists only the
+  generated question/rubric plus filename, MIME type and SHA-256 provenance;
+  it does not persist or index the source content. DOCX, PPT/PPTX, notes, image,
+  video and audio ingestion remain unsupported.
+- Arbitrary DeepTutor Native Quiz history is not automatically promoted to
+  Learning Memory. Only the explicit Smart Exam Prep generation entry pins a
+  controlled four-dimensional Scope and canonical Taxonomy identity; Learning
+  Memory evidence is created later by an ExamMem answer/grade workflow, never
+  by trusting Native Quiz's own correctness result.
 - Automated tests fix external LLM/embedding results. They prove real transport,
   registry, workflow and database behavior, not live provider accuracy, latency
   or cost.

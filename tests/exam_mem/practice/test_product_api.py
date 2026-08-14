@@ -3,14 +3,19 @@ from __future__ import annotations
 from contextlib import contextmanager
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from httpx import ASGITransport, AsyncClient
 import pytest
 
 from deeptutor.multi_user.context import reset_current_user, set_current_user
 from deeptutor.multi_user.models import CurrentUser, UserScope
 from deeptutor.plugins import SettingsContribution
-from deeptutor_plugins.exam_mem.api import build_router
+from deeptutor_plugins.exam_mem.api import (
+    GeneratedPracticeStartBody,
+    _canonical_knowledge_point,
+    _generate_practice_questions,
+    build_router,
+)
 from exam_mem.config import ExamMemSettings
 
 
@@ -67,3 +72,147 @@ async def test_non_admin_cannot_save_plugin_configuration(monkeypatch) -> None:
 
     assert response.status_code == 403
     assert saved is False
+
+
+def test_learning_path_point_maps_only_to_the_controlled_taxonomy() -> None:
+    assert (
+        _canonical_knowledge_point("native-id", "贝叶斯公式")
+        == "math1.probability.bayes"
+    )
+
+
+@pytest.mark.asyncio
+async def test_native_quiz_questions_are_versioned_and_server_side() -> None:
+    deleted: list[str] = []
+
+    class FakeHost:
+        async def start_turn(self, request):
+            assert request.capability == "deep_question"
+            assert request.attachments[0]["filename"] == "lesson.pdf"
+            return {"id": "generation-session"}, {"id": "generation-turn"}
+
+        async def stream_turn(self, turn_id):
+            assert turn_id == "generation-turn"
+            for index in range(2):
+                yield {
+                    "type": "content",
+                    "metadata": {
+                        "call_kind": "quiz_question_emitted",
+                        "qa_pair": {
+                            "question_id": f"q_{index + 1}",
+                            "question": f"贝叶斯练习 {index + 1}",
+                            "question_type": "short_answer",
+                            "correct_answer": f"答案 {index + 1}",
+                            "explanation": f"解析 {index + 1}",
+                            "difficulty": "medium",
+                        },
+                    },
+                }
+
+        async def delete_session(self, session_id):
+            deleted.append(session_id)
+            return True
+
+    body = GeneratedPracticeStartBody(
+        practice_session_id="practice:test:generated",
+        trace_id="trace:test:generated",
+        learning_path_id="path:probability",
+        knowledge_point_id="native:bayes",
+        knowledge_point_name="贝叶斯公式",
+        num_questions=2,
+        attachments=(
+            {
+                "filename": "lesson.pdf",
+                "mime_type": "application/pdf",
+                "type": "pdf",
+                "base64": "cGRm",
+            },
+        ),
+    )
+
+    questions = await _generate_practice_questions(
+        FakeHost(),  # type: ignore[arg-type]
+        body=body,
+        canonical_knowledge_point_id="math1.probability.bayes",
+    )
+
+    assert len(questions) == 2
+    assert all(question.question_id.startswith("generated:") for question in questions)
+    assert all(
+        question.knowledge_point_ids == ["math1.probability.bayes"]
+        for question in questions
+    )
+    assert questions[0].grading_rubric["source"] == {
+        "kind": "deeptutor_native_quiz",
+        "learning_path_id": "path:probability",
+        "knowledge_point_id": "math1.probability.bayes",
+        "source_artifacts": [
+            {
+                "filename": "lesson.pdf",
+                "mime_type": "application/pdf",
+                "sha256": "c35b21d6ca39aa7cc3b79a705d989f1a6e88b99ab43988d74048799e3db926a3",
+            }
+        ],
+    }
+    assert deleted == ["generation-session"]
+
+
+def test_generated_practice_rejects_future_ingestion_formats() -> None:
+    with pytest.raises(ValueError, match="PDF, TXT and Markdown"):
+        GeneratedPracticeStartBody(
+            practice_session_id="practice:test:unsupported-source",
+            trace_id="trace:test:unsupported-source",
+            learning_path_id="path:one",
+            knowledge_point_id="native:one",
+            knowledge_point_name="贝叶斯公式",
+            attachments=(
+                {
+                    "filename": "slides.pptx",
+                    "mime_type": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+                    "type": "file",
+                    "base64": "c2xpZGVz",
+                },
+            ),
+        )
+
+
+@pytest.mark.asyncio
+async def test_native_quiz_error_fails_closed_after_transient_cleanup() -> None:
+    deleted: list[str] = []
+
+    class FakeHost:
+        async def start_turn(self, request):
+            return {"id": "generation-session"}, {"id": "generation-turn"}
+
+        async def stream_turn(self, turn_id):
+            yield {
+                "type": "error",
+                "content": "controlled generation failure",
+                "metadata": {"error_code": "controlled_failure"},
+            }
+
+        async def delete_session(self, session_id):
+            deleted.append(session_id)
+            return True
+
+    body = GeneratedPracticeStartBody(
+        practice_session_id="practice:test:generation-error",
+        trace_id="trace:test:generation-error",
+        learning_path_id="path:probability",
+        knowledge_point_id="native:bayes",
+        knowledge_point_name="贝叶斯公式",
+        num_questions=2,
+    )
+
+    with pytest.raises(HTTPException) as raised:
+        await _generate_practice_questions(
+            FakeHost(),  # type: ignore[arg-type]
+            body=body,
+            canonical_knowledge_point_id="math1.probability.bayes",
+        )
+
+    assert getattr(raised.value, "detail") == {
+        "error_code": "controlled_failure",
+        "message": "controlled generation failure",
+    }
+    assert deleted == ["generation-session"]

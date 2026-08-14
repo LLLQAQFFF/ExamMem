@@ -40,6 +40,7 @@ class PluginTurnRequest:
     session_id: str | None = None
     language: str = "en"
     config: dict[str, Any] = field(default_factory=dict)
+    attachments: tuple[dict[str, Any], ...] = ()
 
 
 class PluginTurnHost:
@@ -53,11 +54,25 @@ class PluginTurnHost:
     async def start_turn(
         self, request: PluginTurnRequest
     ) -> tuple[dict[str, Any], dict[str, Any]]:
-        return await self._app.start_turn(asdict(request))
+        payload = asdict(request)
+        if not request.attachments:
+            payload.pop("attachments")
+        else:
+            payload["attachments"] = list(payload["attachments"])
+        return await self._app.start_turn(payload)
 
     async def stream_turn(self, turn_id: str) -> AsyncIterator[dict[str, Any]]:
         async for event in self._app.stream_turn(turn_id):
             yield event
+
+    async def delete_session(self, session_id: str) -> bool:
+        """Remove one transient Host session and its persisted attachments."""
+        from deeptutor.services.session import get_session_store
+        from deeptutor.services.storage.attachment_store import get_attachment_store
+
+        deleted = await get_session_store().delete_session(session_id)
+        await get_attachment_store().delete_session(session_id)
+        return deleted
 
 
 class NativeMemoryHost:

@@ -2966,6 +2966,7 @@
   "Issues failed to load.": "问题列表加载失败。",
   "Learning Memory correction failed.": "学习记忆修正失败。",
   "Learning Memory": "学习记忆",
+  "Learning Paths": "学习路径",
   "Learning Profile": "学习档案",
   "Learning Memory is independent from DeepTutor Native Memory. Historical evidence is append-only and never edited in place.": "学习记忆独立于 DeepTutor 原生记忆。历史证据只允许追加，绝不会原地修改。",
   "Loading audit chain…": "正在加载审计链…",

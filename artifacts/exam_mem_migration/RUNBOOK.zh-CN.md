@@ -1,7 +1,7 @@
 # ExamMem 第一方插件中文 Runbook
 
-本文用于运行已经迁移到 DeepTutor 的 ExamMem 当前产品闭环：刷题、评分、Learning
-Memory、推荐、恢复、纠错、Review、Issues 和 Configuration。
+本文用于运行已经迁移到 DeepTutor 的 ExamMem 当前产品闭环：学习路径、按知识点生成或
+选择练习、评分、Learning Memory、推荐、恢复、纠错、Review、Issues 和 Configuration。
 
 本文不授权修改生产数据、执行破坏性降级、发布或部署。
 
@@ -18,6 +18,13 @@ Memory、推荐、恢复、纠错、Review、Issues 和 Configuration。
   → 当前 Pinned Memory Backend
   → Recommendation → Checkpoint + append-only Trace
   → Resume / Correction / Grade Review / Issues
+
+DeepTutor 原生 Mastery Path
+  → 智能备考「学习路径」→ 选择考试范围和知识点
+  → 可选 PDF/TXT/Markdown 临时上下文
+  → 中性 Host Turn → 原生 Quiz 生成
+  → 题目/答案/规则/来源指纹固定到 Practice Checkpoint
+  → 进入上面的 ExamMem 评分和 Learning Memory 闭环
 ```
 
 必须遵守以下边界：
@@ -180,9 +187,10 @@ deeptutor start --dev
 
 ```text
 /exam-mem/practice       刷题、历史记录和恢复
+/exam-mem/learning       学习路径、知识点进度、继续辅导和专项练习入口
 /exam-mem/review         Grade、Diagnosis、Trace、Lifecycle 和 Grade Review
-/exam-mem/memories       Learning Memory、版本链、证据和纠错
-/exam-mem/issues         从权威事实派生的问题视图
+/exam-mem/memories       Learning Memory、版本链、证据、纠错和派生问题
+/exam-mem/issues         兼容旧深链；主入口已合并到 Learning Memory
 /exam-mem/configuration  Saved / Effective / Pinned 配置
 ```
 
@@ -194,6 +202,7 @@ deeptutor start --dev
 GET /api/v1/plugins/list
 GET /api/v1/plugins/health
 GET /api/v1/exam-mem/practice/sessions
+GET /api/v1/exam-mem/catalog
 GET /api/v1/exam-mem/issues
 GET /api/v1/exam-mem/configuration
 ```
@@ -203,7 +212,7 @@ GET /api/v1/exam-mem/configuration
 - 插件 `exam_mem`；
 - Capability `exam_practice`；
 - migration head `0007_grade_reviews`；
-- 单一的「智能备考」导航入口；练习、学习档案、考试复盘、记忆问题和配置作为其内部工作区。
+- 单一的「智能备考」导航入口；学习路径、练习、学习记忆、考试复盘和配置作为其内部工作区。
 
 注意：`/api/v1/plugins/health` 只表示插件生命周期装配成功。当前 ExamMem 没有主动连接
 数据库的 health hook，因此它不能替代以下两项检查：
@@ -216,17 +225,25 @@ python -m alembic -c alembic.ini current
 
 ### 3.3 最短业务 Smoke Test
 
-1. 打开 `/exam-mem/practice`。
-2. 创建一次新的 Practice，确认页面显示题目。
-3. 提交答案，确认状态到达 `RECOMMENDED`。
-4. 打开 Review，确认能看到 Grade、Diagnosis、Trace 和 Lifecycle 信息。
-5. 打开 Learning Memory，确认能查看 Scope、版本链和 evidence。
-6. 打开 Issues，确认页面可正常加载；没有 Issue 时允许为空。
-7. 返回 Practice 历史并执行 Resume，确认恢复的是服务端 checkpoint，而不是只依赖
+1. 打开 `/exam-mem/learning`，确认能看到原生学习路径和知识点进度；「继续学习辅导」应
+   返回原生 Mastery Path 对话，而不是创建 Learning Memory。
+2. 从知识点进入 `/exam-mem/practice`，选择考试范围、学习路径、知识点、难度和题数。
+3. 可选添加 PDF、TXT 或 Markdown。来源只服务本次生成；DOCX、PPT/PPTX、图片、视频和
+   音频不在当前范围。
+4. 点击「生成并开始练习」，或使用受控目录开始练习，确认页面显示题目。
+5. 提交答案，确认状态到达 `RECOMMENDED`。
+6. 再创建一次练习，确认历史显示相同考试范围下的「第 1 次 / 第 2 次」及已有得分。
+7. 打开 Review，确认能看到 Grade、Diagnosis、Trace 和 Lifecycle 信息。
+8. 打开 Learning Memory，确认能查看 Scope、版本链、evidence、纠错和派生问题。
+9. 返回 Practice 历史并执行 Resume，确认恢复的是服务端 checkpoint，而不是只依赖
    浏览器缓存。
 
 上述提交会按当前 Backend 写入真实 ExamMem PostgreSQL。生产环境执行前必须确认用户、
 考试和科目 Scope。
+
+如果使用仓库的 `exammem-demo-postgres` 做验收，不要假设 public 表为空，也不要为了测试
+清理已有演示记录。自动化数据库测试使用随机 schema 并在结束时删除；验收后应只读确认
+没有随机 schema 残留，保留原有 public 数据。
 
 ## 4. 配置语义和五种 Backend
 
@@ -412,11 +429,15 @@ Grade Review 数据时也不提供自动破坏性 downgrade。
 
 - 自动化验收固定了外部 LLM/Embedding 结果，验证的是调用链、事务和数据库语义，不代表
   线上模型质量、延迟或成本。
-- 当前是受控 Stage 07 题目目录，没有大规模内容管理后台。
+- 当前可使用受控 Stage 07 题目目录，或为一次 Practice 生成并固定 2～10 道题；没有
+  可复用题库管理、内容授权工作流或大规模质量评估后台。
+- PDF/TXT/Markdown 仅通过中性 Host Turn 进入一次临时原生 Quiz 会话。ExamMem 不保存
+  原文件，只在 checkpoint 保存生成题和文件名、MIME、SHA-256；临时 Host 会话随后删除。
 - Browser 的待提交请求只在当前标签页保存；长期恢复依赖服务端 Practice 历史和 Resume。
 - Grade Overturn 暂为 API-only；UI 提供 Dispute 和管理员 Uphold。
 - Issues 是权威事实的派生视图，没有 assignment、comment、SLA 或通知 ledger。
 - 插件 health 不代表 PostgreSQL 连通性。
 - Saved 配置需要重启才成为 Effective；已有 Practice 始终使用 Pinned 快照。
-- 文件、视频、图片、音频、笔记、PPT 摄取、Learning Journey Memory、课程问答、来源驱动
-  出题和 Stage 08 优化均未实现，不能通过现有 API 冒充支持。
+- 持久文件库、DOCX、视频、图片、音频、笔记、PPT/PPTX 摄取、Learning Journey
+  Memory、课程问答、大规模来源驱动题库和 Stage 08 优化均未实现，不能通过现有 API
+  冒充支持。

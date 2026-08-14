@@ -3,12 +3,12 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  AlertOctagon,
   BookOpenCheck,
   BrainCircuit,
   FileCheck2,
   Settings2,
   Sparkles,
+  GraduationCap,
   type LucideIcon,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -20,14 +20,14 @@ interface PrepSection {
 }
 
 const PREP_SECTIONS: PrepSection[] = [
+  { href: "/exam-mem/learning", label: "Learning Paths", icon: GraduationCap },
   { href: "/exam-mem/practice", label: "Practice", icon: BookOpenCheck },
   {
     href: "/exam-mem/memories",
-    label: "Learning Profile",
+    label: "Learning Memory",
     icon: BrainCircuit,
   },
   { href: "/exam-mem/review", label: "Exam Review", icon: FileCheck2 },
-  { href: "/exam-mem/issues", label: "Memory Issues", icon: AlertOctagon },
   {
     href: "/exam-mem/configuration",
     label: "Configuration",

@@ -113,9 +113,24 @@ class PracticeContext(StrictPracticeModel):
     submitted_answer: AnswerSubmission | None = None
     step_state: PracticeState = PracticeState.IDLE
     trace_id: NonEmptyString
+    question_catalog: tuple[Question, ...] = ()
 
     @model_validator(mode="after")
     def validate_step_material(self) -> PracticeContext:
+        catalog_ids = [question.question_id for question in self.question_catalog]
+        if len(catalog_ids) != len(set(catalog_ids)):
+            raise ValueError("question catalog IDs must be unique")
+        if self.current_question is not None and self.question_catalog:
+            catalog_question = next(
+                (
+                    question
+                    for question in self.question_catalog
+                    if question.question_id == self.current_question.question_id
+                ),
+                None,
+            )
+            if catalog_question != self.current_question:
+                raise ValueError("current question must match its catalog snapshot")
         if self.submitted_answer is not None:
             if self.current_question is None:
                 raise ValueError("submitted answer requires current question")
