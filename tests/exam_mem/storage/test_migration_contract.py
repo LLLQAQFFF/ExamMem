@@ -29,7 +29,7 @@ def test_alembic_configuration_does_not_store_a_database_url() -> None:
 def test_migration_chain_has_one_linear_head() -> None:
     scripts = _script_directory()
 
-    assert scripts.get_heads() == ["0009_assessments"]
+    assert scripts.get_heads() == ["0010_learning_observations"]
     assert scripts.get_revision("0001_learning_memory_schema").down_revision is None
     assert (
         scripts.get_revision("0002_append_only_records").down_revision
@@ -54,6 +54,10 @@ def test_migration_chain_has_one_linear_head() -> None:
     assert scripts.get_revision("0007_grade_reviews").down_revision == "0006_practice_workflow"
     assert scripts.get_revision("0008_study_plans").down_revision == "0007_grade_reviews"
     assert scripts.get_revision("0009_assessments").down_revision == "0008_study_plans"
+    assert (
+        scripts.get_revision("0010_learning_observations").down_revision
+        == "0009_assessments"
+    )
 
 
 def test_revision_ids_fit_the_alembic_version_column() -> None:
@@ -90,7 +94,7 @@ def test_initial_migration_renders_the_frozen_schema_offline() -> None:
 
     assert result.returncode == 0, result.stderr
     assert "create extension if not exists vector" in rendered
-    assert rendered.count("create table ") == 20
+    assert rendered.count("create table ") == 22
     for table_name in (
         "alembic_version",
         "learning_events",
@@ -112,12 +116,14 @@ def test_initial_migration_renders_the_frozen_schema_offline() -> None:
         "assessments",
         "assessment_versions",
         "assessment_attempts",
+        "learning_observations",
+        "learning_observation_actions",
     ):
         assert f"create table {table_name}" in rendered
     assert "vector(1024)" in rendered
     assert "using hnsw (content_embedding vector_cosine_ops)" in rendered
     assert "create function exam_mem_reject_append_only_mutation" in rendered
-    assert rendered.count("create trigger tr_") == 8
+    assert rendered.count("create trigger tr_") == 10
     assert "deferrable initially deferred" in rendered
     assert "add column trace_id text not null" in rendered
     assert "add column decision_id text not null" in rendered
@@ -131,6 +137,8 @@ def test_initial_migration_renders_the_frozen_schema_offline() -> None:
     assert "tr_grade_review_events_append_only" in rendered
     assert "tr_study_plan_versions_append_only" in rendered
     assert "tr_assessment_versions_append_only" in rendered
+    assert "tr_learning_observations_append_only" in rendered
+    assert "tr_learning_observation_actions_append_only" in rendered
     assert password not in result.stdout
     assert password not in result.stderr
 
@@ -177,6 +185,11 @@ def test_grade_review_downgrade_refuses_to_discard_existing_rows() -> None:
     [
         ("0008_study_plans", "cannot downgrade study plan contract", "study_plans"),
         ("0009_assessments", "cannot downgrade assessment contract", "assessments"),
+        (
+            "0010_learning_observations",
+            "cannot downgrade learning observation contract",
+            "learning_observations",
+        ),
     ],
 )
 def test_product_downgrades_refuse_to_discard_rows(

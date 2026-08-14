@@ -3,6 +3,7 @@ from __future__ import annotations
 from contextlib import asynccontextmanager, contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
+from types import SimpleNamespace
 
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
@@ -12,6 +13,7 @@ from deeptutor.multi_user.context import reset_current_user, set_current_user
 from deeptutor.multi_user.models import CurrentUser, UserScope
 from deeptutor_plugins.exam_mem.api import StudyPlanImportBody, build_router
 from deeptutor_plugins.exam_mem.study_plan import ImportedStudyPlan
+from exam_mem.practice.learning_observation import LearningObservationDraft
 from exam_mem.study import ImportedOutline, StudyPlanTree, materialize_outline
 
 pytestmark = pytest.mark.asyncio
@@ -99,6 +101,14 @@ class FakeStudyPlans:
         assert version in (None, 1)
         return self._version()
 
+    async def taxonomy(
+        self, *, user_id, exam_id, subject_id, taxonomy_version
+    ):  # noqa: ANN001, ANN201
+        assert user_id == "study-user"
+        assert exam_id == f"plan:{self.plan_id}"
+        assert self.tree is not None
+        return self.tree.taxonomy(subject_id, taxonomy_version)
+
     async def lock_objective_session(self, **_kwargs):  # noqa: ANN003
         return None
 
@@ -158,6 +168,7 @@ class FakeConnection:
 class FakeRuntime:
     def __init__(self) -> None:
         self.study_plans = FakeStudyPlans()
+        self.observations = FakeObservations()
         self.connection = FakeConnection()
 
 
@@ -184,6 +195,49 @@ class FakeTurnHost:
     async def delete_session(self, session_id):  # noqa: ANN001, ANN201
         raise AssertionError(f"unexpected cleanup: {session_id}")
 
+    async def read_conversation(self, session_id):  # noqa: ANN001, ANN201
+        assert session_id == "host-session"
+        return SimpleNamespace(
+            session_id=session_id,
+            messages=(
+                {"id": "user-1", "role": "user", "content": "请解释函数极限"},
+                {"id": "assistant-1", "role": "assistant", "content": "先看定义。"},
+            ),
+        )
+
+
+class FakeObservations:
+    def __init__(self) -> None:
+        self.observation = None
+
+    async def append(self, **kwargs):  # noqa: ANN003, ANN201
+        self.observation = {
+            **kwargs,
+            "status": "pending",
+            "created_at": NOW.isoformat(),
+        }
+        return self.observation
+
+    async def append_action(self, **kwargs):  # noqa: ANN003, ANN201
+        assert self.observation is not None
+        assert kwargs["observation_id"] == self.observation["observation_id"]
+        self.observation = {**self.observation, "status": "confirmed"}
+        return self.observation
+
+
+class FakeObservationAgent:
+    async def analyze(self, **kwargs):  # noqa: ANN003, ANN201
+        assert kwargs["channel"] == "learning_path"
+        assert kwargs["language"] == "zh"
+        assert kwargs["fixed_knowledge_point_id"]
+        return LearningObservationDraft(
+            related_to_study=True,
+            knowledge_point_ids=[kwargs["fixed_knowledge_point_id"]],
+            summary="复习了函数极限的定义。",
+            rationale="对话包含定义讲解。",
+            confidence=0.9,
+        )
+
 
 class FakeLearningHost:
     def __init__(self) -> None:
@@ -208,6 +262,7 @@ async def test_import_publish_and_open_objective_restores_one_host_session() -> 
             turn_host=turns,  # type: ignore[arg-type]
             outline_importer=FakeImporter(),  # type: ignore[arg-type]
             learning_host=learning,  # type: ignore[arg-type]
+            observation_agent=FakeObservationAgent(),  # type: ignore[arg-type]
         ),
         prefix="/api/v1/exam-mem",
     )
@@ -240,6 +295,10 @@ async def test_import_publish_and_open_objective_restores_one_host_session() -> 
                 f"/api/v1/exam-mem/study-plans/{plan_id}/objectives/{objective_id}/open",
                 json={"version": 1, "language": "zh"},
             )
+            summarized = await client.post(
+                f"/api/v1/exam-mem/study-plans/{plan_id}/objectives/{objective_id}/summarize",
+                json={"version": 1, "language": "zh"},
+            )
 
     assert first.status_code == 200
     assert first.json()["created"] is True
@@ -251,6 +310,9 @@ async def test_import_publish_and_open_objective_restores_one_host_session() -> 
     assert turns.requests[0].capability == "mastery_path"
     assert "函数极限" in turns.requests[0].content
     assert len(learning.paths) == 1
+    assert summarized.status_code == 200
+    assert summarized.json()["observation"]["status"] == "confirmed"
+    assert summarized.json()["observation"]["knowledge_point_ids"] == [objective_id]
 
 
 async def test_study_plan_file_contract_rejects_unplanned_ingestion_formats() -> None:

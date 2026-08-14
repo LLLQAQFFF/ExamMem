@@ -66,7 +66,21 @@ const RING_LINE: Record<Layer, string> = {
   L1: "color-mix(in srgb, var(--foreground) 10%, transparent)",
 };
 
-export default function MemoryGraph() {
+interface MemoryGraphProps {
+  loadGraph?: () => Promise<MemoryGraph>;
+  backHref?: string;
+  backLabel?: string;
+  title?: string;
+  description?: string;
+}
+
+export default function MemoryGraph({
+  loadGraph,
+  backHref = "/memory",
+  backLabel,
+  title,
+  description,
+}: MemoryGraphProps = {}) {
   const { t } = useTranslation();
   const [graph, setGraph] = useState<MemoryGraph | null>(null);
   const [loading, setLoading] = useState(true);
@@ -90,12 +104,16 @@ export default function MemoryGraph() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const snap = await fetchMemorySnapshot();
-      setGraph(buildGraph(snap));
+      if (loadGraph) {
+        setGraph(await loadGraph());
+      } else {
+        const snap = await fetchMemorySnapshot();
+        setGraph(buildGraph(snap));
+      }
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [loadGraph]);
 
   useEffect(() => {
     void load();
@@ -232,7 +250,14 @@ export default function MemoryGraph() {
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <Header onRefresh={() => void load()} loading={loading} />
+      <Header
+        onRefresh={() => void load()}
+        loading={loading}
+        backHref={backHref}
+        backLabel={backLabel}
+        title={title}
+        description={description}
+      />
 
       <div className="relative flex-1 min-h-0 overflow-hidden">
         <div
@@ -295,29 +320,38 @@ export default function MemoryGraph() {
 function Header({
   onRefresh,
   loading,
+  backHref,
+  backLabel,
+  title,
+  description,
 }: {
   onRefresh: () => void;
   loading: boolean;
+  backHref: string;
+  backLabel?: string;
+  title?: string;
+  description?: string;
 }) {
   const { t } = useTranslation();
   return (
     <div className="flex items-center justify-between border-b border-[var(--border)] bg-[var(--background)]/80 px-6 py-3 backdrop-blur md:px-10">
       <div className="flex items-center gap-3">
         <Link
-          href="/memory"
+          href={backHref}
           className="inline-flex items-center gap-1.5 rounded-md border border-[var(--border)] bg-[var(--background)] px-2.5 py-1 text-[12px] text-[var(--muted-foreground)] transition hover:bg-[var(--muted)]"
         >
           <ArrowLeft className="h-3.5 w-3.5" />
-          {t("Memory")}
+          {backLabel ?? t("Memory")}
         </Link>
         <div className="flex flex-col">
           <h1 className="font-serif text-[16px] font-semibold tracking-tight text-[var(--foreground)]">
-            {t("Memory graph")}
+            {title ?? t("Memory graph")}
           </h1>
           <p className="text-[11.5px] text-[var(--muted-foreground)]">
-            {t(
-              "L3 synthesis at the centre, L2 facts in the middle ring, L1 traces on the outside.",
-            )}
+            {description ??
+              t(
+                "L3 synthesis at the centre, L2 facts in the middle ring, L1 traces on the outside.",
+              )}
           </p>
         </div>
       </div>

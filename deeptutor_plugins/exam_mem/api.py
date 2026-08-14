@@ -59,10 +59,17 @@ from exam_mem.practice import (
     UserPlanCancellationRequest,
     stage07_practice_questions,
 )
+from exam_mem.practice.learning_observation import (
+    LEARNING_OBSERVATION_AGENT_VERSION,
+    KnowledgePointOption,
+    LearningObservationAgent,
+    LearningObservationDraft,
+)
 from exam_mem.storage import (
     AppendStatus,
     AssessmentConflict,
     AssessmentNotFound,
+    LearningObservationConflict,
     StudyPlanConflict,
     StudyPlanNotFound,
 )
@@ -186,6 +193,24 @@ class OpenStudyObjectiveBody(StrictApiModel):
     language: Literal["zh", "en"] = "zh"
 
 
+class AnalyzeConversationBody(StrictApiModel):
+    session_id: NonEmptyString
+    exam_id: NonEmptyString
+    subject_id: NonEmptyString
+    taxonomy_version: NonEmptyString
+    language: Literal["zh", "en"] = "zh"
+
+
+class SummarizeLearningPathBody(StrictApiModel):
+    version: Annotated[int, Field(ge=1)] | None = None
+    language: Literal["zh", "en"] = "zh"
+
+
+class LearningObservationActionBody(StrictApiModel):
+    action: Literal["confirm", "dismiss"]
+    idempotency_key: NonEmptyString
+
+
 class CorrectionBody(StrictApiModel):
     session_id: NonEmptyString
     idempotency_key: NonEmptyString
@@ -271,6 +296,7 @@ def build_router(
     effective_settings: ExamMemSettings | None = None,
     outline_importer: StudyPlanOutlineImporter | None = None,
     learning_host: PluginLearningHost | None = None,
+    observation_agent: LearningObservationAgent | None = None,
 ) -> APIRouter:
     """Build one router wired to the same Provider as the plugin Capability."""
 
@@ -279,6 +305,7 @@ def build_router(
     effective = effective_settings or ExamMemSettings()
     importer = outline_importer or StudyPlanOutlineImporter()
     learning = learning_host or PluginLearningHost()
+    observer = observation_agent or LearningObservationAgent()
 
     def runtime_host() -> PluginTurnHost:
         nonlocal host
@@ -707,6 +734,206 @@ def build_router(
             if created_session_id is not None:
                 await runtime_host().delete_session(created_session_id)
             raise
+
+    @router.get("/learning-observations/conversations")
+    async def list_observation_conversations() -> dict[str, Any]:
+        conversations = await runtime_host().list_conversations(limit=75)
+        return {
+            "conversations": [
+                {
+                    "session_id": item.session_id,
+                    "title": item.title,
+                    "message_count": item.message_count,
+                    "updated_at": item.updated_at,
+                }
+                for item in conversations
+            ]
+        }
+
+    @router.post("/learning-observations/analyze-conversation")
+    async def analyze_conversation(body: AnalyzeConversationBody) -> dict[str, Any]:
+        taxonomy = await _taxonomy_for_scope(
+            runtime_provider,
+            exam_id=body.exam_id,
+            subject_id=body.subject_id,
+            taxonomy_version=body.taxonomy_version,
+        )
+        transcript = await runtime_host().read_conversation(body.session_id)
+        if transcript is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Conversation not found",
+            )
+        try:
+            draft = await observer.analyze(
+                channel="chat",
+                transcript=transcript.messages,
+                knowledge_points=_observation_knowledge_points(taxonomy, body.language),
+                language=body.language,
+            )
+        except (RuntimeError, ValueError) as exc:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail={
+                    "error_code": "learning_observation_failed",
+                    "message": str(exc),
+                },
+            ) from exc
+        if not draft.related_to_study:
+            return {"related_to_study": False, "observation": None}
+        observation = await _append_observation(
+            runtime_provider,
+            channel="chat",
+            exam_id=body.exam_id,
+            subject_id=body.subject_id,
+            taxonomy_version=body.taxonomy_version,
+            session_id=transcript.session_id,
+            messages=transcript.messages,
+            draft=draft,
+            auto_confirm=False,
+        )
+        return {"related_to_study": True, "observation": observation}
+
+    @router.post(
+        "/study-plans/{plan_id}/objectives/{objective_id}/summarize"
+    )
+    async def summarize_study_objective(
+        plan_id: NonEmptyString,
+        objective_id: NonEmptyString,
+        body: SummarizeLearningPathBody,
+    ) -> dict[str, Any]:
+        user_id = current_user_id()
+        try:
+            async with runtime_provider.open_product() as runtime:
+                version = await runtime.study_plans.get_version(
+                    user_id=user_id,
+                    plan_id=plan_id,
+                    version=body.version,
+                )
+                tree = StudyPlanTree.model_validate(version["tree"])
+                resolved = tree.objective(objective_id)
+                if resolved is None:
+                    raise StudyPlanNotFound("knowledge point not found in this plan version")
+                subject, _, _ = resolved
+                link = await runtime.study_plans.find_objective_session(
+                    user_id=user_id,
+                    plan_id=plan_id,
+                    plan_version=int(version["version"]),
+                    objective_id=objective_id,
+                )
+            if link is None:
+                raise StudyPlanNotFound("learning path has no linked conversation")
+            transcript = await runtime_host().read_conversation(link["host_session_id"])
+            if transcript is None:
+                raise StudyPlanNotFound("linked learning conversation was not found")
+            taxonomy_version = str(version["taxonomy_versions"][subject.id])
+            taxonomy = await _taxonomy_for_scope(
+                runtime_provider,
+                exam_id=f"plan:{plan_id}",
+                subject_id=subject.id,
+                taxonomy_version=taxonomy_version,
+            )
+            try:
+                draft = await observer.analyze(
+                    channel="learning_path",
+                    transcript=transcript.messages,
+                    knowledge_points=_observation_knowledge_points(taxonomy, body.language),
+                    language=body.language,
+                    fixed_knowledge_point_id=objective_id,
+                )
+            except (RuntimeError, ValueError) as exc:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail={
+                        "error_code": "learning_observation_failed",
+                        "message": str(exc),
+                    },
+                ) from exc
+            observation = await _append_observation(
+                runtime_provider,
+                channel="learning_path",
+                exam_id=f"plan:{plan_id}",
+                subject_id=subject.id,
+                taxonomy_version=taxonomy_version,
+                session_id=transcript.session_id,
+                messages=transcript.messages,
+                draft=draft,
+                auto_confirm=True,
+            )
+        except StudyPlanNotFound as exc:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+        return {"observation": observation}
+
+    @router.get("/learning-observations")
+    async def list_learning_observations(
+        exam_id: NonEmptyString,
+        subject_id: NonEmptyString,
+        taxonomy_version: NonEmptyString | None = None,
+        channel: Literal["chat", "learning_path"] | None = None,
+        observation_status: Literal["pending", "confirmed", "dismissed"] | None = None,
+        knowledge_point_id: Annotated[list[NonEmptyString] | None, Query()] = None,
+    ) -> dict[str, Any]:
+        async with runtime_provider.open_product() as runtime:
+            observations = await runtime.observations.list(
+                user_id=current_user_id(),
+                exam_id=exam_id,
+                subject_id=subject_id,
+                taxonomy_version=taxonomy_version,
+                channel=channel,
+                knowledge_point_ids=tuple(knowledge_point_id or ()),
+                status=observation_status,
+            )
+        return {"observations": observations}
+
+    @router.post("/learning-observations/{observation_id}/actions")
+    async def act_on_learning_observation(
+        observation_id: NonEmptyString,
+        body: LearningObservationActionBody,
+    ) -> dict[str, Any]:
+        try:
+            async with runtime_provider.open_product() as runtime:
+                observation = await runtime.observations.append_action(
+                    action_id=f"observation_action:{uuid.uuid4().hex}",
+                    observation_id=observation_id,
+                    user_id=current_user_id(),
+                    action=body.action,
+                    idempotency_key=body.idempotency_key,
+                )
+                await runtime.connection.commit()
+        except LookupError as exc:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+        except LearningObservationConflict as exc:
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+        return {"observation": observation}
+
+    @router.get("/learning-archive")
+    async def get_learning_archive(
+        exam_id: NonEmptyString,
+        subject_id: NonEmptyString,
+        taxonomy_version: NonEmptyString | None = None,
+        knowledge_point_id: Annotated[list[NonEmptyString] | None, Query()] = None,
+        memory_namespace: Annotated[list[MemoryNamespace] | None, Query()] = None,
+        lifecycle_state: Annotated[list[LifecycleState] | None, Query()] = None,
+    ) -> dict[str, Any]:
+        context = _authenticated_context(exam_id=exam_id, subject_id=subject_id)
+        async with runtime_provider.open_product() as runtime:
+            archive = await runtime.learning_archive.read(
+                context,
+                taxonomy_version=taxonomy_version,
+                knowledge_point_ids=tuple(knowledge_point_id or ()),
+                namespaces=tuple(memory_namespace or ()),
+                lifecycle_states=tuple(lifecycle_state or ()),
+            )
+            observations = await runtime.observations.list(
+                user_id=current_user_id(),
+                exam_id=exam_id,
+                subject_id=subject_id,
+                taxonomy_version=taxonomy_version,
+                channel="learning_path",
+                knowledge_point_ids=tuple(knowledge_point_id or ()),
+                status="confirmed",
+            )
+        return {**archive, "learning_path_observations": observations}
 
     @router.post("/practice/answer")
     async def answer_practice(body: PracticeAnswerBody) -> dict[str, Any]:
@@ -1407,6 +1634,87 @@ async def _taxonomy_for_scope(
                 "message": "The selected knowledge point is not in a published study plan.",
             },
         ) from exc
+
+
+def _observation_knowledge_points(
+    taxonomy: Taxonomy,
+    language: Literal["zh", "en"],
+) -> tuple[KnowledgePointOption, ...]:
+    del language  # Taxonomy v1 has one canonical display label.
+    options = []
+    for node in taxonomy.nodes:
+        if node.status is not KnowledgePointStatus.ACTIVE or taxonomy.children_of(node.id):
+            continue
+        parent = taxonomy.get(node.parent_id) if node.parent_id is not None else None
+        options.append(
+            KnowledgePointOption(
+                id=node.id,
+                name=node.name_zh,
+                module_name=parent.name_zh if parent is not None else node.name_zh,
+            )
+        )
+    return tuple(options)
+
+
+async def _append_observation(
+    runtime_provider: RuntimeProvider,
+    *,
+    channel: Literal["chat", "learning_path"],
+    exam_id: str,
+    subject_id: str,
+    taxonomy_version: str,
+    session_id: str,
+    messages: tuple[dict[str, str], ...],
+    draft: LearningObservationDraft,
+    auto_confirm: bool,
+) -> dict[str, Any]:
+    source_payload = {
+        "channel": channel,
+        "scope": [exam_id, subject_id, taxonomy_version],
+        "session_id": session_id,
+        "messages": list(messages),
+        "agent_contract_version": LEARNING_OBSERVATION_AGENT_VERSION,
+    }
+    fingerprint = hashlib.sha256(
+        json.dumps(
+            source_payload,
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+        ).encode()
+    ).hexdigest()
+    try:
+        async with runtime_provider.open_product() as runtime:
+            observation = await runtime.observations.append(
+                observation_id=f"observation:{uuid.uuid4().hex}",
+                user_id=current_user_id(),
+                exam_id=exam_id,
+                subject_id=subject_id,
+                taxonomy_version=taxonomy_version,
+                channel=channel,
+                source_session_id=session_id,
+                source_turn_ids=tuple(
+                    item["id"] for item in messages if item.get("id")
+                ),
+                knowledge_point_ids=draft.knowledge_point_ids,
+                summary=draft.summary,
+                rationale=draft.rationale,
+                confidence=draft.confidence,
+                agent_contract_version=LEARNING_OBSERVATION_AGENT_VERSION,
+                source_fingerprint=fingerprint,
+            )
+            if auto_confirm:
+                observation = await runtime.observations.append_action(
+                    action_id=f"observation_action:{uuid.uuid4().hex}",
+                    observation_id=observation["observation_id"],
+                    user_id=current_user_id(),
+                    action="confirm",
+                    idempotency_key=f"auto-confirm:{observation['observation_id']}",
+                )
+            await runtime.connection.commit()
+            return observation
+    except LearningObservationConflict as exc:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
 
 
 async def _generate_practice_questions(

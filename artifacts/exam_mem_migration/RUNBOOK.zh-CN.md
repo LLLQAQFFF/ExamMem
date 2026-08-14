@@ -112,7 +112,8 @@ python -m alembic -c alembic.ini history
 预期唯一 head：
 
 ```text
-0009_assessments (head)
+0010_learning_observations (head)
+└── 0009_assessments
 ```
 
 确认数据库目标后执行写操作：
@@ -123,9 +124,9 @@ python -m alembic -c alembic.ini current
 ```
 
 `upgrade head` 会在 ExamMem PostgreSQL 中创建或升级表、索引、约束和 trigger。预期
-current 为 `0009_assessments`。
+current 为 `0010_learning_observations`。
 
-全新数据库最终包含 20 张 public 表（包括 `alembic_version`）和 8 个不同的
+全新数据库最终包含 22 张 public 表（包括 `alembic_version`）和 10 个不同的
 append-only trigger：
 
 ```text
@@ -137,6 +138,8 @@ tr_practice_trace_spans_append_only
 tr_grade_review_events_append_only
 tr_study_plan_versions_append_only
 tr_assessment_versions_append_only
+tr_learning_observations_append_only
+tr_learning_observation_actions_append_only
 ```
 
 ### 2.6 确认插件没有被禁用
@@ -221,7 +224,7 @@ GET /api/v1/exam-mem/configuration
 
 - 插件 `exam_mem`；
 - Capability `exam_practice`；
-- migration head `0009_assessments`；
+- migration head `0010_learning_observations`；
 - 单一的「智能备考」导航入口；学习路径、练习、学习记忆、考试复盘和配置作为其内部工作区。
 
 注意：`/api/v1/plugins/health` 只表示插件生命周期装配成功。当前 ExamMem 没有主动连接
@@ -371,11 +374,11 @@ npm run build
 
 迁移完成时的验收基线为：
 
-- 禁用 ExamMem 且无 DSN 的 DeepTutor 原生测试：`3829 passed, 9 skipped`；
-- 启用 ExamMem 和隔离 PostgreSQL 的全仓测试：`4258 passed, 9 skipped`；
+- 禁用 ExamMem 且无 DSN 的 DeepTutor 原生测试：`3593 passed, 9 skipped`；
+- 启用 ExamMem 和隔离 PostgreSQL 的全仓测试：`4293 passed, 9 skipped`；
 - 五 Backend 专项：`33 passed`；
-- Web Node：`63/63`；
-- Web production build：62 个路由。
+- Web Node：`65/65`；
+- Web production build：63 个路由。
 
 ## 7. PostgreSQL 备份、停止和清理
 
@@ -427,7 +430,8 @@ alembic downgrade base
 ```
 
 `down -v` 会删除持久化数据库 volume；`downgrade base` 会破坏业务 schema。`0007`～
-`0009` 中存在 Review、学习计划、会话链接、考试版本或 attempt 数据时均拒绝自动降级。
+`0010` 中存在 Review、学习计划、会话链接、考试版本、attempt 或 Agent 观察数据时均拒绝
+自动降级。
 
 ## 8. 必须暂停并找管理员处理的情况
 
@@ -436,13 +440,25 @@ alembic downgrade base
 - 无法确认 `EXAM_MEM_DATABASE_URL` 指向哪个数据库；
 - 目标是共享库或生产库，但没有明确变更窗口和备份；
 - 需要获取、更换或迁移凭据；
-- migration head 不是 `0009_assessments`，或出现多 head/分叉；
+- migration head 不是 `0010_learning_observations`，或出现多 head/分叉；
 - 需要执行 destructive downgrade、删除 schema、删除 Docker volume 或覆盖历史数据；
 - 需要发布、部署或推送远端；
 - 需要通过切换 Backend、绕过 Scope、直接写 Native Memory、编辑 append-only 数据或更换
   idempotency identity 来“修复”失败。
 
 ## 9. 当前已知限制
+
+### 学习档案与 Agent 的使用边界
+
+1. 先在“学习路径”导入并发布大纲；“学习档案”的专业、科目、大纲版本、章节和知识点筛选
+   都来自不可变的发布版本，不再使用固定数学一 Scope。
+2. L1 页展示正式刷题、纠正和计划转换证据；已经绑定知识点的学习路径摘要会在同页作为
+   “非 L1 侧记”明确标识。L2 展示当前值、历史版本和考试来源；L3 首版只展示当前可重建投影。
+3. “对话线索”只分析用户主动选择的一次普通 Chat。闲聊不落库；相关线索先进入待确认区，
+   即使确认也不会改变掌握度、判题、L2 或 L3。
+4. 学习路径知识点已有会话后，可点击星形 Agent 按钮整理本次学习接触。知识点 ID 固定为
+   已发布大纲中的叶子节点，模型不能跨 Scope 改写。
+5. Agent 摘要依赖已配置的 LLM；查看现有 L1/L2/L3、版本链、来源和图谱不需要再次调用模型。
 
 - 自动化验收固定了外部 LLM/Embedding 结果，验证的是调用链、事务和数据库语义，不代表
   线上模型质量、延迟或成本。

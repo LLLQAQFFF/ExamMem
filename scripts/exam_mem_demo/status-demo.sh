@@ -28,7 +28,7 @@ DEMO_HEAD="$(
     psql -U "${DEMO_DB_USER}" -d "${DEMO_DB_NAME}" -Atc \
     'SELECT version_num FROM alembic_version' 2>/dev/null || true
 )"
-demo_log "Migration head=${DEMO_HEAD:-<not migrated>}（预期 0009_assessments）"
+demo_log "Migration head=${DEMO_HEAD:-<not migrated>}（预期 0010_learning_observations）"
 
 readarray -t DEMO_PORTS < <(demo_ports "${PYTHON_BIN}")
 BACKEND_PORT="${DEMO_PORTS[0]}"

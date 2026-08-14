@@ -19,6 +19,8 @@ EXPECTED_TABLES = {
     "grade_review_events",
     "learning_events",
     "learning_memories",
+    "learning_observation_actions",
+    "learning_observations",
     "lifecycle_decisions",
     "memory_change_log",
     "memory_provenance",
@@ -32,6 +34,31 @@ EXPECTED_TABLES = {
 }
 
 EXPECTED_COLUMNS = {
+    "learning_observations": {
+        "observation_id",
+        "user_id",
+        "exam_id",
+        "subject_id",
+        "taxonomy_version",
+        "channel",
+        "source_session_id",
+        "source_turn_ids",
+        "knowledge_point_ids",
+        "summary",
+        "rationale",
+        "confidence",
+        "agent_contract_version",
+        "source_fingerprint",
+        "created_at",
+    },
+    "learning_observation_actions": {
+        "action_id",
+        "observation_id",
+        "user_id",
+        "action",
+        "idempotency_key",
+        "created_at",
+    },
     "baseline_memory_facts": {
         "backend_mode",
         "event_id",

@@ -377,20 +377,25 @@ class PostgresStudyPlanRepository:
             .mappings()
             .one_or_none()
         )
-        active = None
-        if plan["active_version"] is not None:
-            active = (
-                (
-                    await self._connection.execute(
-                        select(study_plan_versions).where(
-                            study_plan_versions.c.plan_id == plan["plan_id"],
-                            study_plan_versions.c.version == plan["active_version"],
-                        )
-                    )
+        versions = (
+            (
+                await self._connection.execute(
+                    select(study_plan_versions)
+                    .where(study_plan_versions.c.plan_id == plan["plan_id"])
+                    .order_by(study_plan_versions.c.version.desc())
                 )
-                .mappings()
-                .one()
             )
+            .mappings()
+            .all()
+        )
+        active = next(
+            (
+                item
+                for item in versions
+                if item["version"] == plan["active_version"]
+            ),
+            None,
+        )
         return {
             "plan_id": plan["plan_id"],
             "name": plan["name"],
@@ -399,6 +404,7 @@ class PostgresStudyPlanRepository:
             "updated_at": plan["updated_at"].isoformat(),
             "draft": None if draft is None else _draft_payload(draft),
             "published": None if active is None else _version_payload(active),
+            "versions": [_version_payload(item) for item in versions],
         }
 
 

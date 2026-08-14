@@ -248,6 +248,96 @@ Index(
     assessment_attempts.c.attempt_id,
 )
 
+learning_observations = Table(
+    "learning_observations",
+    metadata,
+    Column("observation_id", Text, nullable=False),
+    Column("user_id", Text, nullable=False),
+    Column("exam_id", Text, nullable=False),
+    Column("subject_id", Text, nullable=False),
+    Column("taxonomy_version", Text, nullable=False),
+    Column("channel", Text, nullable=False),
+    Column("source_session_id", Text, nullable=False),
+    Column("source_turn_ids", JSONB, nullable=False),
+    Column("knowledge_point_ids", JSONB, nullable=False),
+    Column("summary", Text, nullable=False),
+    Column("rationale", Text, nullable=False),
+    Column("confidence", Float, nullable=False),
+    Column("agent_contract_version", Text, nullable=False),
+    Column("source_fingerprint", Text, nullable=False),
+    Column("created_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+    PrimaryKeyConstraint("observation_id", name="pk_learning_observations"),
+    UniqueConstraint(
+        "user_id",
+        "source_fingerprint",
+        name="uq_learning_observations_user_source",
+    ),
+    CheckConstraint(
+        "channel IN ('chat', 'learning_path')",
+        name="ck_learning_observations_channel",
+    ),
+    CheckConstraint(
+        "jsonb_typeof(source_turn_ids) = 'array'",
+        name="ck_learning_observations_turns_array",
+    ),
+    CheckConstraint(
+        "jsonb_typeof(knowledge_point_ids) = 'array' "
+        "AND jsonb_array_length(knowledge_point_ids) > 0",
+        name="ck_learning_observations_knowledge_points",
+    ),
+    CheckConstraint(
+        "confidence >= 0.0 AND confidence <= 1.0",
+        name="ck_learning_observations_confidence",
+    ),
+    CheckConstraint(
+        "length(source_fingerprint) = 64",
+        name="ck_learning_observations_fingerprint",
+    ),
+)
+
+Index(
+    "ix_learning_observations_scope_created",
+    learning_observations.c.user_id,
+    learning_observations.c.exam_id,
+    learning_observations.c.subject_id,
+    learning_observations.c.taxonomy_version,
+    learning_observations.c.created_at,
+    learning_observations.c.observation_id,
+)
+
+learning_observation_actions = Table(
+    "learning_observation_actions",
+    metadata,
+    Column("action_id", Text, nullable=False),
+    Column(
+        "observation_id",
+        Text,
+        ForeignKey("learning_observations.observation_id"),
+        nullable=False,
+    ),
+    Column("user_id", Text, nullable=False),
+    Column("action", Text, nullable=False),
+    Column("idempotency_key", Text, nullable=False),
+    Column("created_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+    PrimaryKeyConstraint("action_id", name="pk_learning_observation_actions"),
+    UniqueConstraint(
+        "user_id",
+        "idempotency_key",
+        name="uq_learning_observation_actions_user_idempotency",
+    ),
+    CheckConstraint(
+        "action IN ('confirm', 'dismiss')",
+        name="ck_learning_observation_actions_action",
+    ),
+)
+
+Index(
+    "ix_learning_observation_actions_observation_created",
+    learning_observation_actions.c.observation_id,
+    learning_observation_actions.c.created_at,
+    learning_observation_actions.c.action_id,
+)
+
 learning_events = Table(
     "learning_events",
     metadata,

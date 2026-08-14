@@ -1,6 +1,11 @@
 import { apiFetch, apiUrl } from "@/lib/api";
 
-export type LearningMemoryNamespace = "mastery" | "error_pattern" | "plan";
+export type LearningMemoryNamespace =
+  | "mastery"
+  | "error_pattern"
+  | "plan"
+  | "profile"
+  | "preference";
 
 export interface LearningMemoryRecord {
   memory_id: string;
@@ -88,12 +93,14 @@ async function requireOk(response: Response): Promise<void> {
 export async function correctLearningMemory(options: {
   memoryId: string;
   namespace: LearningMemoryNamespace;
+  examId: string;
+  subjectId: string;
   statement: string;
   idempotencyKey: string;
 }): Promise<void> {
   const params = learningMemoryQuery(
-    "postgraduate_entrance_exam",
-    "math_1",
+    options.examId,
+    options.subjectId,
     options.namespace,
   );
   const response = await apiFetch(
@@ -116,12 +123,14 @@ export async function correctLearningMemory(options: {
 
 export async function cancelLearningPlan(options: {
   memoryId: string;
+  examId: string;
+  subjectId: string;
   reason: string;
   idempotencyKey: string;
 }): Promise<void> {
   const params = new URLSearchParams({
-    exam_id: "postgraduate_entrance_exam",
-    subject_id: "math_1",
+    exam_id: options.examId,
+    subject_id: options.subjectId,
   });
   const response = await apiFetch(
     apiUrl(`/api/v1/exam-mem/plans/${encodeURIComponent(options.memoryId)}/transitions?${params}`),

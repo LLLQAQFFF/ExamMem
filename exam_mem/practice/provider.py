@@ -42,8 +42,10 @@ from exam_mem.storage import (
     PostgresBaselineFactRepository,
     PostgresExamProductRepository,
     PostgresGradeReviewRepository,
+    PostgresLearningArchiveRepository,
     PostgresLearningEventRepository,
     PostgresLearningMemoryRepository,
+    PostgresLearningObservationRepository,
     PostgresLifecycleAuditRepository,
     PostgresPracticeCheckpointRepository,
     PostgresStudentModelRepository,
@@ -393,6 +395,8 @@ class ExamProductRuntime:
     reviews: PostgresGradeReviewRepository
     checkpoints: PostgresPracticeCheckpointRepository
     study_plans: PostgresStudyPlanRepository
+    observations: PostgresLearningObservationRepository
+    learning_archive: PostgresLearningArchiveRepository
     connection: AsyncConnection
     engine: AsyncEngine
 
@@ -576,6 +580,8 @@ class PracticeRuntimeProvider:
                     reviews=PostgresGradeReviewRepository(connection),
                     checkpoints=PostgresPracticeCheckpointRepository(connection),
                     study_plans=PostgresStudyPlanRepository(connection),
+                    observations=PostgresLearningObservationRepository(connection),
+                    learning_archive=PostgresLearningArchiveRepository(connection),
                     connection=connection,
                     engine=engine,
                 )

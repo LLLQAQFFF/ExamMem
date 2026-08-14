@@ -44,9 +44,16 @@ is a product boundary, not an unfinished fallback path.
   operations must pair it with migration/current and authenticated read probes.
 - Saved configuration becomes Effective after process restart; an in-progress
   exam always uses its Pinned snapshot.
-- Migrations `0007`～`0009` have no automatic destructive downgrade when review,
-  study-plan/session-link or assessment/attempt rows exist. Retention/archival
-  requires an explicit operational decision.
+- Ordinary Chat is analyzed only after the learner explicitly selects a
+  conversation. Background scanning is intentionally absent so small talk and
+  unrelated private context are not silently processed. Confirmed Chat clues
+  remain outside formal L1/L2/L3 and do not affect mastery.
+- L3 displays only the current rebuildable Student Model. Historical L3
+  projection browsing is deferred; L2 already provides the authoritative
+  version timeline and provenance required for this release.
+- Migrations `0007`～`0010` have no automatic destructive downgrade when review,
+  study-plan/session-link, assessment/attempt or Agent observation rows exist.
+  Retention/archival requires an explicit operational decision.
 
 None of these limitations authorizes direct writes to DeepTutor internal stores,
 compatibility fallbacks, `if exam_mem` branches in Core, or changes to frozen

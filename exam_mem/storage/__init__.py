@@ -72,6 +72,18 @@ _LAZY_EXPORTS = {
         ".product_repository",
         "PostgresExamProductRepository",
     ),
+    "PostgresLearningArchiveRepository": (
+        ".learning_archive_repository",
+        "PostgresLearningArchiveRepository",
+    ),
+    "LearningObservationConflict": (
+        ".learning_observation_repository",
+        "LearningObservationConflict",
+    ),
+    "PostgresLearningObservationRepository": (
+        ".learning_observation_repository",
+        "PostgresLearningObservationRepository",
+    ),
     "CommittedPostgresPracticeCheckpointRepository": (
         ".practice_checkpoint_repository",
         "CommittedPostgresPracticeCheckpointRepository",
@@ -160,9 +172,12 @@ __all__ = [
     "LearningEventRepository",
     "LifecycleAuditRepository",
     "LearningMemoryRepository",
+    "LearningObservationConflict",
     "MemoryProvenanceValidationError",
     "MemoryVersionConflict",
     "PostgresLearningMemoryRepository",
+    "PostgresLearningArchiveRepository",
+    "PostgresLearningObservationRepository",
     "PostgresGradeReviewRepository",
     "PostgresExamProductRepository",
     "PostgresLifecycleAuditRepository",

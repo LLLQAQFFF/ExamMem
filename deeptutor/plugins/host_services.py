@@ -44,6 +44,25 @@ class PluginTurnRequest:
     mastery_path_id: str | None = None
 
 
+@dataclass(frozen=True, slots=True)
+class PluginConversationSummary:
+    """Authenticated, storage-neutral conversation metadata for a plugin picker."""
+
+    session_id: str
+    title: str
+    message_count: int
+    updated_at: str
+
+
+@dataclass(frozen=True, slots=True)
+class PluginConversationTranscript:
+    """Bounded conversation content without exposing the Host session store."""
+
+    session_id: str
+    title: str
+    messages: tuple[dict[str, str], ...]
+
+
 class PluginTurnHost:
     """Stable plugin-facing adapter over the Host turn facade."""
 
@@ -82,6 +101,71 @@ class PluginTurnHost:
         from deeptutor.services.session import get_session_store
 
         return await get_session_store().get_session(session_id, surface="chat") is not None
+
+    async def list_conversations(self, *, limit: int = 50) -> tuple[PluginConversationSummary, ...]:
+        """List the authenticated user's native Chat sessions through a neutral seam."""
+        from deeptutor.services.session import get_session_store
+
+        bounded = max(1, min(limit, 100))
+        sessions = await get_session_store().list_sessions(
+            limit=bounded,
+            offset=0,
+            surface="chat",
+        )
+        return tuple(
+            PluginConversationSummary(
+                session_id=str(item.get("session_id") or item.get("id") or ""),
+                title=str(item.get("title") or "Untitled conversation"),
+                message_count=int(item.get("message_count") or 0),
+                updated_at=str(item.get("updated_at") or ""),
+            )
+            for item in sessions
+            if str(item.get("session_id") or item.get("id") or "").strip()
+        )
+
+    async def read_conversation(
+        self,
+        session_id: str,
+        *,
+        maximum_messages: int = 120,
+        maximum_characters: int = 40_000,
+    ) -> PluginConversationTranscript | None:
+        """Read one bounded Chat transcript owned by the authenticated user."""
+        from deeptutor.services.session import get_session_store
+
+        store = get_session_store()
+        session = await store.get_session(session_id, surface="chat")
+        if session is None:
+            return None
+        messages = await store.get_messages_for_context(session_id)
+        bounded_messages = messages[-max(1, min(maximum_messages, 200)) :]
+        output: list[dict[str, str]] = []
+        used = 0
+        for message in reversed(bounded_messages):
+            role = str(message.get("role") or "")
+            if role not in {"user", "assistant"}:
+                continue
+            content = str(message.get("content") or "").strip()
+            if not content:
+                continue
+            remaining = maximum_characters - used
+            if remaining <= 0:
+                break
+            clipped = content[-remaining:]
+            output.append(
+                {
+                    "id": str(message.get("id") or ""),
+                    "role": role,
+                    "content": clipped,
+                }
+            )
+            used += len(clipped)
+        output.reverse()
+        return PluginConversationTranscript(
+            session_id=session_id,
+            title=str(session.get("title") or "Untitled conversation"),
+            messages=tuple(output),
+        )
 
 
 @dataclass(frozen=True, slots=True)

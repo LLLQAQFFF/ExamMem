@@ -72,7 +72,7 @@ python -m alembic -c alembic.ini heads
 python -m alembic -c alembic.ini history
 ```
 
-Expected single code head: `0009_assessments`.
+Expected single code head: `0010_learning_observations`.
 
 Apply to the already-confirmed ExamMem database:
 
@@ -81,8 +81,8 @@ python -m alembic -c alembic.ini upgrade head
 python -m alembic -c alembic.ini current
 ```
 
-Expected current head: `0009_assessments`. A fresh database has 20 public
-tables including `alembic_version` and eight append-only triggers:
+Expected current head: `0010_learning_observations`. A fresh database has 22 public
+tables including `alembic_version` and ten append-only triggers:
 
 ```text
 tr_learning_events_append_only
@@ -93,9 +93,12 @@ tr_practice_trace_spans_append_only
 tr_grade_review_events_append_only
 tr_study_plan_versions_append_only
 tr_assessment_versions_append_only
+tr_learning_observations_append_only
+tr_learning_observation_actions_append_only
 ```
 
-There is no automated downgrade of `0007` while Grade Review rows exist. Disable
+There is no automated downgrade of `0007` through `0010` while protected product
+rows exist. Disable
 the plugin/API and retain audit data until an explicit archival decision is
 approved.
 
@@ -113,7 +116,7 @@ GET /api/v1/exam-mem/configuration
 ```
 
 `/api/v1/plugins/list` must report plugin `exam_mem`, capability
-`exam_practice`, migration head `0009_assessments`, and the single
+`exam_practice`, migration head `0010_learning_observations`, and the single
 `Smart Exam Prep` navigation entry. Learning Paths, Practice, Learning Memory,
 Review and Configuration remain available as internal workspaces under that
 entry; the old Issues deep link remains compatible while its UI is embedded in

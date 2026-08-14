@@ -23,7 +23,7 @@ cd /home/lh/DeepTutor
 2. 启动隔离的 pgvector/PostgreSQL；
 3. 等待数据库健康；
 4. 执行 Alembic `upgrade head`；
-5. 确认 head 为 `0009_assessments`；
+5. 确认 head 为 `0010_learning_observations`；
 6. 默认以 Web 开发模式在前台启动 DeepTutor 后端和前端，不更新已跟踪的 production
    build 缓存。
 

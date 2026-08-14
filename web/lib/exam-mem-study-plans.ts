@@ -61,6 +61,7 @@ export interface StudyPlan {
   updated_at: string;
   draft: (StudyPlanSource & { updated_at: string }) | null;
   published: PublishedStudyPlan | null;
+  versions: PublishedStudyPlan[];
   objective_sessions?: Record<string, ObjectiveSession>;
 }
 

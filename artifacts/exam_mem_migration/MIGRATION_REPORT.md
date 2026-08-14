@@ -106,13 +106,16 @@ model quality or provider availability.
 - `EXAM_MEM_DATABASE_URL` is required at the engine boundary and accepts only a
   complete `postgresql+asyncpg` URL. It is never persisted by this repository.
 - Frozen migrations `0001`–`0006` match the source baseline byte-for-byte.
-- The single target head is `0009_assessments`.
-- A new empty PostgreSQL database upgrades linearly from base through all nine
-  revisions and produces 20 public tables including `alembic_version` and eight
+- The single target head is `0010_learning_observations`.
+- A new empty PostgreSQL database upgrades linearly from base through all ten
+  revisions and produces 22 public tables including `alembic_version` and ten
   distinct append-only triggers.
 - `0008_study_plans` adds mutable drafts, immutable published plan versions and
   objective-to-Host-session links. `0009_assessments` adds stable assessment
   identities, immutable question-catalog versions and multiple attempts.
+- `0010_learning_observations` adds an isolated, append-only Agent observation
+  side channel and append-only confirm/dismiss actions. These rows are not L1,
+  L2 or L3 and cannot update formal mastery or grading.
 - Integration tests use random schemas and transactions. Final audit found no
   random schema. The reused local demo database retained its pre-existing two
   Practice checkpoints and seven Trace spans; the acceptance suite did not
@@ -124,14 +127,14 @@ model quality or provider availability.
 
 | Category | Result |
 | --- | --- |
-| Host with ExamMem disabled and DSN absent | `3836 passed, 9 skipped`; plugin probe returned `loaded_plugins=[]` |
-| Full repository with ExamMem and local isolated PostgreSQL | `4283 passed, 9 skipped` |
+| Host suite excluding ExamMem, with DSN absent | `3593 passed, 9 skipped`; disabled-plugin contract passed |
+| Full repository with ExamMem and local isolated PostgreSQL | `4293 passed, 9 skipped` |
 | CP6 focused backend/entry/product suite | `484 passed` |
 | Five Backend matrix | `33 passed` |
 | Browser HTTP / Python SDK / unified WebSocket real entry suite | `3 passed` |
 | Frozen migrations/config/Session/WS gate | `45 passed` |
 | Python static gate | Ruff passed |
-| Web tests | Node `64/64`; ESLint 0 errors (56 pre-existing warnings outside ExamMem) |
+| Web tests | Node `65/65`; ESLint 0 errors and 56 warnings |
 | Web production build | Turbopack compiled and type-checked; 63 routes, including six ExamMem routes |
 | Git/security | diff check, Core dependency scan, changed-file secret scan and source integrity passed |
 
@@ -170,9 +173,10 @@ The 2026-08-14 product increment adds migrations `0008` and `0009`, imported
 and reviewed study-plan scopes, deterministic one-objective Host learning paths,
 durable Chat-session restoration, exact published-Taxonomy Practice selection,
 and stable assessment IDs with immutable versions and repeated attempts. The
-local demo database was upgraded to `0009_assessments`; final read-only audit
-found 20 public tables, eight append-only triggers, zero rows in all seven new
-business tables, and zero leftover test schemas.
+local demo database was upgraded to `0010_learning_observations`; final read-only audit
+found 22 public tables, ten append-only triggers, zero rows in both new Agent
+observation tables, and zero leftover test schemas. Existing Study Plan,
+assessment and Practice rows were retained.
 
 Executable extraction and frozen migration verification remain pinned to
 `747958725b6e681a3a846a0430b5a21deb163188`. Final source audit found a clean
@@ -197,3 +201,21 @@ Chinese and English prompts, including an instruction that reasons and
 explanations use the selected language. Existing checkpoints without the field
 default to Chinese, preserving the previously shipped Chinese workflow without
 an indefinite compatibility branch.
+
+## Three-layer Learning Archive and Agent follow-up
+
+The Learning Archive reuses the native DeepTutor Memory presentation and graph
+renderer through domain-neutral props. Its data source remains ExamMem's own
+PostgreSQL: L1 is formal append-only learning evidence, L2 is typed versioned
+Learning Memory with provenance, and L3 is the current rebuildable Student
+Model projection. Filters resolve from published Study Plan versions and cover
+plan/programme, subject, syllabus version, module, knowledge point, namespace
+and lifecycle state.
+
+Two explicit Agent flows are separate by contract. A learner can select one
+ordinary Chat conversation and ask the Agent to extract a pending knowledge
+clue; small talk is discarded and confirm/dismiss stays in the observation side
+channel. A linked Learning Path conversation can be summarized only against its
+already-bound leaf objective and is automatically confirmed as learning
+exposure. Neither flow can claim mastery, change a grade, write L2, or rebuild
+L3. Practice evidence remains the only current mastery-producing path.

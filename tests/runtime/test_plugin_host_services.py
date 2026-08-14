@@ -154,3 +154,47 @@ async def test_plugin_turn_host_deletes_transient_session_and_attachments(
         ("session", "transient-1"),
         ("attachments", "transient-1"),
     ]
+
+
+@pytest.mark.asyncio
+async def test_plugin_turn_host_exposes_bounded_neutral_chat_reads(monkeypatch) -> None:
+    class FakeApp:
+        pass
+
+    class SessionStore:
+        async def list_sessions(self, *, limit, offset, surface):
+            assert (limit, offset, surface) == (50, 0, "chat")
+            return [
+                {
+                    "id": "chat-1",
+                    "title": "极限讨论",
+                    "message_count": 3,
+                    "updated_at": "2026-08-14T12:00:00Z",
+                }
+            ]
+
+        async def get_session(self, session_id, *, surface):
+            assert (session_id, surface) == ("chat-1", "chat")
+            return {"id": session_id, "title": "极限讨论"}
+
+        async def get_messages_for_context(self, session_id):
+            assert session_id == "chat-1"
+            return [
+                {"id": "system-1", "role": "system", "content": "hidden"},
+                {"id": "user-1", "role": "user", "content": "什么是函数极限？"},
+                {"id": "assistant-1", "role": "assistant", "content": "先看定义。"},
+            ]
+
+    monkeypatch.setattr("deeptutor.app.DeepTutorApp", FakeApp)
+    monkeypatch.setattr(
+        "deeptutor.services.session.get_session_store", lambda: SessionStore()
+    )
+    host = host_services.PluginTurnHost()
+
+    summaries = await host.list_conversations()
+    transcript = await host.read_conversation("chat-1")
+
+    assert summaries[0].session_id == "chat-1"
+    assert transcript is not None
+    assert [item["role"] for item in transcript.messages] == ["user", "assistant"]
+    assert "hidden" not in str(transcript.messages)
