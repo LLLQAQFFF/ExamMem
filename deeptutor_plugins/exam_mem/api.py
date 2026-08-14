@@ -222,6 +222,8 @@ class GradeDisputeBody(StrictApiModel):
     checkpoint_key: NonEmptyString
     idempotency_key: NonEmptyString
     reason: NonEmptyString
+    exam_id: NonEmptyString = _EXAM_ID
+    subject_id: NonEmptyString = _SUBJECT_ID
 
 
 class GradeDispositionBody(StrictApiModel):
@@ -231,6 +233,8 @@ class GradeDispositionBody(StrictApiModel):
     idempotency_key: NonEmptyString
     reason: NonEmptyString
     replacement_grade: GradeResult | None = None
+    exam_id: NonEmptyString = _EXAM_ID
+    subject_id: NonEmptyString = _SUBJECT_ID
 
     @model_validator(mode="after")
     def validate_replacement(self) -> GradeDispositionBody:
@@ -857,7 +861,7 @@ def build_router(
 
     @router.post("/grade-reviews/disputes")
     async def dispute_grade(body: GradeDisputeBody) -> dict[str, Any]:
-        context = _authenticated_context(exam_id=_EXAM_ID, subject_id=_SUBJECT_ID)
+        context = _authenticated_context(exam_id=body.exam_id, subject_id=body.subject_id)
         chain_id = _review_chain_id(context, body.practice_session_id, body.checkpoint_key)
         event = _review_event(
             context=context,
@@ -893,7 +897,7 @@ def build_router(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Grade Review disposition requires an administrator",
             )
-        context = _authenticated_context(exam_id=_EXAM_ID, subject_id=_SUBJECT_ID)
+        context = _authenticated_context(exam_id=body.exam_id, subject_id=body.subject_id)
         expected_chain = _review_chain_id(
             context, body.practice_session_id, body.checkpoint_key
         )

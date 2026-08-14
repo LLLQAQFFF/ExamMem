@@ -7,15 +7,16 @@ import { useTranslation } from "react-i18next";
 import {
   disputeGrade,
   getExamReview,
-  listPracticeHistory,
+  listExamReviewHistory,
   type ExamReview,
-  type PracticeHistoryItem,
+  type ExamReviewHistoryItem,
   upholdGrade,
 } from "@/lib/exam-mem-product";
+import { listAssessments } from "@/lib/exam-mem-study-plans";
 
 export default function ExamReviewWorkbench() {
   const { t } = useTranslation();
-  const [history, setHistory] = useState<PracticeHistoryItem[]>([]);
+  const [history, setHistory] = useState<ExamReviewHistoryItem[]>([]);
   const [review, setReview] = useState<ExamReview | null>(null);
   const [reason, setReason] = useState("");
   const [pendingKey, setPendingKey] = useState<string | null>(null);
@@ -26,10 +27,18 @@ export default function ExamReviewWorkbench() {
     setLoading(true);
     setError(null);
     try {
-      const sessions = await listPracticeHistory();
+      const sessions = await listExamReviewHistory(await listAssessments());
       setHistory(sessions);
       if (sessions.length) {
-        setReview(await getExamReview(sessions[0].practice_session_id));
+        setReview(
+          await getExamReview(
+            sessions[0].practice_session_id,
+            sessions[0].exam_id,
+            sessions[0].subject_id,
+          ),
+        );
+      } else {
+        setReview(null);
       }
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : t("Exam Review failed to load."));
@@ -40,10 +49,12 @@ export default function ExamReviewWorkbench() {
 
   useEffect(() => void load(), [load]);
 
-  const open = async (item: PracticeHistoryItem) => {
+  const open = async (item: ExamReviewHistoryItem) => {
     setLoading(true);
     try {
-      setReview(await getExamReview(item.practice_session_id));
+      setReview(
+        await getExamReview(item.practice_session_id, item.exam_id, item.subject_id),
+      );
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : t("Exam Review failed to load."));
     } finally {
@@ -63,8 +74,16 @@ export default function ExamReviewWorkbench() {
         checkpointKey: graded.checkpoint_key,
         reason: reason.trim(),
         idempotencyKey,
+        examId: review.exam_id,
+        subjectId: review.subject_id,
       });
-      setReview(await getExamReview(review.practice_session_id));
+      setReview(
+        await getExamReview(
+          review.practice_session_id,
+          review.exam_id,
+          review.subject_id,
+        ),
+      );
       setReason("");
       setPendingKey(null);
     } catch (cause) {
@@ -89,8 +108,16 @@ export default function ExamReviewWorkbench() {
         checkpointKey: openDispute.checkpoint_key,
         reason: "Administrator confirmed the original Grade and evidence.",
         idempotencyKey: key,
+        examId: review.exam_id,
+        subjectId: review.subject_id,
       });
-      setReview(await getExamReview(review.practice_session_id));
+      setReview(
+        await getExamReview(
+          review.practice_session_id,
+          review.exam_id,
+          review.subject_id,
+        ),
+      );
       setPendingKey(null);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : t("Grade Review disposition failed."));
@@ -111,7 +138,7 @@ export default function ExamReviewWorkbench() {
       {error ? <p className="flex items-center gap-2 rounded-lg bg-red-500/10 p-3 text-sm text-red-600"><CircleAlert className="h-4 w-4" />{error}</p> : null}
       <div className="grid min-w-0 gap-5 lg:grid-cols-[280px_minmax(0,1fr)]">
         <aside className="min-w-0 space-y-2">
-          {history.map((item) => <button key={item.practice_session_id} type="button" onClick={() => void open(item)} className="w-full min-w-0 rounded-xl border border-[var(--border)] bg-[var(--card)] p-3 text-left"><span className="block truncate text-sm font-medium">{item.current_checkpoint.question?.stem ?? item.practice_session_id}</span><span className="mt-1 block text-xs text-[var(--muted-foreground)]">{item.step_state} · {item.answer_count} {t("answers")}</span></button>)}
+          {history.map((item) => <button key={item.practice_session_id} type="button" onClick={() => void open(item)} className="w-full min-w-0 rounded-xl border border-[var(--border)] bg-[var(--card)] p-3 text-left"><span className="block truncate text-sm font-medium">{item.assessment_title ?? item.current_checkpoint.question?.stem ?? item.practice_session_id}</span><span className="mt-1 block text-xs text-[var(--muted-foreground)]">{item.assessment_version ? `v${item.assessment_version} · ` : ""}{item.attempt_status ?? item.step_state} · {item.answer_count} {t("answers")}</span></button>)}
         </aside>
         <main className="min-w-0 space-y-4">
           {loading ? <p className="flex items-center justify-center rounded-xl border p-12 text-sm text-[var(--muted-foreground)]"><LoaderCircle className="mr-2 h-5 w-5 animate-spin" />{t("Loading audit chain…")}</p> : null}

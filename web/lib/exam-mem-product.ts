@@ -1,5 +1,6 @@
 import { apiFetch, apiUrl } from "@/lib/api";
 import type { PracticeTurnResponse } from "@/lib/exam-mem-practice";
+import type { Assessment, AssessmentAttempt } from "@/lib/exam-mem-study-plans";
 
 export interface PracticeCheckpointSummary {
   checkpoint_key: string;
@@ -25,6 +26,16 @@ export interface PracticeHistoryItem {
   answer_count: number;
   current_checkpoint: PracticeCheckpointSummary;
   runtime: RuntimeSnapshot | null;
+  exam_id: string;
+  subject_id: string;
+}
+
+export interface ExamReviewHistoryItem extends PracticeHistoryItem {
+  assessment_id: string | null;
+  assessment_title: string | null;
+  assessment_version: number | null;
+  attempt_status: AssessmentAttempt["status"] | null;
+  completed_at: string | null;
 }
 
 export interface RuntimeSnapshot {
@@ -92,7 +103,58 @@ export async function listPracticeHistory(
   const payload = await jsonOrThrow<{ sessions: PracticeHistoryItem[] }>(
     await apiFetch(apiUrl(`/api/v1/exam-mem/practice/sessions?${query}`)),
   );
-  return payload.sessions;
+  return payload.sessions.map((item) => ({
+    ...item,
+    exam_id: examId,
+    subject_id: subjectId,
+  }));
+}
+
+export async function listExamReviewHistory(
+  assessments: Assessment[],
+): Promise<ExamReviewHistoryItem[]> {
+  const scopes = new Map<string, { examId: string; subjectId: string }>();
+  const addScope = (examId: string, subjectId: string) => {
+    scopes.set(`${examId}\u001f${subjectId}`, { examId, subjectId });
+  };
+  addScope("postgraduate_entrance_exam", "math_1");
+  for (const assessment of assessments) {
+    addScope(assessment.exam_id, assessment.subject_id);
+  }
+
+  const sessions = (
+    await Promise.all(
+      [...scopes.values()].map(({ examId, subjectId }) =>
+        listPracticeHistory(examId, subjectId),
+      ),
+    )
+  ).flat();
+  const attempts = new Map<
+    string,
+    {
+      assessment: Assessment;
+      attempt: AssessmentAttempt;
+    }
+  >();
+  for (const assessment of assessments) {
+    for (const attempt of assessment.attempts) {
+      attempts.set(attempt.practice_session_id, { assessment, attempt });
+    }
+  }
+
+  return sessions
+    .map((session) => {
+      const matched = attempts.get(session.practice_session_id);
+      return {
+        ...session,
+        assessment_id: matched?.assessment.assessment_id ?? null,
+        assessment_title: matched?.assessment.title ?? null,
+        assessment_version: matched?.attempt.assessment_version ?? null,
+        attempt_status: matched?.attempt.status ?? null,
+        completed_at: matched?.attempt.completed_at ?? null,
+      };
+    })
+    .sort((left, right) => right.updated_at.localeCompare(left.updated_at));
 }
 
 export async function resumePractice(
@@ -109,12 +171,18 @@ export async function resumePractice(
   );
 }
 
-export async function getExamReview(id: string): Promise<ExamReview> {
-  return jsonOrThrow<ExamReview>(
+export async function getExamReview(
+  id: string,
+  examId = "postgraduate_entrance_exam",
+  subjectId = "math_1",
+): Promise<ExamReview> {
+  const query = new URLSearchParams({ exam_id: examId, subject_id: subjectId });
+  const review = await jsonOrThrow<Omit<ExamReview, "exam_id" | "subject_id">>(
     await apiFetch(
-      apiUrl(`/api/v1/exam-mem/practice/sessions/${encodeURIComponent(id)}`),
+      apiUrl(`/api/v1/exam-mem/practice/sessions/${encodeURIComponent(id)}?${query}`),
     ),
   );
+  return { ...review, exam_id: examId, subject_id: subjectId };
 }
 
 export async function listMemoryIssues(): Promise<MemoryIssue[]> {
@@ -129,6 +197,8 @@ export async function disputeGrade(options: {
   checkpointKey: string;
   reason: string;
   idempotencyKey: string;
+  examId: string;
+  subjectId: string;
 }): Promise<void> {
   await jsonOrThrow(
     await apiFetch(apiUrl("/api/v1/exam-mem/grade-reviews/disputes"), {
@@ -139,6 +209,8 @@ export async function disputeGrade(options: {
         checkpoint_key: options.checkpointKey,
         reason: options.reason,
         idempotency_key: options.idempotencyKey,
+        exam_id: options.examId,
+        subject_id: options.subjectId,
       }),
     }),
   );
@@ -150,6 +222,8 @@ export async function upholdGrade(options: {
   checkpointKey: string;
   reason: string;
   idempotencyKey: string;
+  examId: string;
+  subjectId: string;
 }): Promise<void> {
   await jsonOrThrow(
     await apiFetch(
@@ -163,6 +237,8 @@ export async function upholdGrade(options: {
           checkpoint_key: options.checkpointKey,
           reason: options.reason,
           idempotency_key: options.idempotencyKey,
+          exam_id: options.examId,
+          subject_id: options.subjectId,
         }),
       },
     ),

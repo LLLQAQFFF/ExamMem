@@ -1,7 +1,8 @@
 from __future__ import annotations
 
-from contextlib import contextmanager
+from contextlib import asynccontextmanager, contextmanager
 from pathlib import Path
+from types import SimpleNamespace
 
 from fastapi import FastAPI, HTTPException
 from httpx import ASGITransport, AsyncClient
@@ -18,6 +19,7 @@ from deeptutor_plugins.exam_mem.api import (
 )
 from exam_mem.config import ExamMemSettings
 from exam_mem.domain import load_taxonomy
+from exam_mem.storage import AppendStatus
 
 
 @contextmanager
@@ -73,6 +75,61 @@ async def test_non_admin_cannot_save_plugin_configuration(monkeypatch) -> None:
 
     assert response.status_code == 403
     assert saved is False
+
+
+@pytest.mark.asyncio
+async def test_grade_dispute_uses_the_assessment_scope() -> None:
+    contexts = []
+
+    class Checkpoints:
+        async def get(self, context, practice_session_id, checkpoint_key):
+            contexts.append(context)
+            assert practice_session_id == "practice:dynamic:completed"
+            assert checkpoint_key == "answer:4"
+            return SimpleNamespace(checkpoint=SimpleNamespace(grade_result=object()))
+
+    class Reviews:
+        async def append(self, event):
+            return SimpleNamespace(status=AppendStatus.CREATED, event=event)
+
+    class Connection:
+        async def commit(self):
+            return None
+
+    class Provider:
+        @asynccontextmanager
+        async def open_product(self):
+            yield SimpleNamespace(
+                checkpoints=Checkpoints(), reviews=Reviews(), connection=Connection()
+            )
+
+    api = FastAPI()
+    api.include_router(
+        build_router(Provider()),  # type: ignore[arg-type]
+        prefix="/api/v1/exam-mem",
+    )
+
+    with _regular_user():
+        async with AsyncClient(
+            transport=ASGITransport(app=api), base_url="http://test"
+        ) as client:
+            response = await client.post(
+                "/api/v1/exam-mem/grade-reviews/disputes",
+                json={
+                    "practice_session_id": "practice:dynamic:completed",
+                    "checkpoint_key": "answer:4",
+                    "idempotency_key": "review:dynamic:1",
+                    "reason": "The generated rubric missed valid evidence.",
+                    "exam_id": "plan:test",
+                    "subject_id": "math",
+                },
+            )
+
+    assert response.status_code == 200, response.text
+    assert len(contexts) == 1
+    assert contexts[0].exam_id == "plan:test"
+    assert contexts[0].subject_id == "math"
+    assert response.json()["review"]["exam_id"] == "plan:test"
 
 
 def test_learning_path_point_maps_only_to_the_controlled_taxonomy() -> None:

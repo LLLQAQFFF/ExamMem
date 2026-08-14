@@ -14,6 +14,76 @@ import {
   preparePracticeAnswerRequest,
   savePracticeSession,
 } from "../lib/exam-mem-practice";
+import { listExamReviewHistory } from "../lib/exam-mem-product";
+import type { Assessment } from "../lib/exam-mem-study-plans";
+
+test("exam review history includes completed attempts from imported scopes", async () => {
+  const originalFetch = globalThis.fetch;
+  const requested: string[] = [];
+  globalThis.fetch = async (input) => {
+    const url = String(input);
+    requested.push(url);
+    const dynamic = url.includes("exam_id=plan%3Atest");
+    return Response.json({
+      sessions: dynamic
+        ? [
+            {
+              practice_session_id: "practice:dynamic:completed",
+              trace_id: "trace:dynamic:completed",
+              started_at: "2026-08-14T06:35:00Z",
+              step_state: "MEMORY_UPDATED",
+              updated_at: "2026-08-14T06:51:00Z",
+              attempt_number: 1,
+              answer_count: 4,
+              current_checkpoint: {
+                checkpoint_key: "answer:4",
+                step_state: "MEMORY_UPDATED",
+                question: null,
+                grade_result: { correct: true, score: 1, evidence: ["ok"] },
+                grade_artifact: null,
+                diagnosis_result: null,
+                recommendation: null,
+              },
+              runtime: null,
+            },
+          ]
+        : [],
+    });
+  };
+  const assessments: Assessment[] = [
+    {
+      assessment_id: "assessment:dynamic",
+      title: "动态知识点专项检测",
+      exam_id: "plan:test",
+      subject_id: "math",
+      taxonomy_version: "ptest_s001_v1",
+      knowledge_point_ids: ["ptest.s001.m001.k001"],
+      latest_version: 1,
+      attempts: [
+        {
+          attempt_id: "attempt:dynamic",
+          assessment_version: 1,
+          practice_session_id: "practice:dynamic:completed",
+          trace_id: "trace:dynamic:completed",
+          status: "completed",
+          started_at: "2026-08-14T06:35:00Z",
+          completed_at: "2026-08-14T06:51:00Z",
+        },
+      ],
+    },
+  ];
+
+  try {
+    const [history] = await listExamReviewHistory(assessments);
+    assert.equal(requested.length, 2);
+    assert.equal(history.assessment_title, "动态知识点专项检测");
+    assert.equal(history.attempt_status, "completed");
+    assert.equal(history.exam_id, "plan:test");
+    assert.equal(history.subject_id, "math");
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
 
 test("practice requests surface a plain-text proxy failure without a JSON parse error", async () => {
   const originalFetch = globalThis.fetch;
