@@ -165,6 +165,13 @@ Supporting local documentation/demo/localization commits are `38164c68`,
 `08a8f3ba`, and `a357df53`; they do not create additional migration
 checkpoints.
 
+Checkpoint 8 follow-up product commits are `7228d7bb` (published Study Plans
+and versioned assessments), `93df09ed` (published Taxonomy runtime),
+`504fed85` (pinned grader contract), `b0452b23` (long-running Agent proxy),
+`8a33d450` (Review discovery), `d2081c83` (categorized Review and response
+language), and `366779ab` (scoped Learning Archive and study Agents).
+`4e19927b` records the earlier Smart Exam Prep acceptance snapshot.
+
 No commit was pushed, released or deployed.
 
 ## Study-plan and assessment product increment
