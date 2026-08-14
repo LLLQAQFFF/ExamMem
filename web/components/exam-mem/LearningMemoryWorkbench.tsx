@@ -269,7 +269,7 @@ export default function LearningMemoryWorkbench() {
   }, [archive, tr]);
 
   return (
-    <div className="mx-auto max-w-7xl space-y-6 px-6 py-10 md:px-10">
+    <div className="mx-auto max-w-7xl space-y-6 px-4 py-6 sm:px-6 sm:py-8 md:px-10 md:py-10">
       <header className="space-y-3">
         <div className="flex items-center gap-3">
           <span className="grid h-10 w-10 place-items-center rounded-xl bg-[var(--primary)]/10 text-[var(--primary)]">
@@ -484,9 +484,9 @@ function ScopeFilters(props: {
   tr: Tr;
 }) {
   const select =
-    "rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-sm";
+    "w-full min-w-0 rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-sm";
   return (
-    <section className="grid gap-3 rounded-xl border border-[var(--border)] bg-[var(--card)] p-4 md:grid-cols-3">
+    <section className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,13rem),1fr))] gap-3 rounded-xl border border-[var(--border)] bg-[var(--card)] p-4">
       <Filter label={props.tr("学习计划 / 专业", "Study plan / programme")}>
         <select
           className={select}
@@ -554,39 +554,38 @@ function ScopeFilters(props: {
           ))}
         </select>
       </Filter>
-      <div className="flex items-end gap-2">
-        <Filter label={props.tr("记忆类型", "Memory type")} grow>
-          <select
-            className={select}
-            value={props.namespace}
-            onChange={(event) => props.setNamespace(event.target.value)}
-          >
-            <option value="">{props.tr("全部", "All")}</option>
-            <option value="mastery">{props.tr("掌握度", "Mastery")}</option>
-            <option value="error_pattern">{props.tr("错因模式", "Error pattern")}</option>
-            <option value="plan">{props.tr("学习计划", "Plan")}</option>
-          </select>
-        </Filter>
-        <Filter label={props.tr("状态", "State")} grow>
-          <select
-            className={select}
-            value={props.lifecycleState}
-            onChange={(event) => props.setLifecycleState(event.target.value)}
-          >
-            <option value="">{props.tr("全部", "All")}</option>
-            {["active", "archived", "invalidated", "contested"].map(
-              (item) => (
-                <option key={item}>{item}</option>
-              ),
-            )}
-          </select>
-        </Filter>
+      <Filter label={props.tr("记忆类型", "Memory type")}>
+        <select
+          className={select}
+          value={props.namespace}
+          onChange={(event) => props.setNamespace(event.target.value)}
+        >
+          <option value="">{props.tr("全部", "All")}</option>
+          <option value="mastery">{props.tr("掌握度", "Mastery")}</option>
+          <option value="error_pattern">{props.tr("错因模式", "Error pattern")}</option>
+          <option value="plan">{props.tr("学习计划", "Plan")}</option>
+        </select>
+      </Filter>
+      <Filter label={props.tr("状态", "State")}>
+        <select
+          className={select}
+          value={props.lifecycleState}
+          onChange={(event) => props.setLifecycleState(event.target.value)}
+        >
+          <option value="">{props.tr("全部", "All")}</option>
+          {["active", "archived", "invalidated", "contested"].map((item) => (
+            <option key={item}>{item}</option>
+          ))}
+        </select>
+      </Filter>
+      <div className="flex min-w-0 items-end">
         <button
           type="button"
           onClick={() => void props.refresh()}
-          className="rounded-lg border border-[var(--border)] p-2.5"
+          className="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-[var(--border)] px-3 py-2 text-sm"
         >
           <RefreshCw className={`h-4 w-4 ${props.loading ? "animate-spin" : ""}`} />
+          {props.tr("刷新", "Refresh")}
         </button>
       </div>
     </section>
@@ -595,15 +594,13 @@ function ScopeFilters(props: {
 
 function Filter({
   label,
-  grow,
   children,
 }: {
   label: string;
-  grow?: boolean;
   children: React.ReactNode;
 }) {
   return (
-    <label className={`grid gap-1 text-xs ${grow ? "min-w-0 flex-1" : ""}`}>
+    <label className="grid min-w-0 gap-1 text-xs">
       <span>{label}</span>
       {children}
     </label>
