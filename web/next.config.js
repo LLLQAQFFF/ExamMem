@@ -114,9 +114,11 @@ const nextConfig = {
   // request body at 10MB by default, but the backend accepts uploads up to
   // 200MB (DocumentValidator.MAX_FILE_SIZE). Raise the proxy cap to match (plus
   // multipart overhead headroom) so knowledge-base document uploads aren't
-  // silently truncated when they pass through the proxy.
+  // silently truncated when they pass through the proxy. Long-running agent
+  // requests also need more than Next's 30-second rewrite default.
   experimental: {
     proxyClientMaxBodySize: 210 * 1024 * 1024,
+    proxyTimeout: 5 * 60 * 1000,
   },
 
   // Move dev indicator to bottom-right corner

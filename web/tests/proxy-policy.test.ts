@@ -58,6 +58,12 @@ test("proxy rewrites the exact callback before backend routing and auth gating",
   );
 });
 
+test("proxy permits long-running backend agent requests", () => {
+  const source = readFileSync(path.resolve(process.cwd(), "next.config.js"), "utf8");
+
+  assert.match(source, /proxyTimeout:\s*5 \* 60 \* 1000/);
+});
+
 test("isAuthExempt allows public static assets through the auth gate (issue #599)", () => {
   // The Next image optimizer re-fetches these over a cookie-less loopback; if
   // the gate blocked them the sidebar logo/banner would render broken.
