@@ -17,6 +17,7 @@ from deeptutor_plugins.exam_mem.api import (
     build_router,
 )
 from exam_mem.config import ExamMemSettings
+from exam_mem.domain import load_taxonomy
 
 
 @contextmanager
@@ -76,7 +77,7 @@ async def test_non_admin_cannot_save_plugin_configuration(monkeypatch) -> None:
 
 def test_learning_path_point_maps_only_to_the_controlled_taxonomy() -> None:
     assert (
-        _canonical_knowledge_point("native-id", "贝叶斯公式")
+        _canonical_knowledge_point(load_taxonomy("math1_v1"), "native-id", "贝叶斯公式")
         == "math1.probability.bayes"
     )
 

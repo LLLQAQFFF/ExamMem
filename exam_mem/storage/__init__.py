@@ -48,6 +48,18 @@ from .student_model_repository import (
 )
 
 _LAZY_EXPORTS = {
+    "AssessmentConflict": (
+        ".assessment_repository",
+        "AssessmentConflict",
+    ),
+    "AssessmentNotFound": (
+        ".assessment_repository",
+        "AssessmentNotFound",
+    ),
+    "PostgresAssessmentRepository": (
+        ".assessment_repository",
+        "PostgresAssessmentRepository",
+    ),
     "GradeReviewAppendResult": (
         ".grade_review_repository",
         "GradeReviewAppendResult",
@@ -92,6 +104,18 @@ _LAZY_EXPORTS = {
         ".practice_trace_repository",
         "PostgresPracticeTraceRepository",
     ),
+    "PostgresStudyPlanRepository": (
+        ".study_plan_repository",
+        "PostgresStudyPlanRepository",
+    ),
+    "StudyPlanConflict": (
+        ".study_plan_repository",
+        "StudyPlanConflict",
+    ),
+    "StudyPlanNotFound": (
+        ".study_plan_repository",
+        "StudyPlanNotFound",
+    ),
     "PracticeTraceAppendResult": (
         ".practice_trace_repository",
         "PracticeTraceAppendResult",
@@ -114,6 +138,8 @@ def __getattr__(name: str):  # noqa: ANN202
 
 
 __all__ = [
+    "AssessmentConflict",
+    "AssessmentNotFound",
     "AuditLinkError",
     "AuditRepositoryInvariantError",
     "AppendResult",
@@ -144,7 +170,9 @@ __all__ = [
     "PostgresPracticeCheckpointRepository",
     "PostgresPracticeTraceRepository",
     "PostgresBaselineFactRepository",
+    "PostgresAssessmentRepository",
     "PostgresStudentModelRepository",
+    "PostgresStudyPlanRepository",
     "ProjectionConflict",
     "PracticeCheckpointAppendResult",
     "PracticeCheckpointIdentityError",
@@ -159,6 +187,8 @@ __all__ = [
     "StudentModelRebuildService",
     "StudentModelRepository",
     "StudentModelSnapshot",
+    "StudyPlanConflict",
+    "StudyPlanNotFound",
     "load_database_settings",
     "metadata",
 ]

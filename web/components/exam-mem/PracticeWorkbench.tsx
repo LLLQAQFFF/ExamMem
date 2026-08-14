@@ -20,24 +20,26 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import {
-  clearPracticeSession,
   createPracticeIdentity,
   generateExamPractice,
-  getExamMemCatalog,
   loadPracticeSession,
   preparePracticeAnswerRequest,
   PracticeRequestError,
   savePracticeSession,
-  startExamPractice,
   submitExamPracticeAnswer,
+  repeatAssessmentVersion,
   type PracticeAnswerRequest,
   type PracticeIdentity,
   type PracticeTurnResponse,
-  type ExamMemCatalog,
 } from "@/lib/exam-mem-practice";
 import { extractBase64FromDataUrl, readFileAsDataUrl } from "@/lib/file-attachments";
 import { useAttachmentLimits } from "@/lib/attachment-limits";
-import { fetchAllProgress, fetchMasteryMap, type MasteryMapResult, type ProgressSummary } from "@/lib/learning-api";
+import {
+  listAssessments,
+  listStudyPlans,
+  type Assessment,
+  type StudyPlan,
+} from "@/lib/exam-mem-study-plans";
 import {
   listPracticeHistory,
   resumePractice,
@@ -62,12 +64,12 @@ export default function PracticeWorkbench() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [history, setHistory] = useState<PracticeHistoryItem[]>([]);
-  const [catalog, setCatalog] = useState<ExamMemCatalog | null>(null);
-  const [selectedScope, setSelectedScope] = useState("");
-  const [paths, setPaths] = useState<ProgressSummary[]>([]);
-  const [selectedPath, setSelectedPath] = useState("");
-  const [pathDetail, setPathDetail] = useState<MasteryMapResult | null>(null);
+  const [plans, setPlans] = useState<StudyPlan[]>([]);
+  const [selectedPlan, setSelectedPlan] = useState("");
+  const [selectedSubject, setSelectedSubject] = useState("");
   const [selectedKnowledgePoint, setSelectedKnowledgePoint] = useState("");
+  const [assessments, setAssessments] = useState<Assessment[]>([]);
+  const [regenerateAssessmentId, setRegenerateAssessmentId] = useState<string | undefined>();
   const [questionCount, setQuestionCount] = useState(4);
   const [difficulty, setDifficulty] = useState<"auto" | "easy" | "medium" | "hard">("auto");
   const [sourceFiles, setSourceFiles] = useState<File[]>([]);
@@ -83,33 +85,29 @@ export default function PracticeWorkbench() {
   }, []);
 
   useEffect(() => {
-    void getExamMemCatalog().then((result) => {
-      setCatalog(result);
-      const scope = result.scopes[0];
-      if (scope) setSelectedScope(`${scope.exam_id}:${scope.subject_id}`);
-    }).catch(() => undefined);
-    void fetchAllProgress().then((result) => {
-      const available = result.summaries.filter((item) => item.kp_count > 0);
-      setPaths(available);
+    void listStudyPlans().then((result) => {
+      const available = result.filter((item) => item.published);
+      setPlans(available);
       const params = new URLSearchParams(window.location.search);
-      setSelectedPath(params.get("path") || available[0]?.book_id || "");
+      setSelectedPlan(params.get("plan") || available[0]?.plan_id || "");
+      setSelectedSubject(params.get("subject") || "");
       setSelectedKnowledgePoint(params.get("kp") || "");
     }).catch(() => undefined);
+    void listAssessments().then(setAssessments).catch(() => undefined);
   }, []);
 
   useEffect(() => {
-    const scope = catalog?.scopes.find((item) => `${item.exam_id}:${item.subject_id}` === selectedScope);
-    if (!scope) return;
-    void listPracticeHistory(scope.exam_id, scope.subject_id).then(setHistory).catch(() => undefined);
-  }, [catalog, selectedScope]);
-
-  useEffect(() => {
-    if (!selectedPath) { setPathDetail(null); return; }
-    void fetchMasteryMap(selectedPath).then((result) => {
-      setPathDetail(result);
-      setSelectedKnowledgePoint((current) => current || result.map.modules[0]?.knowledge_points[0]?.id || "");
-    }).catch(() => setPathDetail(null));
-  }, [selectedPath]);
+    const plan = plans.find((item) => item.plan_id === selectedPlan);
+    const subjects = plan?.published?.tree.subjects ?? [];
+    const subject = subjects.find((item) => item.id === selectedSubject) ?? subjects[0];
+    if (!plan?.published || !subject) return;
+    if (subject.id !== selectedSubject) setSelectedSubject(subject.id);
+    const objectives = subject.modules.flatMap((item) => item.knowledge_points);
+    if (!objectives.some((item) => item.id === selectedKnowledgePoint)) {
+      setSelectedKnowledgePoint(objectives[0]?.id || "");
+    }
+    void listPracticeHistory(`plan:${plan.plan_id}`, subject.id).then(setHistory).catch(() => undefined);
+  }, [plans, selectedKnowledgePoint, selectedPlan, selectedSubject]);
 
   useEffect(() => {
     if (!identity || !turn) return;
@@ -126,38 +124,12 @@ export default function PracticeWorkbench() {
     }
   }, [answer, attemptNumber, identity, pendingRequest, turn]);
 
-  const begin = async () => {
-    const scope = catalog?.scopes.find((item) => `${item.exam_id}:${item.subject_id}` === selectedScope);
-    const nextIdentity = createPracticeIdentity(crypto.randomUUID(), scope?.exam_id, scope?.subject_id);
-    try {
-      clearPracticeSession(window.sessionStorage);
-    } catch {
-      // Browser storage is an optimization, not a workflow dependency.
-    }
-    setLoading(true);
-    setError(null);
-    setTurn(null);
-    setAnswer("");
-    setAttemptNumber(1);
-    setPendingRequest(null);
-    setIdentity(nextIdentity);
-    try {
-      setTurn(await startExamPractice(nextIdentity));
-    } catch (cause) {
-      if (cause instanceof PracticeRequestError && cause.partialTurn) {
-        setTurn(cause.partialTurn);
-      }
-      setError(cause instanceof Error ? cause.message : t("Practice could not start."));
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const beginGenerated = async () => {
-    const scope = catalog?.scopes.find((item) => `${item.exam_id}:${item.subject_id}` === selectedScope);
-    const knowledgePoint = pathDetail?.map.modules.flatMap((item) => item.knowledge_points).find((item) => item.id === selectedKnowledgePoint);
-    if (!scope || !selectedPath || !knowledgePoint) return;
-    const nextIdentity = createPracticeIdentity(crypto.randomUUID(), scope.exam_id, scope.subject_id);
+    const plan = plans.find((item) => item.plan_id === selectedPlan);
+    const subject = plan?.published?.tree.subjects.find((item) => item.id === selectedSubject);
+    const knowledgePoint = subject?.modules.flatMap((item) => item.knowledge_points).find((item) => item.id === selectedKnowledgePoint);
+    if (!plan?.published || !subject || !knowledgePoint) return;
+    const nextIdentity = createPracticeIdentity(crypto.randomUUID(), `plan:${plan.plan_id}`, subject.id);
     setLoading(true);
     setError(null);
     setTurn(null);
@@ -178,13 +150,18 @@ export default function PracticeWorkbench() {
       }));
       setTurn(await generateExamPractice({
         identity: nextIdentity,
-        learningPathId: selectedPath,
+        learningPathId: `${plan.plan_id}:${plan.published.version}:${knowledgePoint.id}`,
         knowledgePointId: knowledgePoint.id,
         knowledgePointName: knowledgePoint.name,
+        taxonomyVersion: plan.published.taxonomy_versions[subject.id],
         numQuestions: questionCount,
         difficulty,
         attachments,
+        assessmentId: regenerateAssessmentId,
+        assessmentTitle: `${knowledgePoint.name} 专项检测`,
       }));
+      setRegenerateAssessmentId(undefined);
+      void listAssessments().then(setAssessments);
     } catch (cause) {
       if (cause instanceof PracticeRequestError && cause.partialTurn) setTurn(cause.partialTurn);
       setError(cause instanceof Error ? cause.message : tr("生成练习失败。", "Practice generation failed."));
@@ -210,6 +187,7 @@ export default function PracticeWorkbench() {
       setAnswer("");
       setAttemptNumber((value) => value + 1);
       setPendingRequest(null);
+      void listAssessments().then(setAssessments);
     } catch (cause) {
       if (cause instanceof PracticeRequestError && cause.partialTurn) {
         setTurn(cause.partialTurn);
@@ -224,14 +202,15 @@ export default function PracticeWorkbench() {
     setLoading(true);
     setError(null);
     try {
-      const scope = catalog?.scopes.find((candidate) => `${candidate.exam_id}:${candidate.subject_id}` === selectedScope);
-      if (!scope) throw new Error(tr("考试范围不可用。", "Exam scope is unavailable."));
-      const resumed = await resumePractice(item.practice_session_id, scope.exam_id, scope.subject_id);
+      const plan = plans.find((candidate) => candidate.plan_id === selectedPlan);
+      const subject = plan?.published?.tree.subjects.find((candidate) => candidate.id === selectedSubject);
+      if (!plan || !subject) throw new Error(tr("考试范围不可用。", "Exam scope is unavailable."));
+      const resumed = await resumePractice(item.practice_session_id, `plan:${plan.plan_id}`, subject.id);
       setIdentity({
         practiceSessionId: item.practice_session_id,
         traceId: item.trace_id,
-        examId: scope.exam_id,
-        subjectId: scope.subject_id,
+        examId: `plan:${plan.plan_id}`,
+        subjectId: subject.id,
       });
       setTurn(resumed);
       setAnswer("");
@@ -243,6 +222,32 @@ export default function PracticeWorkbench() {
       setLoading(false);
     }
   };
+
+  const repeatAssessment = async (assessment: Assessment, version: number) => {
+    const nextIdentity = createPracticeIdentity(
+      crypto.randomUUID(),
+      assessment.exam_id,
+      assessment.subject_id,
+    );
+    setLoading(true);
+    setError(null);
+    try {
+      setIdentity(nextIdentity);
+      setTurn(await repeatAssessmentVersion({ assessmentId: assessment.assessment_id, version, identity: nextIdentity }));
+      setAnswer("");
+      setAttemptNumber(1);
+      setPendingRequest(null);
+      void listAssessments().then(setAssessments);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : tr("重考失败。", "Could not repeat the assessment."));
+    } finally { setLoading(false); }
+  };
+
+  const plan = plans.find((item) => item.plan_id === selectedPlan);
+  const subjects = plan?.published?.tree.subjects ?? [];
+  const subject = subjects.find((item) => item.id === selectedSubject) ?? subjects[0];
+  const objectives = subject?.modules.flatMap((item) => item.knowledge_points) ?? [];
+  const scopedAssessments = assessments.filter((item) => item.exam_id === `plan:${selectedPlan}` && item.subject_id === subject?.id);
 
   const practice = turn?.practice;
   const question = practice?.question;
@@ -266,37 +271,46 @@ export default function PracticeWorkbench() {
         </div>
         <button
           type="button"
-          onClick={() => void begin()}
-          disabled={loading}
+          onClick={() => void beginGenerated()}
+          disabled={loading || !plan || !subject || !selectedKnowledgePoint}
           className="inline-flex items-center gap-2 rounded-lg bg-[var(--primary)] px-4 py-2 text-sm font-medium text-[var(--primary-foreground)] disabled:opacity-50"
         >
           {turn ? <RotateCcw className="h-4 w-4" /> : <ArrowRight className="h-4 w-4" />}
-          {turn ? t("Start a new practice") : t("Start practice")}
+          {turn ? tr("生成新版检测", "Generate a new version") : tr("生成并开始检测", "Generate and start")}
         </button>
       </header>
 
       <section className="grid gap-3 sm:grid-cols-3">
         <Info label={t("Business store")} value={t("Independent ExamMem PostgreSQL")} />
-        <Info label={tr("考试范围", "Exam scope")} value={catalog?.scopes[0] ? `${catalog.scopes[0].exam_name} / ${catalog.scopes[0].subject_name}` : "postgraduate_entrance_exam / math_1"} />
+        <Info label={tr("考试范围", "Exam scope")} value={plan && subject ? `${plan.name} / ${subject.name}` : tr("请先发布学习计划", "Publish a study plan first")} />
         <Info label={t("Recovery")} value={t("Server checkpoint + immutable retry key")} />
       </section>
 
       <section className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-5">
-        <div className="flex items-center gap-2"><GraduationCap className="h-5 w-5 text-[var(--primary)]" /><h2 className="font-semibold">{tr("从学习路径创建专项练习", "Create practice from a learning path")}</h2></div>
-        <p className="mt-1 text-xs text-[var(--muted-foreground)]">{tr("选择学过的知识点，可附加本次出题参考文件。大模型生成的题目会被固定在本次练习 checkpoint 中。", "Choose a learned objective and optionally attach source files. Generated questions are pinned to this practice checkpoint.")}</p>
+        <div className="flex items-center gap-2"><GraduationCap className="h-5 w-5 text-[var(--primary)]" /><h2 className="font-semibold">{tr("从已发布学习计划创建专项检测", "Create an assessment from a published study plan")}</h2></div>
+        <p className="mt-1 text-xs text-[var(--muted-foreground)]">{tr("考试范围来自已确认的大纲版本。选择叶子知识点后，可附加本次出题参考文件；生成题集会固定为可重考的试卷版本。", "The scope comes from a reviewed syllabus version. Choose a leaf objective and optional sources; the generated catalog becomes a repeatable assessment version.")}</p>
         <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-          <label className="text-xs text-[var(--muted-foreground)]">{tr("考试范围", "Exam scope")}<select value={selectedScope} onChange={(event) => setSelectedScope(event.target.value)} className="mt-1 w-full rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-sm" disabled={!catalog?.scopes.length}>{catalog?.scopes.map((scope) => <option key={`${scope.exam_id}:${scope.subject_id}`} value={`${scope.exam_id}:${scope.subject_id}`}>{scope.exam_name} / {scope.subject_name}</option>)}</select></label>
-          <label className="text-xs text-[var(--muted-foreground)]">{tr("学习路径", "Learning path")}<select value={selectedPath} onChange={(event) => { setSelectedPath(event.target.value); setSelectedKnowledgePoint(""); }} className="mt-1 w-full rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-sm"><option value="">{tr("请选择", "Select")}</option>{paths.map((path) => <option key={path.book_id} value={path.book_id}>{path.name}</option>)}</select></label>
-          <label className="text-xs text-[var(--muted-foreground)]">{tr("知识点", "Objective")}<select value={selectedKnowledgePoint} onChange={(event) => setSelectedKnowledgePoint(event.target.value)} className="mt-1 w-full rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-sm"><option value="">{tr("请选择", "Select")}</option>{pathDetail?.map.modules.flatMap((module) => module.knowledge_points).map((kp) => <option key={kp.id} value={kp.id}>{kp.name} · {Math.round(kp.mastery * 100)}%</option>)}</select></label>
+          <label className="text-xs text-[var(--muted-foreground)]">{tr("学习计划", "Study plan")}<select value={selectedPlan} onChange={(event) => { setSelectedPlan(event.target.value); setSelectedSubject(""); setSelectedKnowledgePoint(""); }} className="mt-1 w-full rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-sm"><option value="">{tr("请选择", "Select")}</option>{plans.map((item) => <option key={item.plan_id} value={item.plan_id}>{tr(`${item.name} · 版本 ${item.active_version}`, `${item.name} · v${item.active_version}`)}</option>)}</select></label>
+          <label className="text-xs text-[var(--muted-foreground)]">{tr("考试科目", "Exam subject")}<select value={subject?.id || ""} onChange={(event) => { setSelectedSubject(event.target.value); setSelectedKnowledgePoint(""); }} className="mt-1 w-full rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-sm"><option value="">{tr("请选择", "Select")}</option>{subjects.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
+          <label className="text-xs text-[var(--muted-foreground)]">{tr("知识点", "Objective")}<select value={selectedKnowledgePoint} onChange={(event) => { setSelectedKnowledgePoint(event.target.value); setRegenerateAssessmentId(undefined); }} className="mt-1 w-full rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-sm"><option value="">{tr("请选择", "Select")}</option>{objectives.map((objective) => <option key={objective.id} value={objective.id}>{objective.name}</option>)}</select></label>
           <label className="text-xs text-[var(--muted-foreground)]">{tr("难度", "Difficulty")}<select value={difficulty} onChange={(event) => setDifficulty(event.target.value as typeof difficulty)} className="mt-1 w-full rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-sm"><option value="auto">{tr("自动", "Auto")}</option><option value="easy">{tr("简单", "Easy")}</option><option value="medium">{tr("中等", "Medium")}</option><option value="hard">{tr("困难", "Hard")}</option></select></label>
         </div>
         <div className="mt-3 flex flex-wrap items-center gap-3">
           <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-[var(--border)] px-3 py-2 text-sm"><FileUp className="h-4 w-4" />{tr("添加参考文件（PDF/TXT/MD）", "Add sources (PDF/TXT/MD)")}<input type="file" multiple accept=".pdf,.txt,.md" className="hidden" onChange={(event) => { const files = Array.from(event.target.files || []); const total = files.reduce((sum, file) => sum + file.size, 0); if (files.some((file) => file.size > attachmentLimits.maxFileBytes) || total > attachmentLimits.maxTotalBytes) { setError(tr("文件超过附件大小限制。", "Files exceed the attachment limit.")); return; } setSourceFiles(files); }} /></label>
           {sourceFiles.map((file) => <span key={`${file.name}:${file.size}`} className="rounded-full bg-[var(--muted)] px-2 py-1 text-xs">{file.name}</span>)}
           <label className="ml-auto flex items-center gap-2 text-sm">{tr("题数", "Questions")}<input type="number" min={2} max={10} value={questionCount} onChange={(event) => setQuestionCount(Math.max(2, Math.min(10, Number(event.target.value) || 2)))} className="w-16 rounded-lg border border-[var(--border)] bg-[var(--background)] px-2 py-1.5" /></label>
-          <button type="button" onClick={() => void beginGenerated()} disabled={loading || !selectedPath || !selectedKnowledgePoint} className="inline-flex items-center gap-2 rounded-lg bg-[var(--primary)] px-4 py-2 text-sm font-medium text-[var(--primary-foreground)] disabled:opacity-50"><Sparkles className="h-4 w-4" />{tr("生成并开始练习", "Generate and start")}</button>
+          <button type="button" onClick={() => void beginGenerated()} disabled={loading || !plan || !subject || !selectedKnowledgePoint} className="inline-flex items-center gap-2 rounded-lg bg-[var(--primary)] px-4 py-2 text-sm font-medium text-[var(--primary-foreground)] disabled:opacity-50"><Sparkles className="h-4 w-4" />{regenerateAssessmentId ? tr("生成下一版本", "Generate next version") : tr("生成并开始检测", "Generate and start")}</button>
         </div>
       </section>
+
+      {scopedAssessments.length ? (
+        <section className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-4">
+          <div className="flex items-center gap-2 text-sm font-semibold"><History className="h-4 w-4 text-[var(--primary)]" />{tr("考试版本与多次作答", "Assessment versions and attempts")}</div>
+          <div className="mt-3 grid gap-2 md:grid-cols-2">
+            {scopedAssessments.map((assessment) => <article key={assessment.assessment_id} className="rounded-lg border border-[var(--border)] p-3"><p className="text-sm font-medium">{assessment.title}</p><p className="mt-1 text-xs text-[var(--muted-foreground)]">{tr(`当前 v${assessment.latest_version} · ${assessment.attempts.length} 次作答`, `Current v${assessment.latest_version} · ${assessment.attempts.length} attempts`)}</p><div className="mt-3 flex flex-wrap gap-2"><button type="button" disabled={loading} onClick={() => void repeatAssessment(assessment, assessment.latest_version)} className="rounded-lg border border-[var(--border)] px-3 py-1.5 text-xs">{tr("重考当前版本", "Repeat current version")}</button><button type="button" disabled={loading} onClick={() => { setRegenerateAssessmentId(assessment.assessment_id); setSelectedKnowledgePoint(assessment.knowledge_point_ids[0] || ""); }} className="rounded-lg border border-[var(--border)] px-3 py-1.5 text-xs text-[var(--primary)]">{tr("基于同一考试生成新版", "Generate a new version")}</button></div></article>)}
+          </div>
+        </section>
+      ) : null}
 
       {history.length ? (
         <section className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-4">
@@ -349,7 +363,7 @@ export default function PracticeWorkbench() {
           <BookOpenCheck className="mx-auto h-9 w-9 text-[var(--primary)]" />
           <h2 className="mt-4 text-lg font-semibold">{t("Ready for a scoped practice turn")}</h2>
           <p className="mx-auto mt-2 max-w-xl text-sm text-[var(--muted-foreground)]">
-            {t("The controlled catalog covers linear algebra and probability with canonical math1_v1 knowledge-point IDs.")}
+            {tr("先在“学习计划”中导入并发布考试大纲，然后从叶子知识点生成检测。", "Import and publish a syllabus in Study Plans, then generate an assessment from a leaf objective.")}
           </p>
         </section>
       ) : null}
@@ -357,6 +371,12 @@ export default function PracticeWorkbench() {
       {!loading && practice ? (
         <div className="grid min-w-0 gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(280px,340px)]">
           <main className="min-w-0 space-y-5">
+            {practice.completed ? (
+              <section className="rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-5">
+                <div className="flex items-center gap-2"><CheckCircle2 className="h-5 w-5 text-emerald-500" /><h2 className="font-semibold">{tr("本次检测已完成", "Assessment completed")}</h2></div>
+                <p className="mt-2 text-sm text-[var(--muted-foreground)]">{tr(`已完成 ${practice.answered_question_count ?? 0}/${practice.question_count ?? 0} 道题。你可以在上方重考同一版本，或基于同一考试 ID 生成新版。`, `Completed ${practice.answered_question_count ?? 0}/${practice.question_count ?? 0} questions. Repeat this version or generate a new version under the same assessment ID above.`)}</p>
+              </section>
+            ) : null}
             {grade ? (
               <section className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-5">
                 <div className="flex items-center gap-2">

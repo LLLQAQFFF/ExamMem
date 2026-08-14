@@ -113,13 +113,20 @@ class PracticeContext(StrictPracticeModel):
     submitted_answer: AnswerSubmission | None = None
     step_state: PracticeState = PracticeState.IDLE
     trace_id: NonEmptyString
+    taxonomy_version: NonEmptyString = "math1_v1"
     question_catalog: tuple[Question, ...] = ()
+    answered_question_ids: tuple[NonEmptyString, ...] = ()
+    catalog_completed: bool = False
 
     @model_validator(mode="after")
     def validate_step_material(self) -> PracticeContext:
         catalog_ids = [question.question_id for question in self.question_catalog]
         if len(catalog_ids) != len(set(catalog_ids)):
             raise ValueError("question catalog IDs must be unique")
+        if len(self.answered_question_ids) != len(set(self.answered_question_ids)):
+            raise ValueError("answered question IDs must be unique")
+        if catalog_ids and set(self.answered_question_ids) - set(catalog_ids):
+            raise ValueError("answered question IDs must come from the pinned catalog")
         if self.current_question is not None and self.question_catalog:
             catalog_question = next(
                 (
@@ -149,5 +156,13 @@ class PracticeContext(StrictPracticeModel):
                 raise ValueError("QUESTION_READY context must not contain an answer")
         elif self.current_question is None or self.submitted_answer is None:
             raise ValueError(f"{self.step_state.value} context requires question and answer")
+
+        if self.catalog_completed:
+            if not catalog_ids or set(catalog_ids) != set(self.answered_question_ids):
+                raise ValueError(
+                    "catalog_completed requires every pinned catalog question to be answered"
+                )
+            if self.step_state is not PracticeState.MEMORY_UPDATED:
+                raise ValueError("catalog_completed is a terminal MEMORY_UPDATED checkpoint")
 
         return self

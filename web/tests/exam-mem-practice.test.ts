@@ -115,7 +115,7 @@ test("practice route owns scrolling and narrow screens defer the side column", (
   );
 });
 
-test("smart exam prep owns learning paths, scoped generation, and merged memory issues", () => {
+test("smart exam prep owns imported scopes, versioned assessments, and merged memory issues", () => {
   const shell = readFileSync(
     path.resolve(process.cwd(), "components/exam-mem/SmartExamPrepShell.tsx"),
     "utf8",
@@ -128,6 +128,10 @@ test("smart exam prep owns learning paths, scoped generation, and merged memory 
     path.resolve(process.cwd(), "components/exam-mem/PracticeWorkbench.tsx"),
     "utf8",
   );
+  const learning = readFileSync(
+    path.resolve(process.cwd(), "components/exam-mem/LearningPathsWorkbench.tsx"),
+    "utf8",
+  );
   const memory = readFileSync(
     path.resolve(process.cwd(), "components/exam-mem/LearningMemoryWorkbench.tsx"),
     "utf8",
@@ -137,8 +141,15 @@ test("smart exam prep owns learning paths, scoped generation, and merged memory 
   assert.doesNotMatch(shell, /href: "\/exam-mem\/issues"/);
   assert.doesNotMatch(learningSpace, /mastery_path/);
   assert.match(practice, /generateExamPractice/);
-  assert.match(practice, /value=\{selectedScope\}/);
+  assert.match(practice, /listStudyPlans/);
+  assert.match(practice, /taxonomyVersion:/);
+  assert.match(practice, /repeatAssessmentVersion/);
+  assert.doesNotMatch(practice, /fetchAllProgress|fetchMasteryMap/);
   assert.match(practice, /accept="\.pdf,\.txt,\.md"/);
   assert.doesNotMatch(practice, /\.pptx|\.docx/);
+  assert.match(learning, /importStudyPlan/);
+  assert.match(learning, /publishStudyPlan/);
+  assert.match(learning, /openStudyObjective/);
+  assert.match(learning, /router\.push\(session\.chat_url\)/);
   assert.match(memory, /<MemoryIssuesWorkbench embedded/);
 });

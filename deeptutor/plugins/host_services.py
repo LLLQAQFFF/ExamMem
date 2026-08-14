@@ -41,6 +41,7 @@ class PluginTurnRequest:
     language: str = "en"
     config: dict[str, Any] = field(default_factory=dict)
     attachments: tuple[dict[str, Any], ...] = ()
+    mastery_path_id: str | None = None
 
 
 class PluginTurnHost:
@@ -59,6 +60,8 @@ class PluginTurnHost:
             payload.pop("attachments")
         else:
             payload["attachments"] = list(payload["attachments"])
+        if request.mastery_path_id is None:
+            payload.pop("mastery_path_id")
         return await self._app.start_turn(payload)
 
     async def stream_turn(self, turn_id: str) -> AsyncIterator[dict[str, Any]]:
@@ -73,6 +76,121 @@ class PluginTurnHost:
         deleted = await get_session_store().delete_session(session_id)
         await get_attachment_store().delete_session(session_id)
         return deleted
+
+    async def session_exists(self, session_id: str) -> bool:
+        """Check one authenticated Host session without exposing its store."""
+        from deeptutor.services.session import get_session_store
+
+        return await get_session_store().get_session(session_id, surface="chat") is not None
+
+
+@dataclass(frozen=True, slots=True)
+class PluginLearningObjective:
+    """One generic learning objective projected into Host Mastery Path."""
+
+    id: str
+    name: str
+    type: str
+    module_id: str
+    module_name: str
+
+
+class PluginLearningHost:
+    """Domain-neutral bridge for provisioning persistent Host learning state."""
+
+    def ensure_single_objective_path(
+        self,
+        *,
+        path_id: str,
+        objective: PluginLearningObjective,
+    ) -> None:
+        from deeptutor.learning.models import (
+            KnowledgePoint,
+            KnowledgeType,
+            LearningModule,
+        )
+        from deeptutor.learning.service import LearningService
+
+        service = LearningService()
+        progress = service.get_or_create(path_id)
+        expected = [
+            LearningModule(
+                id=objective.module_id,
+                name=objective.module_name,
+                order=0,
+                knowledge_points=[
+                    KnowledgePoint(
+                        id=objective.id,
+                        name=objective.name,
+                        type=KnowledgeType(objective.type),
+                        module_id=objective.module_id,
+                    )
+                ],
+            )
+        ]
+        if progress.modules:
+            if progress.modules != expected:
+                raise RuntimeError("Host learning path identity conflicts with its objective")
+            return
+        service.init_modules(progress, expected)
+        progress.current_module_id = objective.module_id
+        progress.current_kp_index = 0
+        service.save(progress)
+
+    def objective_progress(self, *, path_id: str, objective_id: str) -> dict[str, Any]:
+        from deeptutor.learning.policy import (
+            display_mastery,
+            find_knowledge_point,
+            objective_status,
+        )
+        from deeptutor.learning.service import LearningService
+
+        progress = LearningService().get_or_create(path_id)
+        objective, _, _ = find_knowledge_point(progress, objective_id)
+        if objective is None:
+            raise RuntimeError("Host learning path does not contain its linked objective")
+        return {
+            "status": objective_status(progress, objective),
+            "mastery": round(display_mastery(progress, objective), 3),
+        }
+
+
+class PluginSourceHost:
+    """Safe Host document/URL text extraction for first-party plugins."""
+
+    def extract_attachment(self, *, filename: str, content: bytes) -> str:
+        from pathlib import Path
+        from tempfile import TemporaryDirectory
+
+        from deeptutor.utils.document_extractor import extract_text_from_path
+        from deeptutor.utils.document_validator import DocumentValidator
+
+        safe_name = Path(filename).name
+        if not safe_name or safe_name != filename:
+            raise ValueError("attachment filename must be a plain basename")
+        if not content or len(content) > DocumentValidator.MAX_FILE_SIZE:
+            raise ValueError("attachment is empty or exceeds the Host size limit")
+        with TemporaryDirectory(prefix="deeptutor-plugin-source-") as directory:
+            path = Path(directory) / safe_name
+            path.write_bytes(content)
+            return extract_text_from_path(
+                path,
+                max_bytes=DocumentValidator.MAX_FILE_SIZE,
+                max_chars=50_000,
+            )
+
+    async def fetch_url(self, url: str) -> dict[str, Any]:
+        from deeptutor.tools.web_fetch import fetch_url_as_markdown
+
+        outcome = await fetch_url_as_markdown(url, max_chars=50_000)
+        if not outcome.ok:
+            raise ValueError(outcome.error or "URL extraction failed")
+        return {
+            "text": outcome.markdown,
+            "url": outcome.url,
+            "title": outcome.title,
+            "truncated": outcome.truncated,
+        }
 
 
 class NativeMemoryHost:
@@ -161,6 +279,9 @@ __all__ = [
     "NativeMemoryHost",
     "PluginDataConflict",
     "PluginMemoryEvent",
+    "PluginLearningHost",
+    "PluginLearningObjective",
+    "PluginSourceHost",
     "PluginTurnHost",
     "PluginTurnRequest",
     "StreamBus",

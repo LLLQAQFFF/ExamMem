@@ -181,8 +181,16 @@ class AnswerGraderTool(BaseTool):
 
 
 class KnowledgeMapperTool(BaseTool):
-    def __init__(self, mapper=None, *, taxonomy_version: str = "math1_v1") -> None:  # noqa: ANN001
-        self._mapper = mapper or DeepTutorKnowledgeMapperAdapter(taxonomy_version)
+    def __init__(
+        self,
+        mapper=None,  # noqa: ANN001
+        *,
+        taxonomy_version: str = "math1_v1",
+        taxonomy=None,  # noqa: ANN001
+    ) -> None:
+        self._mapper = mapper or DeepTutorKnowledgeMapperAdapter(
+            taxonomy_version, taxonomy=taxonomy
+        )
 
     def get_definition(self) -> ToolDefinition:
         return ToolDefinition(

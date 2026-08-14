@@ -28,7 +28,7 @@ from exam_mem.contracts import (
     MemoryNamespace,
     MemoryScope,
 )
-from exam_mem.domain import KnowledgePointStatus, load_taxonomy
+from exam_mem.domain import KnowledgePointStatus, Taxonomy, load_taxonomy
 from exam_mem.lifecycle import (
     DeepTutorRelationClassifierAdapter,
     LifecycleApplier,
@@ -38,6 +38,7 @@ from exam_mem.lifecycle import (
 from exam_mem.storage import (
     CommittedPostgresPracticeCheckpointRepository,
     CommittedPostgresPracticeTraceRepository,
+    PostgresAssessmentRepository,
     PostgresBaselineFactRepository,
     PostgresExamProductRepository,
     PostgresGradeReviewRepository,
@@ -46,6 +47,7 @@ from exam_mem.storage import (
     PostgresLifecycleAuditRepository,
     PostgresPracticeCheckpointRepository,
     PostgresStudentModelRepository,
+    PostgresStudyPlanRepository,
     StudentModelRebuildService,
     load_database_settings,
 )
@@ -175,16 +177,18 @@ class RuntimeRecommendationTool:
         mode: BackendMode,
         retriever: QuestionRetrieverTool,
         taxonomy_version: str = "math1_v1",
+        taxonomy: Taxonomy | None = None,
     ) -> None:
         self._engine = engine
         self._mode = mode
         self._retriever = retriever
-        self._policy = RecommendationPolicyV1(taxonomy_version)
-        taxonomy = load_taxonomy(taxonomy_version)
+        resolved_taxonomy = taxonomy or load_taxonomy(taxonomy_version)
+        self._policy = RecommendationPolicyV1(resolved_taxonomy.taxonomy_version)
         self._knowledge_point_ids = tuple(
             node.id
-            for node in taxonomy.nodes
-            if node.status is KnowledgePointStatus.ACTIVE and not taxonomy.children_of(node.id)
+            for node in resolved_taxonomy.nodes
+            if node.status is KnowledgePointStatus.ACTIVE
+            and not resolved_taxonomy.children_of(node.id)
         )
 
     async def recommend(
@@ -383,9 +387,11 @@ class LearningMemoryRuntime:
 
 @dataclass(frozen=True, slots=True)
 class ExamProductRuntime:
+    assessments: PostgresAssessmentRepository
     products: PostgresExamProductRepository
     reviews: PostgresGradeReviewRepository
     checkpoints: PostgresPracticeCheckpointRepository
+    study_plans: PostgresStudyPlanRepository
     connection: AsyncConnection
     engine: AsyncEngine
 
@@ -416,6 +422,7 @@ class PracticeRuntimeProvider:
         questions = practice_context.question_catalog or _runtime_questions(unified_context)
         engine = self._engine_factory(load_database_settings().sqlalchemy_url())
         try:
+            taxonomy = await _runtime_taxonomy(engine, practice_context)
             checkpoints = CommittedPostgresPracticeCheckpointRepository(engine)
             current_mode = validate_runtime_backend_mode(settings.memory_backend)
             current_snapshot = PracticeRuntimeSnapshot(
@@ -433,9 +440,9 @@ class PracticeRuntimeProvider:
                 checkpoint_repository=checkpoints,
                 trace_repository=CommittedPostgresPracticeTraceRepository(engine),
                 answer_grader=AnswerGraderTool(),
-                knowledge_mapper=KnowledgeMapperTool(taxonomy_version="math1_v1"),
+                knowledge_mapper=KnowledgeMapperTool(taxonomy=taxonomy),
                 error_analyzer=ErrorAnalyzerTool(),
-                memory_candidate_builder=PracticeMemoryCandidateBuilder(load_taxonomy("math1_v1")),
+                memory_candidate_builder=PracticeMemoryCandidateBuilder(taxonomy),
                 memory_writer=MemoryWriterTool(
                     TransactionalPracticeMemoryWriter(
                         engine,
@@ -453,8 +460,10 @@ class PracticeRuntimeProvider:
                                 BoundQuestionCatalog(practice_context.scope, questions)
                             )
                         ),
+                        taxonomy=taxonomy,
                     )
                 ),
+                taxonomy_version=taxonomy.taxonomy_version,
                 grader_contract_version="answer_grader_v1",
                 config_revision=runtime_snapshot.config_revision,
                 runtime_snapshot=runtime_snapshot,
@@ -560,9 +569,11 @@ class PracticeRuntimeProvider:
         try:
             async with engine.connect() as connection:
                 yield ExamProductRuntime(
+                    assessments=PostgresAssessmentRepository(connection),
                     products=PostgresExamProductRepository(connection),
                     reviews=PostgresGradeReviewRepository(connection),
                     checkpoints=PostgresPracticeCheckpointRepository(connection),
+                    study_plans=PostgresStudyPlanRepository(connection),
                     connection=connection,
                     engine=engine,
                 )
@@ -624,6 +635,25 @@ def _runtime_questions(context: UnifiedContext) -> tuple[Question, ...]:
             f"config.{PRACTICE_QUESTIONS_METADATA_KEY} is invalid"
         ) from exc
     return questions
+
+
+async def _runtime_taxonomy(
+    engine: AsyncEngine, practice_context: PracticeContext
+) -> Taxonomy:
+    learning_context = _learning_context(practice_context)
+    if (
+        learning_context.exam_id == "postgraduate_entrance_exam"
+        and learning_context.subject_id == "math_1"
+        and practice_context.taxonomy_version == "math1_v1"
+    ):
+        return load_taxonomy("math1_v1")
+    async with engine.connect() as connection:
+        return await PostgresStudyPlanRepository(connection).taxonomy(
+            user_id=learning_context.user_id,
+            exam_id=learning_context.exam_id,
+            subject_id=learning_context.subject_id,
+            taxonomy_version=practice_context.taxonomy_version,
+        )
 
 
 def _learning_context(context: PracticeContext) -> LearningContext:

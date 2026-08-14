@@ -10,6 +10,9 @@ from sqlalchemy.schema import MetaData, Table
 pytestmark = [pytest.mark.database, pytest.mark.schema]
 
 EXPECTED_TABLES = {
+    "assessment_attempts",
+    "assessment_versions",
+    "assessments",
     "baseline_memory_facts",
     "event_correction_targets",
     "event_plan_transition_targets",
@@ -22,6 +25,10 @@ EXPECTED_TABLES = {
     "practice_trace_spans",
     "practice_workflow_checkpoints",
     "student_model_snapshots",
+    "study_objective_sessions",
+    "study_plan_drafts",
+    "study_plan_versions",
+    "study_plans",
 }
 
 EXPECTED_COLUMNS = {
@@ -206,12 +213,37 @@ def _foreign_key_targets(table: Table) -> set[tuple[str, str]]:
     }
 
 
-def test_metadata_adds_only_frozen_runtime_and_adr_approved_review_tables() -> None:
+def test_metadata_adds_only_frozen_and_product_approved_tables() -> None:
     metadata = _load_metadata()
 
     assert set(metadata.tables) == EXPECTED_TABLES
     for table_name, expected_columns in EXPECTED_COLUMNS.items():
         assert _column_names(metadata.tables[table_name]) == expected_columns
+
+
+def test_product_metadata_versions_scopes_and_links_attempts() -> None:
+    metadata = _load_metadata()
+    plan_versions = metadata.tables["study_plan_versions"]
+    objective_sessions = metadata.tables["study_objective_sessions"]
+    assessment_versions = metadata.tables["assessment_versions"]
+    attempts = metadata.tables["assessment_attempts"]
+
+    assert _primary_key_columns(plan_versions) == ("plan_id", "version")
+    assert _primary_key_columns(assessment_versions) == ("assessment_id", "version")
+    assert (
+        "user_id",
+        "plan_id",
+        "plan_version",
+        "objective_id",
+    ) in _unique_column_sets(objective_sessions)
+    assert _foreign_key_targets(objective_sessions) >= {
+        ("plan_id", "study_plan_versions.plan_id"),
+        ("plan_version", "study_plan_versions.version"),
+    }
+    assert _foreign_key_targets(attempts) >= {
+        ("assessment_id", "assessment_versions.assessment_id"),
+        ("assessment_version", "assessment_versions.version"),
+    }
 
 
 def test_stage07_metadata_encodes_checkpoint_cas_and_append_only_trace_identity() -> None:

@@ -36,6 +36,9 @@ export interface PracticeResult {
   } | null;
   resumed_from_state: string;
   replayed: boolean;
+  answered_question_count?: number;
+  question_count?: number;
+  completed?: boolean;
   runtime?: {
     config_revision: string;
     backend_mode: string;
@@ -53,6 +56,11 @@ export interface PracticeTurnResponse {
   turn_id: string;
   response: string;
   practice: PracticeResult;
+  assessment?: {
+    assessment_id: string;
+    version: number;
+    attempt_id: string;
+  };
 }
 
 export interface PracticeIdentity {
@@ -98,6 +106,7 @@ export interface GeneratedPracticeOptions {
   learningPathId: string;
   knowledgePointId: string;
   knowledgePointName: string;
+  taxonomyVersion: string;
   numQuestions: number;
   difficulty: "auto" | "easy" | "medium" | "hard";
   attachments: Array<{
@@ -106,6 +115,8 @@ export interface GeneratedPracticeOptions {
     mime_type: string;
     base64: string;
   }>;
+  assessmentId?: string;
+  assessmentTitle?: string;
 }
 
 export interface PracticeSessionSnapshot {
@@ -269,11 +280,35 @@ export async function generateExamPractice(
       learning_path_id: options.learningPathId,
       knowledge_point_id: options.knowledgePointId,
       knowledge_point_name: options.knowledgePointName,
+      taxonomy_version: options.taxonomyVersion,
       num_questions: options.numQuestions,
       difficulty: options.difficulty,
       attachments: options.attachments,
+      assessment_id: options.assessmentId,
+      assessment_title: options.assessmentTitle,
     }),
   });
+  return parsePracticeResponse(response);
+}
+
+export async function repeatAssessmentVersion(options: {
+  assessmentId: string;
+  version: number;
+  identity: PracticeIdentity;
+}): Promise<PracticeTurnResponse> {
+  const response = await apiFetch(
+    apiUrl(
+      `/api/v1/exam-mem/assessments/${encodeURIComponent(options.assessmentId)}/versions/${options.version}/attempts`,
+    ),
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        practice_session_id: options.identity.practiceSessionId,
+        trace_id: options.identity.traceId,
+      }),
+    },
+  );
   return parsePracticeResponse(response);
 }
 

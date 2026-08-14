@@ -384,7 +384,11 @@ def _default_runtime_factory() -> PracticeRuntimeFactory:
 
 def _result_payload(result: PracticeWorkflowResult) -> dict[str, Any]:
     checkpoint = result.checkpoint
-    question = checkpoint.recommended_question or checkpoint.context.current_question
+    question = (
+        None
+        if checkpoint.context.catalog_completed
+        else checkpoint.recommended_question or checkpoint.context.current_question
+    )
     payload: dict[str, Any] = {
         "response": _response_text(checkpoint.context.step_state, question),
         "practice": {
@@ -395,6 +399,9 @@ def _result_payload(result: PracticeWorkflowResult) -> dict[str, Any]:
                 exclude={"user_id"},
             ),
             "step_state": checkpoint.context.step_state.value,
+            "answered_question_count": len(checkpoint.context.answered_question_ids),
+            "question_count": len(checkpoint.context.question_catalog),
+            "completed": checkpoint.context.catalog_completed,
             "runtime": (
                 None
                 if checkpoint.runtime_snapshot is None
@@ -433,12 +440,19 @@ def _result_payload(result: PracticeWorkflowResult) -> dict[str, Any]:
 
 
 def _public_practice_checkpoint(checkpoint) -> dict[str, Any]:  # noqa: ANN001
-    question = checkpoint.recommended_question or checkpoint.context.current_question
+    question = (
+        None
+        if checkpoint.context.catalog_completed
+        else checkpoint.recommended_question or checkpoint.context.current_question
+    )
     return {
         "practice_session_id": checkpoint.context.practice_session_id,
         "trace_id": checkpoint.context.trace_id,
         "scope": checkpoint.context.scope.model_dump(mode="json", exclude={"user_id"}),
         "step_state": checkpoint.context.step_state.value,
+        "answered_question_count": len(checkpoint.context.answered_question_ids),
+        "question_count": len(checkpoint.context.question_catalog),
+        "completed": checkpoint.context.catalog_completed,
         "runtime": (
             None
             if checkpoint.runtime_snapshot is None

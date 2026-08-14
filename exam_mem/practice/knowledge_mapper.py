@@ -66,10 +66,12 @@ class DeepTutorKnowledgeMapperAdapter:
 
     def __init__(
         self,
-        taxonomy_version: str,
+        taxonomy_version: str = "math1_v1",
         completion: KnowledgeMappingCompletion | None = None,
+        *,
+        taxonomy: Taxonomy | None = None,
     ) -> None:
-        self._taxonomy = load_taxonomy(taxonomy_version)
+        self._taxonomy = taxonomy or load_taxonomy(taxonomy_version)
         self._normalizer = RuleBasedKnowledgePointNormalizer(self._taxonomy)
         self._completion = completion or complete
 

@@ -35,7 +35,7 @@ def test_exam_mem_manifest_contributes_only_plugin_owned_surfaces() -> None:
     ]
     assert manager.settings()[0].namespace == "exam_mem"
     assert manager.plugins[0].manifest.migration is not None
-    assert manager.plugins[0].manifest.migration.expected_head == "0007_grade_reviews"
+    assert manager.plugins[0].manifest.migration.expected_head == "0009_assessments"
 
 
 def test_exam_mem_registers_through_neutral_host_registries(monkeypatch) -> None:

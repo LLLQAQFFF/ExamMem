@@ -372,6 +372,67 @@ async def test_wrong_answer_runs_to_recommendation_and_replay_skips_side_effects
     assert PracticeSpanName.QUESTION_RECOMMENDED in span_names
 
 
+async def test_finite_catalog_completes_attempt_without_adding_practice_state() -> None:
+    workflow, deps = _workflow()
+    catalog = (
+        _question("question:bayes:001"),
+        _question("question:bayes:002", difficulty=0.4),
+    )
+    initial = PracticeContext(
+        practice_session_id="practice:finite:001",
+        scope=SCOPE,
+        trace_id="trace:finite:001",
+        question_catalog=catalog,
+    )
+    issued = await workflow.run(initial)
+    first_question = issued.checkpoint.recommended_question
+    assert first_question == catalog[0]
+
+    first_answer = initial.model_copy(
+        update={
+            "current_question": first_question,
+            "submitted_answer": AnswerSubmission(
+                practice_session_id=initial.practice_session_id,
+                question_id=first_question.question_id,
+                answer="first answer",
+                submitted_at=NOW,
+                idempotency_key="finite-answer-1",
+            ),
+            "step_state": PracticeState.ANSWER_RECEIVED,
+        }
+    )
+    first_result = await workflow.run(first_answer)
+    second_question = first_result.checkpoint.recommended_question
+    assert second_question == catalog[1]
+    assert first_result.checkpoint.context.answered_question_ids == (
+        "question:bayes:001",
+    )
+
+    second_answer = first_result.checkpoint.context.model_copy(
+        update={
+            "current_question": second_question,
+            "submitted_answer": AnswerSubmission(
+                practice_session_id=initial.practice_session_id,
+                question_id=second_question.question_id,
+                answer="second answer",
+                submitted_at=NOW,
+                idempotency_key="finite-answer-2",
+            ),
+            "step_state": PracticeState.ANSWER_RECEIVED,
+        }
+    )
+    final = await workflow.run(second_answer)
+
+    assert final.checkpoint.context.step_state is PracticeState.MEMORY_UPDATED
+    assert final.checkpoint.context.catalog_completed is True
+    assert final.checkpoint.context.answered_question_ids == (
+        "question:bayes:001",
+        "question:bayes:002",
+    )
+    assert final.checkpoint.recommended_question is None
+    assert deps["recommendation"].calls == 2
+
+
 async def test_grade_artifact_reuses_only_grading_across_exam_instances() -> None:
     workflow, deps = _workflow()
     first_context = _context()

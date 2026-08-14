@@ -557,6 +557,35 @@ class ExamPracticeWorkflow:
             )
             record = await self._advance(record, checkpoint)
 
+        if checkpoint.context.catalog_completed:
+            return record
+
+        catalog_ids = {
+            item.question_id for item in checkpoint.context.question_catalog
+        }
+        answered_question_ids = (
+            tuple(
+                dict.fromkeys(
+                    (*checkpoint.context.answered_question_ids, question.question_id)
+                )
+            )
+            if catalog_ids
+            else checkpoint.context.answered_question_ids
+        )
+        if catalog_ids and catalog_ids == set(answered_question_ids):
+            checkpoint = _update_checkpoint(
+                checkpoint,
+                context=_update_context(
+                    checkpoint.context,
+                    step_state=PracticeState.MEMORY_UPDATED,
+                    answered_question_ids=answered_question_ids,
+                    catalog_completed=True,
+                ),
+                recommendation=None,
+                recommended_question=None,
+            )
+            return await self._advance(record, checkpoint)
+
         if not _at_least(checkpoint, PracticeState.RECOMMENDED):
             recommendation, next_question = await self._call_tool(
                 name="recommendation",
@@ -567,11 +596,15 @@ class ExamPracticeWorkflow:
                 retry_count=retry_count,
                 input_summary={
                     "scope": _scope_summary(checkpoint.context),
-                    "exclude_question_ids": [question.question_id],
+                    "exclude_question_ids": list(
+                        answered_question_ids or (question.question_id,)
+                    ),
                 },
                 operation=lambda: self._recommendation_tool.recommend(
                     checkpoint.context,
-                    exclude_question_ids=(question.question_id,),
+                    exclude_question_ids=(
+                        answered_question_ids or (question.question_id,)
+                    ),
                 ),
                 output_summary=lambda value: {
                     "question_id": value[1].question_id,
@@ -585,6 +618,7 @@ class ExamPracticeWorkflow:
                 context=_update_context(
                     checkpoint.context,
                     step_state=PracticeState.RECOMMENDED,
+                    answered_question_ids=answered_question_ids,
                 ),
                 recommendation=recommendation,
                 recommended_question=next_question,
@@ -828,6 +862,8 @@ def _at_least(checkpoint: PracticeWorkflowCheckpoint, state: PracticeState) -> b
 
 
 def _response_question_id(checkpoint: PracticeWorkflowCheckpoint) -> str | None:
+    if checkpoint.context.catalog_completed:
+        return None
     question = checkpoint.recommended_question or checkpoint.context.current_question
     return None if question is None else question.question_id
 

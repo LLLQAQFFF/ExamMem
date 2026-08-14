@@ -7,7 +7,7 @@ is a product boundary, not an unfinished fallback path.
 
 | Item | Why deferred | Entry condition |
 | --- | --- | --- |
-| Durable file/document ingestion | Multi-source source identity, reusable parsing provenance, authorization, retention and content administration are not part of the current loop. The implemented PDF/TXT/Markdown option is transient context for one explicitly requested generated Practice only. | Approved Stage 08 design, source contract and end-to-end acceptance. |
+| Durable file/document ingestion and tutoring retrieval | Imported PDF/TXT/Markdown or URL content is used only to derive a reviewed hierarchy; only source metadata/hash is retained. Reusing source content in later tutoring requires authorization, versioning, retention, citation and retrieval provenance. Practice attachments remain transient context for one explicitly requested generation. | Approved source/RAG contract and end-to-end acceptance. |
 | Video, image and audio ingestion | Requires modality-specific extraction, timestamps/regions, evidence rendering and model-quality evaluation. | Separate modality ADRs and privacy/cost controls. |
 | Notes and PPT ingestion | Requires source versioning and conflict semantics; must not be treated as plain Practice evidence. | Multi-source provenance model approved. |
 | Learning Journey Memory | Has a different longitudinal aggregation and product lifecycle from current Learning Memory. | Dedicated schema/invariants and migration plan. |
@@ -17,9 +17,9 @@ is a product boundary, not an unfinished fallback path.
 
 ## Known current limitations
 
-- Practice may use the migrated Stage 07 catalog or an explicitly requested,
-  per-session generated catalog. Generated questions are immutable checkpoint
-  snapshots; there is no reusable question bank or content administration UI.
+- Generated questions are immutable assessment-version and checkpoint snapshots.
+  The same assessment version can be attempted repeatedly, but there is no
+  shared question bank, manual item editor, content administration or licensing UI.
 - PDF, TXT and Markdown attachments are passed through the neutral Host Turn
   contract to one transient native Quiz session. ExamMem persists only the
   generated question/rubric plus filename, MIME type and SHA-256 provenance;
@@ -44,8 +44,9 @@ is a product boundary, not an unfinished fallback path.
   operations must pair it with migration/current and authenticated read probes.
 - Saved configuration becomes Effective after process restart; an in-progress
   exam always uses its Pinned snapshot.
-- Migration `0007` has no automatic destructive downgrade when review rows
-  exist. Audit retention/archival requires an explicit operational decision.
+- Migrations `0007`～`0009` have no automatic destructive downgrade when review,
+  study-plan/session-link or assessment/attempt rows exist. Retention/archival
+  requires an explicit operational decision.
 
 None of these limitations authorizes direct writes to DeepTutor internal stores,
 compatibility fallbacks, `if exam_mem` branches in Core, or changes to frozen

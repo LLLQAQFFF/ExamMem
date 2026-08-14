@@ -29,7 +29,7 @@ def test_alembic_configuration_does_not_store_a_database_url() -> None:
 def test_migration_chain_has_one_linear_head() -> None:
     scripts = _script_directory()
 
-    assert scripts.get_heads() == ["0007_grade_reviews"]
+    assert scripts.get_heads() == ["0009_assessments"]
     assert scripts.get_revision("0001_learning_memory_schema").down_revision is None
     assert (
         scripts.get_revision("0002_append_only_records").down_revision
@@ -52,6 +52,8 @@ def test_migration_chain_has_one_linear_head() -> None:
         == "0005_practice_backend_facts"
     )
     assert scripts.get_revision("0007_grade_reviews").down_revision == "0006_practice_workflow"
+    assert scripts.get_revision("0008_study_plans").down_revision == "0007_grade_reviews"
+    assert scripts.get_revision("0009_assessments").down_revision == "0008_study_plans"
 
 
 def test_revision_ids_fit_the_alembic_version_column() -> None:
@@ -88,7 +90,7 @@ def test_initial_migration_renders_the_frozen_schema_offline() -> None:
 
     assert result.returncode == 0, result.stderr
     assert "create extension if not exists vector" in rendered
-    assert rendered.count("create table ") == 13
+    assert rendered.count("create table ") == 20
     for table_name in (
         "alembic_version",
         "learning_events",
@@ -103,12 +105,19 @@ def test_initial_migration_renders_the_frozen_schema_offline() -> None:
         "practice_workflow_checkpoints",
         "practice_trace_spans",
         "grade_review_events",
+        "study_plans",
+        "study_plan_drafts",
+        "study_plan_versions",
+        "study_objective_sessions",
+        "assessments",
+        "assessment_versions",
+        "assessment_attempts",
     ):
         assert f"create table {table_name}" in rendered
     assert "vector(1024)" in rendered
     assert "using hnsw (content_embedding vector_cosine_ops)" in rendered
     assert "create function exam_mem_reject_append_only_mutation" in rendered
-    assert rendered.count("create trigger tr_") == 6
+    assert rendered.count("create trigger tr_") == 8
     assert "deferrable initially deferred" in rendered
     assert "add column trace_id text not null" in rendered
     assert "add column decision_id text not null" in rendered
@@ -120,6 +129,8 @@ def test_initial_migration_renders_the_frozen_schema_offline() -> None:
     assert "pk_practice_workflow_checkpoints" in rendered
     assert "tr_practice_trace_spans_append_only" in rendered
     assert "tr_grade_review_events_append_only" in rendered
+    assert "tr_study_plan_versions_append_only" in rendered
+    assert "tr_assessment_versions_append_only" in rendered
     assert password not in result.stdout
     assert password not in result.stderr
 
@@ -159,6 +170,24 @@ def test_grade_review_downgrade_refuses_to_discard_existing_rows() -> None:
 
     assert "SELECT 1 FROM grade_review_events" in downgrade_source
     assert 'op.drop_table("grade_review_events")' in downgrade_source
+
+
+@pytest.mark.parametrize(
+    ("revision_id", "guard", "table_name"),
+    [
+        ("0008_study_plans", "cannot downgrade study plan contract", "study_plans"),
+        ("0009_assessments", "cannot downgrade assessment contract", "assessments"),
+    ],
+)
+def test_product_downgrades_refuse_to_discard_rows(
+    revision_id: str, guard: str, table_name: str
+) -> None:
+    revision = _script_directory().get_revision(revision_id)
+    migration_source = Path(revision.path).read_text(encoding="utf-8")
+    downgrade_source = migration_source.split("def downgrade() -> None:", maxsplit=1)[1]
+
+    assert guard in downgrade_source
+    assert f'op.drop_table("{table_name}")' in downgrade_source
 
 
 def test_downgrade_keeps_the_shared_vector_extension() -> None:

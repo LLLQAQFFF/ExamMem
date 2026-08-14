@@ -266,10 +266,17 @@ class PostgresExamProductRepository:
 
 
 def _public_checkpoint(checkpoint: PracticeWorkflowCheckpoint) -> dict[str, Any]:
-    question = checkpoint.recommended_question or checkpoint.context.current_question
+    question = (
+        None
+        if checkpoint.context.catalog_completed
+        else checkpoint.recommended_question or checkpoint.context.current_question
+    )
     return {
         "checkpoint_key": checkpoint.checkpoint_key,
         "step_state": checkpoint.context.step_state.value,
+        "answered_question_count": len(checkpoint.context.answered_question_ids),
+        "question_count": len(checkpoint.context.question_catalog),
+        "completed": checkpoint.context.catalog_completed,
         "question": (
             None
             if question is None

@@ -9,6 +9,7 @@ from datetime import datetime, timezone
 import hashlib
 import json
 from typing import Annotated, Any, Literal, Protocol
+import uuid
 
 from fastapi import APIRouter, HTTPException, Query, status
 from pydantic import (
@@ -26,6 +27,8 @@ from deeptutor.plugins import (
     save_plugin_settings,
 )
 from deeptutor.plugins.host_services import (
+    PluginLearningHost,
+    PluginLearningObjective,
     PluginTurnHost,
     PluginTurnRequest,
     current_user_id,
@@ -36,6 +39,7 @@ from exam_mem.contracts import LearningContext, LifecycleState, MemoryNamespace,
 from exam_mem.domain import (
     KnowledgePointStatus,
     RuleBasedKnowledgePointNormalizer,
+    Taxonomy,
     load_taxonomy,
 )
 from exam_mem.practice import (
@@ -55,7 +59,16 @@ from exam_mem.practice import (
     UserPlanCancellationRequest,
     stage07_practice_questions,
 )
-from exam_mem.storage import AppendStatus
+from exam_mem.storage import (
+    AppendStatus,
+    AssessmentConflict,
+    AssessmentNotFound,
+    StudyPlanConflict,
+    StudyPlanNotFound,
+)
+from exam_mem.study import StudyPlanTree
+
+from .study_plan import StudyPlanOutlineImporter
 
 NonEmptyString = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
 _EXAM_ID = "postgraduate_entrance_exam"
@@ -111,9 +124,65 @@ class GeneratedPracticeStartBody(PracticeStartBody):
     learning_path_id: NonEmptyString
     knowledge_point_id: NonEmptyString
     knowledge_point_name: NonEmptyString
+    taxonomy_version: NonEmptyString = "math1_v1"
     num_questions: Annotated[int, Field(ge=2, le=10)] = 4
     difficulty: Literal["auto", "easy", "medium", "hard"] = "auto"
     attachments: tuple[PracticeSourceAttachment, ...] = ()
+    assessment_id: NonEmptyString | None = None
+    assessment_title: Annotated[
+        str | None,
+        StringConstraints(strip_whitespace=True, min_length=1, max_length=200),
+    ] = None
+
+
+class AssessmentAttemptBody(StrictApiModel):
+    practice_session_id: NonEmptyString
+    trace_id: NonEmptyString
+
+
+class StudyPlanImportBody(StrictApiModel):
+    name: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=200)]
+    source_kind: Literal["file", "url", "generated"]
+    filename: NonEmptyString | None = None
+    mime_type: NonEmptyString | None = None
+    base64: NonEmptyString | None = None
+    url: NonEmptyString | None = None
+    request: NonEmptyString | None = None
+
+    @model_validator(mode="after")
+    def validate_source(self) -> StudyPlanImportBody:
+        fields = {
+            "file": (self.filename, self.mime_type, self.base64),
+            "url": (self.url,),
+            "generated": (self.request,),
+        }
+        if not all(fields[self.source_kind]):
+            raise ValueError(f"{self.source_kind} study-plan source is incomplete")
+        if self.source_kind != "file" and any((self.filename, self.mime_type, self.base64)):
+            raise ValueError("file fields are only valid for source_kind='file'")
+        if self.source_kind != "url" and self.url is not None:
+            raise ValueError("url is only valid for source_kind='url'")
+        if self.source_kind != "generated" and self.request is not None:
+            raise ValueError("request is only valid for source_kind='generated'")
+        if self.source_kind == "file":
+            suffix = str(self.filename).lower().rsplit(".", maxsplit=1)[-1]
+            allowed = {
+                "pdf": {"application/pdf"},
+                "txt": {"text/plain"},
+                "md": {"text/markdown", "text/plain"},
+            }
+            if suffix not in allowed or str(self.mime_type).lower() not in allowed[suffix]:
+                raise ValueError("study-plan sources currently support only PDF, TXT and Markdown")
+        return self
+
+
+class StudyPlanDraftBody(StrictApiModel):
+    tree: StudyPlanTree
+
+
+class OpenStudyObjectiveBody(StrictApiModel):
+    version: Annotated[int, Field(ge=1)] | None = None
+    language: Literal["zh", "en"] = "zh"
 
 
 class CorrectionBody(StrictApiModel):
@@ -195,12 +264,16 @@ def build_router(
     turn_host: PluginTurnHost | None = None,
     settings_contribution: SettingsContribution | None = None,
     effective_settings: ExamMemSettings | None = None,
+    outline_importer: StudyPlanOutlineImporter | None = None,
+    learning_host: PluginLearningHost | None = None,
 ) -> APIRouter:
     """Build one router wired to the same Provider as the plugin Capability."""
 
     router = APIRouter()
     host = turn_host
     effective = effective_settings or ExamMemSettings()
+    importer = outline_importer or StudyPlanOutlineImporter()
+    learning = learning_host or PluginLearningHost()
 
     def runtime_host() -> PluginTurnHost:
         nonlocal host
@@ -228,8 +301,14 @@ def build_router(
 
     @router.post("/practice/generate")
     async def generate_practice(body: GeneratedPracticeStartBody) -> dict[str, Any]:
-        _validate_controlled_scope(body.exam_id, body.subject_id)
+        taxonomy = await _taxonomy_for_scope(
+            runtime_provider,
+            exam_id=body.exam_id,
+            subject_id=body.subject_id,
+            taxonomy_version=body.taxonomy_version,
+        )
         canonical_id = _canonical_knowledge_point(
+            taxonomy,
             body.knowledge_point_id,
             body.knowledge_point_name,
         )
@@ -243,20 +322,66 @@ def build_router(
             trace_id=body.trace_id,
             exam_id=body.exam_id,
             subject_id=body.subject_id,
+            taxonomy_version=body.taxonomy_version,
             questions=questions,
         )
-        result = await _run_practice_turn(
-            runtime_host(),
-            content=f"开始 {body.knowledge_point_name} 专项练习",
-            session_id=body.session_id,
-            context=context,
-        )
+        assessment_id = body.assessment_id or uuid.uuid4().hex
+        assessment_title = body.assessment_title or f"{body.knowledge_point_name} 专项检测"
+        user_id = current_user_id()
+        try:
+            async with runtime_provider.open_product() as runtime:
+                assessment_version = await runtime.assessments.create_version(
+                    assessment_id=assessment_id,
+                    user_id=user_id,
+                    exam_id=body.exam_id,
+                    subject_id=body.subject_id,
+                    taxonomy_version=body.taxonomy_version,
+                    title=assessment_title,
+                    knowledge_point_ids=[canonical_id],
+                    questions=questions,
+                    generation={
+                        "learning_path_id": body.learning_path_id,
+                        "difficulty": body.difficulty,
+                        "source_files": [item.filename for item in body.attachments],
+                    },
+                )
+                attempt = await runtime.assessments.start_attempt(
+                    attempt_id=f"attempt:{uuid.uuid4().hex}",
+                    user_id=user_id,
+                    assessment_id=assessment_id,
+                    version=assessment_version["version"],
+                    practice_session_id=body.practice_session_id,
+                    trace_id=body.trace_id,
+                )
+                await runtime.connection.commit()
+        except AssessmentConflict as exc:
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+        try:
+            result = await _run_practice_turn(
+                runtime_host(),
+                content=f"开始 {body.knowledge_point_name} 专项练习",
+                session_id=body.session_id,
+                context=context,
+            )
+        except HTTPException:
+            async with runtime_provider.open_product() as runtime:
+                await runtime.assessments.fail_attempt(
+                    user_id=user_id,
+                    practice_session_id=body.practice_session_id,
+                )
+                await runtime.connection.commit()
+            raise
         result["generation"] = {
             "learning_path_id": body.learning_path_id,
             "knowledge_point_id": canonical_id,
             "knowledge_point_name": body.knowledge_point_name,
             "question_count": len(questions),
             "source_files": [item.filename for item in body.attachments],
+        }
+        result["assessment"] = {
+            "assessment_id": assessment_id,
+            "version": assessment_version["version"],
+            "attempt_id": attempt["attempt_id"],
         }
         return result
 
@@ -285,9 +410,290 @@ def build_router(
             ],
         }
 
+    @router.get("/study-plans")
+    async def list_study_plans() -> dict[str, Any]:
+        user_id = current_user_id()
+        async with runtime_provider.open_product() as runtime:
+            plans = await runtime.study_plans.list(user_id=user_id)
+        return {"plans": plans}
+
+    @router.get("/assessments")
+    async def list_assessments() -> dict[str, Any]:
+        async with runtime_provider.open_product() as runtime:
+            items = await runtime.assessments.list(user_id=current_user_id())
+        return {"assessments": items}
+
+    @router.post("/assessments/{assessment_id}/versions/{version}/attempts")
+    async def repeat_assessment(
+        assessment_id: NonEmptyString,
+        version: Annotated[int, Field(ge=1)],
+        body: AssessmentAttemptBody,
+    ) -> dict[str, Any]:
+        user_id = current_user_id()
+        try:
+            async with runtime_provider.open_product() as runtime:
+                stored = await runtime.assessments.get_version(
+                    user_id=user_id,
+                    assessment_id=assessment_id,
+                    version=version,
+                )
+                assessment = stored["assessment"]
+                attempt = await runtime.assessments.start_attempt(
+                    attempt_id=f"attempt:{uuid.uuid4().hex}",
+                    user_id=user_id,
+                    assessment_id=assessment_id,
+                    version=version,
+                    practice_session_id=body.practice_session_id,
+                    trace_id=body.trace_id,
+                )
+                await runtime.connection.commit()
+        except AssessmentNotFound as exc:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+        context = _practice_context_payload(
+            practice_session_id=body.practice_session_id,
+            trace_id=body.trace_id,
+            exam_id=assessment["exam_id"],
+            subject_id=assessment["subject_id"],
+            taxonomy_version=assessment["taxonomy_version"],
+            questions=stored["questions"],
+        )
+        try:
+            result = await _run_practice_turn(
+                runtime_host(),
+                content=f"重新开始检测 {assessment['title']}",
+                session_id=None,
+                context=context,
+            )
+        except HTTPException:
+            async with runtime_provider.open_product() as runtime:
+                await runtime.assessments.fail_attempt(
+                    user_id=user_id,
+                    practice_session_id=body.practice_session_id,
+                )
+                await runtime.connection.commit()
+            raise
+        result["assessment"] = {
+            "assessment_id": assessment_id,
+            "version": version,
+            "attempt_id": attempt["attempt_id"],
+        }
+        return result
+
+    @router.get("/study-plans/{plan_id}")
+    async def get_study_plan(plan_id: NonEmptyString) -> dict[str, Any]:
+        user_id = current_user_id()
+        try:
+            async with runtime_provider.open_product() as runtime:
+                plan = await runtime.study_plans.get(user_id=user_id, plan_id=plan_id)
+                plan = await _study_plan_with_progress(
+                    runtime.study_plans,
+                    learning,
+                    user_id=user_id,
+                    plan=plan,
+                )
+        except StudyPlanNotFound as exc:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+        return plan
+
+    @router.post("/study-plans/import")
+    async def import_study_plan(body: StudyPlanImportBody) -> dict[str, Any]:
+        plan_id = uuid.uuid4().hex
+        try:
+            if body.source_kind == "file":
+                imported = await importer.from_file(
+                    plan_id=plan_id,
+                    plan_name=body.name,
+                    filename=str(body.filename),
+                    mime_type=str(body.mime_type),
+                    encoded=str(body.base64),
+                )
+            elif body.source_kind == "url":
+                imported = await importer.from_url(
+                    plan_id=plan_id,
+                    plan_name=body.name,
+                    url=str(body.url),
+                )
+            else:
+                imported = await importer.generated(
+                    plan_id=plan_id,
+                    plan_name=body.name,
+                    request=str(body.request),
+                )
+        except ValueError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail={"error_code": "study_plan_source_invalid", "message": str(exc)},
+            ) from exc
+        except RuntimeError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail={"error_code": "study_plan_generation_failed", "message": str(exc)},
+            ) from exc
+        async with runtime_provider.open_product() as runtime:
+            plan = await runtime.study_plans.create_draft(
+                user_id=current_user_id(),
+                plan_id=plan_id,
+                tree=imported.tree,
+                source_kind=imported.source_kind,
+                source_metadata=imported.source_metadata,
+            )
+            await runtime.connection.commit()
+        return plan
+
+    @router.put("/study-plans/{plan_id}/draft")
+    async def replace_study_plan_draft(
+        plan_id: NonEmptyString, body: StudyPlanDraftBody
+    ) -> dict[str, Any]:
+        user_id = current_user_id()
+        try:
+            async with runtime_provider.open_product() as runtime:
+                current = await runtime.study_plans.get(user_id=user_id, plan_id=plan_id)
+                source = current["draft"] or current["published"]
+                if source is None:
+                    raise StudyPlanConflict("study plan has no source provenance")
+                plan = await runtime.study_plans.replace_draft(
+                    user_id=user_id,
+                    plan_id=plan_id,
+                    tree=body.tree,
+                    source_kind=source["source_kind"],
+                    source_metadata=source["source_metadata"],
+                )
+                await runtime.connection.commit()
+        except StudyPlanNotFound as exc:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+        except StudyPlanConflict as exc:
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+        return plan
+
+    @router.post("/study-plans/{plan_id}/publish")
+    async def publish_study_plan(plan_id: NonEmptyString) -> dict[str, Any]:
+        try:
+            async with runtime_provider.open_product() as runtime:
+                plan = await runtime.study_plans.publish(
+                    user_id=current_user_id(), plan_id=plan_id
+                )
+                await runtime.connection.commit()
+        except StudyPlanNotFound as exc:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+        except (StudyPlanConflict, ValueError) as exc:
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+        return plan
+
+    @router.post("/study-plans/{plan_id}/objectives/{objective_id}/open")
+    async def open_study_objective(
+        plan_id: NonEmptyString,
+        objective_id: NonEmptyString,
+        body: OpenStudyObjectiveBody,
+    ) -> dict[str, Any]:
+        user_id = current_user_id()
+        created_session_id: str | None = None
+        try:
+            async with runtime_provider.open_product() as runtime:
+                version = await runtime.study_plans.get_version(
+                    user_id=user_id,
+                    plan_id=plan_id,
+                    version=body.version,
+                )
+                plan_version = int(version["version"])
+                tree = StudyPlanTree.model_validate(version["tree"])
+                resolved = tree.objective(objective_id)
+                if resolved is None:
+                    raise StudyPlanNotFound("knowledge point not found in this plan version")
+                subject, module, objective = resolved
+                await runtime.study_plans.lock_objective_session(
+                    user_id=user_id,
+                    plan_id=plan_id,
+                    plan_version=plan_version,
+                    objective_id=objective_id,
+                )
+                existing = await runtime.study_plans.find_objective_session(
+                    user_id=user_id,
+                    plan_id=plan_id,
+                    plan_version=plan_version,
+                    objective_id=objective_id,
+                )
+                if existing is not None and await runtime_host().session_exists(
+                    existing["host_session_id"]
+                ):
+                    await runtime.connection.commit()
+                    return _objective_session_payload(
+                        existing,
+                        learning.objective_progress(
+                            path_id=existing["host_path_id"],
+                            objective_id=objective_id,
+                        ),
+                        created=False,
+                    )
+
+                host_path_id = _host_objective_path_id(
+                    user_id, plan_id, plan_version, objective_id
+                )
+                learning.ensure_single_objective_path(
+                    path_id=host_path_id,
+                    objective=PluginLearningObjective(
+                        id=objective.id,
+                        name=objective.name,
+                        type=objective.type.value,
+                        module_id=module.id,
+                        module_name=f"{subject.name} / {module.name}",
+                    ),
+                )
+                session, turn = await runtime_host().start_turn(
+                    PluginTurnRequest(
+                        content=_objective_start_prompt(
+                            language=body.language,
+                            plan_name=tree.name,
+                            subject_name=subject.name,
+                            module_name=module.name,
+                            objective_name=objective.name,
+                        ),
+                        capability="mastery_path",
+                        language=body.language,
+                        mastery_path_id=host_path_id,
+                    )
+                )
+                created_session_id = session["id"]
+                if existing is None:
+                    link, _ = await runtime.study_plans.bind_objective_session(
+                        link_id=f"study_session:{uuid.uuid4().hex}",
+                        user_id=user_id,
+                        plan_id=plan_id,
+                        plan_version=plan_version,
+                        objective_id=objective_id,
+                        host_path_id=host_path_id,
+                        host_session_id=session["id"],
+                        initial_turn_id=turn["id"],
+                    )
+                else:
+                    link = await runtime.study_plans.replace_objective_session(
+                        user_id=user_id,
+                        plan_id=plan_id,
+                        plan_version=plan_version,
+                        objective_id=objective_id,
+                        host_path_id=host_path_id,
+                        host_session_id=session["id"],
+                        initial_turn_id=turn["id"],
+                    )
+                await runtime.connection.commit()
+                return _objective_session_payload(
+                    link,
+                    learning.objective_progress(
+                        path_id=host_path_id,
+                        objective_id=objective_id,
+                    ),
+                    created=True,
+                )
+        except StudyPlanNotFound as exc:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+        except StudyPlanConflict as exc:
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+        except Exception:
+            if created_session_id is not None:
+                await runtime_host().delete_session(created_session_id)
+            raise
+
     @router.post("/practice/answer")
     async def answer_practice(body: PracticeAnswerBody) -> dict[str, Any]:
-        _validate_controlled_scope(body.exam_id, body.subject_id)
         learning_context = _authenticated_context(
             exam_id=body.exam_id,
             subject_id=body.subject_id,
@@ -339,12 +745,20 @@ def build_router(
                     "step_state": PracticeState.ANSWER_RECEIVED,
                 }
             ).model_dump(mode="json")
-        return await _run_practice_turn(
+        result = await _run_practice_turn(
             runtime_host(),
             content="提交答案",
             session_id=body.session_id,
             context=context,
         )
+        if result["practice"]["completed"]:
+            async with runtime_provider.open_product() as runtime:
+                await runtime.assessments.complete_attempt(
+                    user_id=learning_context.user_id,
+                    practice_session_id=body.practice_session_id,
+                )
+                await runtime.connection.commit()
+        return result
 
     @router.get("/practice/sessions")
     async def list_practice_sessions(
@@ -377,7 +791,6 @@ def build_router(
         exam_id: NonEmptyString = _EXAM_ID,
         subject_id: NonEmptyString = _SUBJECT_ID,
     ) -> dict[str, Any]:
-        _validate_controlled_scope(exam_id, subject_id)
         context = _authenticated_context(exam_id=exam_id, subject_id=subject_id)
         async with runtime_provider.open_product() as runtime:
             latest = await runtime.checkpoints.get_latest(context, practice_session_id)
@@ -795,6 +1208,7 @@ def _practice_context_payload(
     trace_id: str,
     exam_id: str = _EXAM_ID,
     subject_id: str = _SUBJECT_ID,
+    taxonomy_version: str = "math1_v1",
     questions=(),  # noqa: ANN001
     question: dict[str, Any] | None = None,
     submission: dict[str, Any] | None = None,
@@ -809,6 +1223,7 @@ def _practice_context_payload(
         },
         "step_state": "IDLE" if submission is None else "ANSWER_RECEIVED",
         "trace_id": trace_id,
+        "taxonomy_version": taxonomy_version,
         "question_catalog": [item.model_dump(mode="json") for item in questions],
     }
     if question is not None:
@@ -900,8 +1315,9 @@ def _validate_controlled_scope(exam_id: str, subject_id: str) -> None:
         )
 
 
-def _canonical_knowledge_point(knowledge_point_id: str, knowledge_point_name: str) -> str:
-    taxonomy = load_taxonomy("math1_v1")
+def _canonical_knowledge_point(
+    taxonomy: Taxonomy, knowledge_point_id: str, knowledge_point_name: str
+) -> str:
     candidate = taxonomy.get(knowledge_point_id)
     if (
         candidate is not None
@@ -922,6 +1338,37 @@ def _canonical_knowledge_point(knowledge_point_id: str, knowledge_point_name: st
             },
         )
     return normalized.knowledge_point_id
+
+
+async def _taxonomy_for_scope(
+    runtime_provider: RuntimeProvider,
+    *,
+    exam_id: str,
+    subject_id: str,
+    taxonomy_version: str,
+) -> Taxonomy:
+    if (
+        exam_id == _EXAM_ID
+        and subject_id == _SUBJECT_ID
+        and taxonomy_version == "math1_v1"
+    ):
+        return load_taxonomy("math1_v1")
+    try:
+        async with runtime_provider.open_product() as runtime:
+            return await runtime.study_plans.taxonomy(
+                user_id=current_user_id(),
+                exam_id=exam_id,
+                subject_id=subject_id,
+                taxonomy_version=taxonomy_version,
+            )
+    except StudyPlanNotFound as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={
+                "error_code": "practice_scope_not_published",
+                "message": "The selected knowledge point is not in a published study plan.",
+            },
+        ) from exc
 
 
 async def _generate_practice_questions(
@@ -1079,6 +1526,81 @@ async def _generate_practice_questions(
     return tuple(Question.model_validate(item) for item in questions)
 
 
+async def _study_plan_with_progress(
+    repository,  # noqa: ANN001
+    learning: PluginLearningHost,
+    *,
+    user_id: str,
+    plan: dict[str, Any],
+) -> dict[str, Any]:
+    published = plan.get("published")
+    if not isinstance(published, dict):
+        return {**plan, "objective_sessions": {}}
+    links = await repository.list_objective_sessions(
+        user_id=user_id,
+        plan_id=plan["plan_id"],
+        plan_version=int(published["version"]),
+    )
+    sessions: dict[str, Any] = {}
+    for link in links:
+        try:
+            progress = learning.objective_progress(
+                path_id=link["host_path_id"],
+                objective_id=link["objective_id"],
+            )
+        except RuntimeError:
+            progress = {"status": "unavailable", "mastery": 0.0}
+        sessions[link["objective_id"]] = _objective_session_payload(
+            link, progress, created=False
+        )
+    return {**plan, "objective_sessions": sessions}
+
+
+def _objective_session_payload(
+    link: dict[str, Any], progress: dict[str, Any], *, created: bool
+) -> dict[str, Any]:
+    return {
+        "objective_id": link["objective_id"],
+        "session_id": link["host_session_id"],
+        "initial_turn_id": link["initial_turn_id"],
+        "chat_url": f"/home/{link['host_session_id']}",
+        "created": created,
+        "learning_status": progress["status"],
+        "learning_mastery": progress["mastery"],
+        "created_at": link["created_at"].isoformat(),
+        "updated_at": link["updated_at"].isoformat(),
+    }
+
+
+def _host_objective_path_id(
+    user_id: str, plan_id: str, plan_version: int, objective_id: str
+) -> str:
+    identity = "\x1f".join((user_id, plan_id, str(plan_version), objective_id)).encode()
+    return f"em{hashlib.sha256(identity).hexdigest()[:28]}"
+
+
+def _objective_start_prompt(
+    *,
+    language: str,
+    plan_name: str,
+    subject_name: str,
+    module_name: str,
+    objective_name: str,
+) -> str:
+    if language == "en":
+        return (
+            f'Start the learning unit "{objective_name}" in {plan_name} / '
+            f"{subject_name} / {module_name}. First state the objective, required "
+            "prerequisites, and a concise study plan, then begin tutoring. Focus only "
+            "on this objective and use the mastery tools to record progress."
+        )
+    return (
+        f"开始学习“{plan_name} / {subject_name} / {module_name} / {objective_name}”。"
+        "请先说明本学习单元的学习目标、必要前置知识和简明学习安排，然后开始辅导。"
+        "本次只聚焦这个知识点，并使用精通路径工具记录学习进度。"
+    )
+
+
 def _query_trace_id(context: LearningContext, operation: str) -> str:
     now = datetime.now().astimezone().isoformat()
     identity = "\x1f".join(
@@ -1108,8 +1630,11 @@ def _configuration_error(exc: PracticeRuntimeConfigurationError) -> HTTPExceptio
 
 __all__ = [
     "CorrectionBody",
+    "OpenStudyObjectiveBody",
     "PlanTransitionBody",
     "PracticeAnswerBody",
     "PracticeStartBody",
+    "StudyPlanDraftBody",
+    "StudyPlanImportBody",
     "build_router",
 ]

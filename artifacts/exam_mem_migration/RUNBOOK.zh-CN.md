@@ -1,7 +1,8 @@
 # ExamMem 第一方插件中文 Runbook
 
-本文用于运行已经迁移到 DeepTutor 的 ExamMem 当前产品闭环：学习路径、按知识点生成或
-选择练习、评分、Learning Memory、推荐、恢复、纠错、Review、Issues 和 Configuration。
+本文用于运行已经迁移到 DeepTutor 的 ExamMem 当前产品闭环：导入大纲、确认并发布
+层级化学习计划、按知识点恢复辅导、生成版本化检测、评分、Learning Memory、推荐、
+恢复、纠错、Review、Issues 和 Configuration。
 
 本文不授权修改生产数据、执行破坏性降级、发布或部署。
 
@@ -19,10 +20,15 @@
   → Recommendation → Checkpoint + append-only Trace
   → Resume / Correction / Grade Review / Issues
 
-DeepTutor 原生 Mastery Path
-  → 智能备考「学习路径」→ 选择考试范围和知识点
+大纲文件 / 公开 URL / 模型创建请求
+  → ExamMem 只提取计划—科目—章节—叶子知识点标题
+  → 草稿确认 → 不可变发布版 Taxonomy
+  → 每个叶子知识点 → 中性 Host Hook → 独立原生 Mastery Path
+  → 首次进入自动发起辅导，后续恢复同一 Chat session
+  → 智能备考「练习」选择同一个发布版 Scope 和叶子知识点
   → 可选 PDF/TXT/Markdown 临时上下文
   → 中性 Host Turn → 原生 Quiz 生成
+  → 同一 assessment_id 下的不可变题集版本 + 多次 attempt
   → 题目/答案/规则/来源指纹固定到 Practice Checkpoint
   → 进入上面的 ExamMem 评分和 Learning Memory 闭环
 ```
@@ -106,7 +112,7 @@ python -m alembic -c alembic.ini history
 预期唯一 head：
 
 ```text
-0007_grade_reviews (head)
+0009_assessments (head)
 ```
 
 确认数据库目标后执行写操作：
@@ -117,9 +123,9 @@ python -m alembic -c alembic.ini current
 ```
 
 `upgrade head` 会在 ExamMem PostgreSQL 中创建或升级表、索引、约束和 trigger。预期
-current 为 `0007_grade_reviews`。
+current 为 `0009_assessments`。
 
-全新数据库最终包含 13 张 public 表（包括 `alembic_version`）和 6 个不同的
+全新数据库最终包含 20 张 public 表（包括 `alembic_version`）和 8 个不同的
 append-only trigger：
 
 ```text
@@ -129,6 +135,8 @@ tr_memory_change_log_append_only
 tr_baseline_memory_facts_append_only
 tr_practice_trace_spans_append_only
 tr_grade_review_events_append_only
+tr_study_plan_versions_append_only
+tr_assessment_versions_append_only
 ```
 
 ### 2.6 确认插件没有被禁用
@@ -186,8 +194,8 @@ deeptutor start --dev
 登录后依次检查：
 
 ```text
-/exam-mem/practice       刷题、历史记录和恢复
-/exam-mem/learning       学习路径、知识点进度、继续辅导和专项练习入口
+/exam-mem/practice       发布范围选题、试卷版本、多次检测、历史和恢复
+/exam-mem/learning       大纲导入、草稿确认、科目/章节/知识点和继续辅导
 /exam-mem/review         Grade、Diagnosis、Trace、Lifecycle 和 Grade Review
 /exam-mem/memories       Learning Memory、版本链、证据、纠错和派生问题
 /exam-mem/issues         兼容旧深链；主入口已合并到 Learning Memory
@@ -203,6 +211,8 @@ GET /api/v1/plugins/list
 GET /api/v1/plugins/health
 GET /api/v1/exam-mem/practice/sessions
 GET /api/v1/exam-mem/catalog
+GET /api/v1/exam-mem/study-plans
+GET /api/v1/exam-mem/assessments
 GET /api/v1/exam-mem/issues
 GET /api/v1/exam-mem/configuration
 ```
@@ -211,7 +221,7 @@ GET /api/v1/exam-mem/configuration
 
 - 插件 `exam_mem`；
 - Capability `exam_practice`；
-- migration head `0007_grade_reviews`；
+- migration head `0009_assessments`；
 - 单一的「智能备考」导航入口；学习路径、练习、学习记忆、考试复盘和配置作为其内部工作区。
 
 注意：`/api/v1/plugins/health` 只表示插件生命周期装配成功。当前 ExamMem 没有主动连接
@@ -225,17 +235,24 @@ python -m alembic -c alembic.ini current
 
 ### 3.3 最短业务 Smoke Test
 
-1. 打开 `/exam-mem/learning`，确认能看到原生学习路径和知识点进度；「继续学习辅导」应
-   返回原生 Mastery Path 对话，而不是创建 Learning Memory。
-2. 从知识点进入 `/exam-mem/practice`，选择考试范围、学习路径、知识点、难度和题数。
-3. 可选添加 PDF、TXT 或 Markdown。来源只服务本次生成；DOCX、PPT/PPTX、图片、视频和
+1. 打开 `/exam-mem/learning`，点击「新建学习计划」，从 PDF/TXT/MD、公开 URL 或模型
+   创建请求中选择一种。解析只生成科目、章节和叶子知识点标题，不生成课程正文和题目。
+2. 在结构化草稿中检查或改名，保存后点击「发布为考试范围」。未发布草稿不能用于练习；
+   发布后形成不可变版本，后续修改会形成新版本。
+3. 点击一个叶子知识点的「继续学习」。第一次应自动创建一条只含该知识点的原生
+   Mastery Path 和 Chat session，并自动发起一次“说明目标、前置知识和学习安排”的请求；
+   再次点击应恢复同一 session，而不是重复创建。
+4. 从同一知识点进入 `/exam-mem/practice`，确认学习计划、科目和知识点已经选中，且
+   Scope 来自同一个发布版 Taxonomy，不再出现跨 Taxonomy 文本猜测映射。
+5. 可选添加 PDF、TXT 或 Markdown。来源只服务本次生成；DOCX、PPT/PPTX、图片、视频和
    音频不在当前范围。
-4. 点击「生成并开始练习」，或使用受控目录开始练习，确认页面显示题目。
-5. 提交答案，确认状态到达 `RECOMMENDED`。
-6. 再创建一次练习，确认历史显示相同考试范围下的「第 1 次 / 第 2 次」及已有得分。
-7. 打开 Review，确认能看到 Grade、Diagnosis、Trace 和 Lifecycle 信息。
-8. 打开 Learning Memory，确认能查看 Scope、版本链、evidence、纠错和派生问题。
-9. 返回 Practice 历史并执行 Resume，确认恢复的是服务端 checkpoint，而不是只依赖
+6. 点击「生成并开始检测」，确认页面显示第一题。提交到最后一题后，attempt 应为
+   `completed`，Practice 的冻结七状态仍停在 `MEMORY_UPDATED`，不会新增状态。
+7. 在“考试版本与多次作答”中点击「重考当前版本」，应使用相同 assessment ID 和题集
+   version、新的 attempt；点击「生成新版」应在相同 assessment ID 下创建下一 version。
+8. 打开 Review，确认能看到 Grade、Diagnosis、Trace 和 Lifecycle 信息。
+9. 打开 Learning Memory，确认能查看 Scope、版本链、evidence、纠错和派生问题。
+10. 返回 Practice 历史并执行 Resume，确认恢复的是服务端 checkpoint，而不是只依赖
    浏览器缓存。
 
 上述提交会按当前 Backend 写入真实 ExamMem PostgreSQL。生产环境执行前必须确认用户、
@@ -409,8 +426,8 @@ docker compose -f compose.exam-mem.yaml down -v
 alembic downgrade base
 ```
 
-`down -v` 会删除持久化数据库 volume；`downgrade base` 会破坏业务 schema。`0007` 中存在
-Grade Review 数据时也不提供自动破坏性 downgrade。
+`down -v` 会删除持久化数据库 volume；`downgrade base` 会破坏业务 schema。`0007`～
+`0009` 中存在 Review、学习计划、会话链接、考试版本或 attempt 数据时均拒绝自动降级。
 
 ## 8. 必须暂停并找管理员处理的情况
 
@@ -419,7 +436,7 @@ Grade Review 数据时也不提供自动破坏性 downgrade。
 - 无法确认 `EXAM_MEM_DATABASE_URL` 指向哪个数据库；
 - 目标是共享库或生产库，但没有明确变更窗口和备份；
 - 需要获取、更换或迁移凭据；
-- migration head 不是 `0007_grade_reviews`，或出现多 head/分叉；
+- migration head 不是 `0009_assessments`，或出现多 head/分叉；
 - 需要执行 destructive downgrade、删除 schema、删除 Docker volume 或覆盖历史数据；
 - 需要发布、部署或推送远端；
 - 需要通过切换 Backend、绕过 Scope、直接写 Native Memory、编辑 append-only 数据或更换
@@ -429,8 +446,10 @@ Grade Review 数据时也不提供自动破坏性 downgrade。
 
 - 自动化验收固定了外部 LLM/Embedding 结果，验证的是调用链、事务和数据库语义，不代表
   线上模型质量、延迟或成本。
-- 当前可使用受控 Stage 07 题目目录，或为一次 Practice 生成并固定 2～10 道题；没有
-  可复用题库管理、内容授权工作流或大规模质量评估后台。
+- 当前可以在同一个 assessment ID 下保存不可变题集版本并多次作答；没有共享题库管理、
+  内容授权工作流或大规模质量评估后台。
+- 大纲文件和 URL 仅用于提取层级结构；当前辅导不会自动检索或引用导入来源。把来源接入
+  后续 Chat/RAG 需要独立的权限、版本、引用和保留策略，明确延期。
 - PDF/TXT/Markdown 仅通过中性 Host Turn 进入一次临时原生 Quiz 会话。ExamMem 不保存
   原文件，只在 checkpoint 保存生成题和文件名、MIME、SHA-256；临时 Host 会话随后删除。
 - Browser 的待提交请求只在当前标签页保存；长期恢复依赖服务端 Practice 历史和 Resume。

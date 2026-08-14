@@ -27,9 +27,10 @@ class TurnRequest:
     history_references: list[str] = field(default_factory=list)
     attachments: list[dict[str, Any]] = field(default_factory=list)
     skills: list[str] = field(default_factory=list)
+    mastery_path_id: str | None = None
 
     def to_payload(self) -> dict[str, Any]:
-        return {
+        payload: dict[str, Any] = {
             "content": self.content,
             "capability": self.capability,
             "session_id": self.session_id,
@@ -42,6 +43,9 @@ class TurnRequest:
             "attachments": list(self.attachments),
             "skills": list(self.skills),
         }
+        if self.mastery_path_id is not None:
+            payload["mastery_path_id"] = self.mastery_path_id
+        return payload
 
 
 @dataclass(slots=True)

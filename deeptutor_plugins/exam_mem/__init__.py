@@ -99,7 +99,7 @@ class ExamMemPlugin(BaseFullStackPlugin):
             migration=MigrationContribution(
                 config_path="alembic.ini",
                 versions_path="exam_mem/storage/migrations/versions",
-                expected_head="0007_grade_reviews",
+                expected_head="0009_assessments",
             ),
             metadata={
                 "product_surface": "exam_practice",

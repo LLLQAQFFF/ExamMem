@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import pytest
 
+from deeptutor.app.facade import TurnRequest
 from deeptutor.plugins import host_services
 
 
@@ -10,6 +11,16 @@ def test_plugin_host_services_expose_json_and_embedding_validation() -> None:
     assert host_services.validate_embedding_batch([[1, 2.5]], expected_count=1) == [
         [1.0, 2.5]
     ]
+
+
+def test_turn_facade_carries_only_explicit_mastery_path_identity() -> None:
+    assert "mastery_path_id" not in TurnRequest(content="hello").to_payload()
+    assert (
+        TurnRequest(content="learn", mastery_path_id="path-one").to_payload()[
+            "mastery_path_id"
+        ]
+        == "path-one"
+    )
 
 
 @pytest.mark.asyncio

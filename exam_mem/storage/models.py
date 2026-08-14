@@ -14,6 +14,7 @@ from sqlalchemy import (
     DateTime,
     Float,
     ForeignKey,
+    ForeignKeyConstraint,
     Index,
     Integer,
     MetaData,
@@ -28,6 +29,224 @@ from sqlalchemy.dialects.postgresql import JSONB
 LEARNING_MEMORY_EMBEDDING_DIMENSION = 1024
 
 metadata = MetaData()
+
+study_plans = Table(
+    "study_plans",
+    metadata,
+    Column("plan_id", Text, nullable=False),
+    Column("user_id", Text, nullable=False),
+    Column("name", Text, nullable=False),
+    Column("active_version", Integer, nullable=True),
+    Column("created_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+    Column("updated_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+    PrimaryKeyConstraint("plan_id", name="pk_study_plans"),
+    UniqueConstraint("user_id", "plan_id", name="uq_study_plans_user_plan"),
+    CheckConstraint("btrim(name) <> ''", name="ck_study_plans_name_nonempty"),
+    CheckConstraint(
+        "active_version IS NULL OR active_version >= 1",
+        name="ck_study_plans_active_version",
+    ),
+)
+
+Index(
+    "ix_study_plans_user_updated",
+    study_plans.c.user_id,
+    study_plans.c.updated_at,
+    study_plans.c.plan_id,
+)
+
+study_plan_drafts = Table(
+    "study_plan_drafts",
+    metadata,
+    Column("plan_id", Text, ForeignKey("study_plans.plan_id"), nullable=False),
+    Column("tree", JSONB, nullable=False),
+    Column("source_kind", Text, nullable=False),
+    Column("source_metadata", JSONB, nullable=False),
+    Column("content_hash", Text, nullable=False),
+    Column("updated_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+    PrimaryKeyConstraint("plan_id", name="pk_study_plan_drafts"),
+    CheckConstraint(
+        "source_kind IN ('file', 'url', 'generated')",
+        name="ck_study_plan_drafts_source_kind",
+    ),
+    CheckConstraint("jsonb_typeof(tree) = 'object'", name="ck_study_plan_drafts_tree_object"),
+    CheckConstraint(
+        "jsonb_typeof(source_metadata) = 'object'",
+        name="ck_study_plan_drafts_source_metadata_object",
+    ),
+    CheckConstraint("length(content_hash) = 64", name="ck_study_plan_drafts_hash"),
+)
+
+study_plan_versions = Table(
+    "study_plan_versions",
+    metadata,
+    Column("plan_id", Text, ForeignKey("study_plans.plan_id"), nullable=False),
+    Column("version", Integer, nullable=False),
+    Column("tree", JSONB, nullable=False),
+    Column("taxonomy_versions", JSONB, nullable=False),
+    Column("source_kind", Text, nullable=False),
+    Column("source_metadata", JSONB, nullable=False),
+    Column("content_hash", Text, nullable=False),
+    Column("published_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+    PrimaryKeyConstraint("plan_id", "version", name="pk_study_plan_versions"),
+    CheckConstraint("version >= 1", name="ck_study_plan_versions_version"),
+    CheckConstraint(
+        "source_kind IN ('file', 'url', 'generated')",
+        name="ck_study_plan_versions_source_kind",
+    ),
+    CheckConstraint("jsonb_typeof(tree) = 'object'", name="ck_study_plan_versions_tree_object"),
+    CheckConstraint(
+        "jsonb_typeof(taxonomy_versions) = 'object'",
+        name="ck_study_plan_versions_taxonomies_object",
+    ),
+    CheckConstraint(
+        "jsonb_typeof(source_metadata) = 'object'",
+        name="ck_study_plan_versions_source_metadata_object",
+    ),
+    CheckConstraint("length(content_hash) = 64", name="ck_study_plan_versions_hash"),
+)
+
+study_objective_sessions = Table(
+    "study_objective_sessions",
+    metadata,
+    Column("link_id", Text, nullable=False),
+    Column("user_id", Text, nullable=False),
+    Column("plan_id", Text, nullable=False),
+    Column("plan_version", Integer, nullable=False),
+    Column("objective_id", Text, nullable=False),
+    Column("host_path_id", Text, nullable=False),
+    Column("host_session_id", Text, nullable=False),
+    Column("initial_turn_id", Text, nullable=False),
+    Column("created_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+    Column("updated_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+    PrimaryKeyConstraint("link_id", name="pk_study_objective_sessions"),
+    ForeignKeyConstraint(
+        ["plan_id", "plan_version"],
+        ["study_plan_versions.plan_id", "study_plan_versions.version"],
+        name="fk_study_objective_sessions_plan_version",
+    ),
+    UniqueConstraint(
+        "user_id",
+        "plan_id",
+        "plan_version",
+        "objective_id",
+        name="uq_study_objective_sessions_objective",
+    ),
+    UniqueConstraint(
+        "user_id",
+        "host_session_id",
+        name="uq_study_objective_sessions_host_session",
+    ),
+    CheckConstraint("btrim(objective_id) <> ''", name="ck_study_objective_sessions_objective"),
+    CheckConstraint("btrim(host_path_id) <> ''", name="ck_study_objective_sessions_path"),
+    CheckConstraint("btrim(host_session_id) <> ''", name="ck_study_objective_sessions_session"),
+    CheckConstraint("btrim(initial_turn_id) <> ''", name="ck_study_objective_sessions_turn"),
+)
+
+Index(
+    "ix_study_objective_sessions_user_updated",
+    study_objective_sessions.c.user_id,
+    study_objective_sessions.c.updated_at,
+    study_objective_sessions.c.link_id,
+)
+
+assessments = Table(
+    "assessments",
+    metadata,
+    Column("assessment_id", Text, nullable=False),
+    Column("user_id", Text, nullable=False),
+    Column("exam_id", Text, nullable=False),
+    Column("subject_id", Text, nullable=False),
+    Column("taxonomy_version", Text, nullable=False),
+    Column("title", Text, nullable=False),
+    Column("knowledge_point_ids", JSONB, nullable=False),
+    Column("latest_version", Integer, nullable=False),
+    Column("created_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+    Column("updated_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+    PrimaryKeyConstraint("assessment_id", name="pk_assessments"),
+    CheckConstraint("btrim(title) <> ''", name="ck_assessments_title_nonempty"),
+    CheckConstraint(
+        "jsonb_typeof(knowledge_point_ids) = 'array' "
+        "AND jsonb_array_length(knowledge_point_ids) > 0",
+        name="ck_assessments_knowledge_points",
+    ),
+    CheckConstraint("latest_version >= 1", name="ck_assessments_latest_version"),
+)
+
+Index(
+    "ix_assessments_scope_updated",
+    assessments.c.user_id,
+    assessments.c.exam_id,
+    assessments.c.subject_id,
+    assessments.c.updated_at,
+    assessments.c.assessment_id,
+)
+
+assessment_versions = Table(
+    "assessment_versions",
+    metadata,
+    Column("assessment_id", Text, ForeignKey("assessments.assessment_id"), nullable=False),
+    Column("version", Integer, nullable=False),
+    Column("question_catalog", JSONB, nullable=False),
+    Column("generation", JSONB, nullable=False),
+    Column("content_hash", Text, nullable=False),
+    Column("created_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+    PrimaryKeyConstraint("assessment_id", "version", name="pk_assessment_versions"),
+    CheckConstraint("version >= 1", name="ck_assessment_versions_version"),
+    CheckConstraint(
+        "jsonb_typeof(question_catalog) = 'array' "
+        "AND jsonb_array_length(question_catalog) > 0",
+        name="ck_assessment_versions_catalog",
+    ),
+    CheckConstraint(
+        "jsonb_typeof(generation) = 'object'",
+        name="ck_assessment_versions_generation",
+    ),
+    CheckConstraint("length(content_hash) = 64", name="ck_assessment_versions_hash"),
+)
+
+assessment_attempts = Table(
+    "assessment_attempts",
+    metadata,
+    Column("attempt_id", Text, nullable=False),
+    Column("user_id", Text, nullable=False),
+    Column("assessment_id", Text, nullable=False),
+    Column("assessment_version", Integer, nullable=False),
+    Column("practice_session_id", Text, nullable=False),
+    Column("trace_id", Text, nullable=False),
+    Column("status", Text, nullable=False),
+    Column("started_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+    Column("completed_at", DateTime(timezone=True), nullable=True),
+    PrimaryKeyConstraint("attempt_id", name="pk_assessment_attempts"),
+    ForeignKeyConstraint(
+        ["assessment_id", "assessment_version"],
+        ["assessment_versions.assessment_id", "assessment_versions.version"],
+        name="fk_assessment_attempts_version",
+    ),
+    UniqueConstraint(
+        "user_id",
+        "practice_session_id",
+        name="uq_assessment_attempts_practice_session",
+    ),
+    UniqueConstraint("user_id", "trace_id", name="uq_assessment_attempts_trace"),
+    CheckConstraint(
+        "status IN ('in_progress', 'completed', 'failed')",
+        name="ck_assessment_attempts_status",
+    ),
+    CheckConstraint(
+        "(status = 'completed' AND completed_at IS NOT NULL) "
+        "OR (status <> 'completed' AND completed_at IS NULL)",
+        name="ck_assessment_attempts_completion",
+    ),
+)
+
+Index(
+    "ix_assessment_attempts_assessment_started",
+    assessment_attempts.c.user_id,
+    assessment_attempts.c.assessment_id,
+    assessment_attempts.c.started_at,
+    assessment_attempts.c.attempt_id,
+)
 
 learning_events = Table(
     "learning_events",
