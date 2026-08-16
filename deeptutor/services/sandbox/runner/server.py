@@ -357,7 +357,9 @@ def main() -> None:
         port = int(os.environ.get("RUNNER_PORT", "") or DEFAULT_PORT)
     except ValueError:
         port = DEFAULT_PORT
-    server = ThreadingHTTPServer(("0.0.0.0", port), _Handler)
+    # The runner lives in an isolated container/network namespace; its host-side
+    # proxy must be able to reach this internal listener.
+    server = ThreadingHTTPServer(("0.0.0.0", port), _Handler)  # nosec B104
     sys.stdout.write(f"runner: listening on 0.0.0.0:{port}\n")
     sys.stdout.flush()
     try:

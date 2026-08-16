@@ -76,7 +76,8 @@ class MSTeamsConfig(DeliveryOverrides):
     app_id: str = ""
     app_password: str = ""
     tenant_id: str = ""
-    host: str = "0.0.0.0"
+    # External Microsoft webhooks must reach this opt-in, JWT-validated channel.
+    host: str = "0.0.0.0"  # nosec B104
     port: int = 3978
     path: str = "/api/messages"
     allow_from: list[str] = Field(default_factory=list)

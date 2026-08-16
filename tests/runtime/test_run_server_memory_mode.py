@@ -30,11 +30,23 @@ def test_run_server_disables_reload_by_default(
     monkeypatch: pytest.MonkeyPatch, uvicorn_kwargs: dict[str, Any]
 ) -> None:
     monkeypatch.delenv("DEEPTUTOR_DEV_RELOAD", raising=False)
+    monkeypatch.delenv("DEEPTUTOR_BIND_HOST", raising=False)
 
     run_server.main()
 
     assert uvicorn_kwargs["reload"] is False
     assert uvicorn_kwargs["reload_excludes"] is None
+    assert uvicorn_kwargs["host"] == "127.0.0.1"
+
+
+def test_run_server_requires_explicit_opt_in_for_non_loopback_binding(
+    monkeypatch: pytest.MonkeyPatch, uvicorn_kwargs: dict[str, Any]
+) -> None:
+    monkeypatch.setenv("DEEPTUTOR_BIND_HOST", "0.0.0.0")
+
+    run_server.main()
+
+    assert uvicorn_kwargs["host"] == "0.0.0.0"
 
 
 def test_run_server_reload_remains_available_for_development(

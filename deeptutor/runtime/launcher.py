@@ -31,6 +31,8 @@ KILL_SIGNAL = getattr(signal, "SIGKILL", signal.SIGTERM)
 WEB_CACHE_DIR = Path("data") / "user" / "runtime" / "web"
 SOURCE_PRODUCTION_DIST_DIR = ".next-deeptutor"
 SOURCE_BUILD_MARKER = ".deeptutor-build.json"
+LOCAL_BIND_HOST_ENV = "DEEPTUTOR_BIND_HOST"
+DEFAULT_LOCAL_BIND_HOST = "127.0.0.1"
 SOURCE_BUILD_EXCLUDED_DIRS = {
     "node_modules",
     "dist",
@@ -38,6 +40,12 @@ SOURCE_BUILD_EXCLUDED_DIRS = {
     "test-results",
     "coverage",
 }
+
+
+def _local_bind_host() -> str:
+    """Return the explicit local bind host, defaulting to loopback."""
+
+    return os.environ.get(LOCAL_BIND_HOST_ENV, "").strip() or DEFAULT_LOCAL_BIND_HOST
 
 
 def _apply_single_user_allocator_env(env: dict[str, str]) -> None:
@@ -1023,11 +1031,12 @@ def start(home: str | Path | None = None, *, dev: bool = False) -> None:
 
     common_env = os.environ.copy()
     common_env.update(runtime_env)
+    bind_host = _local_bind_host()
     common_env[DEEPTUTOR_HOME_ENV] = str(runtime_home)
     common_env["BACKEND_PORT"] = str(backend_port)
     common_env["FRONTEND_PORT"] = str(frontend_port)
     common_env["PORT"] = str(frontend_port)
-    common_env["HOSTNAME"] = "0.0.0.0"
+    common_env["HOSTNAME"] = bind_host
     common_env["NEXT_PUBLIC_API_BASE"] = api_base
     common_env["NEXT_PUBLIC_AUTH_ENABLED"] = "true" if auth_enabled else "false"
     # The Next.js middleware (web/proxy.ts) runs in the frontend's Node runtime
@@ -1054,7 +1063,7 @@ def start(home: str | Path | None = None, *, dev: bool = False) -> None:
         "uvicorn",
         "deeptutor.api.main:app",
         "--host",
-        "0.0.0.0",
+        bind_host,
         "--port",
         str(backend_port),
         "--log-level",

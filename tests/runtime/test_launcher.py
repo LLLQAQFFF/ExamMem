@@ -404,10 +404,12 @@ def test_source_production_build_is_reused_until_an_input_changes(
 
 
 @pytest.mark.parametrize("resolved_backend_port", [8001, 8123])
-def test_start_uses_ipv4_loopback_for_frontend_proxy(
+@pytest.mark.parametrize("bind_host", [None, "0.0.0.0"])
+def test_start_uses_safe_bind_default_and_ipv4_loopback_for_frontend_proxy(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
     resolved_backend_port: int,
+    bind_host: str | None,
 ) -> None:
     from deeptutor.services import config as config_module
     from deeptutor.services import setup as setup_module
@@ -423,6 +425,12 @@ def test_start_uses_ipv4_loopback_for_frontend_proxy(
         system_json_path=settings_dir / "system.json",
     )
     captured_env: dict[str, str] = {}
+    captured_backend_command: list[str] = []
+
+    if bind_host is None:
+        monkeypatch.delenv("DEEPTUTOR_BIND_HOST", raising=False)
+    else:
+        monkeypatch.setenv("DEEPTUTOR_BIND_HOST", bind_host)
 
     monkeypatch.setattr(launcher, "_relax_console_encoding", lambda: None)
     monkeypatch.setattr(launcher, "_reset_runtime_singletons", lambda: None)
@@ -458,6 +466,7 @@ def test_start_uses_ipv4_loopback_for_frontend_proxy(
     def _capture_spawn(_command, *, cwd, env, name):
         assert cwd == tmp_path
         if name == "backend":
+            captured_backend_command.extend(_command)
             return launcher.ManagedProcess("backend", object(), None)
         assert name == "frontend"
         captured_env.update(env)
@@ -469,3 +478,8 @@ def test_start_uses_ipv4_loopback_for_frontend_proxy(
         launcher.start(tmp_path)
 
     assert captured_env["DEEPTUTOR_API_BASE_URL"] == (f"http://127.0.0.1:{resolved_backend_port}")
+    expected_bind_host = bind_host or "127.0.0.1"
+    assert captured_env["HOSTNAME"] == expected_bind_host
+    assert captured_backend_command[captured_backend_command.index("--host") + 1] == (
+        expected_bind_host
+    )

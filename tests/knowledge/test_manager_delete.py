@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+import shutil
 
 import pytest
 
@@ -59,6 +60,8 @@ def test_delete_knowledge_base_clears_config_when_rmtree_fails(
                 str(path),
                 (OSError, OSError("busy"), None),
             )
+            return
+        raise OSError("busy")
 
     # manager_module.shutil is the global stdlib module object. Restore it
     # immediately after the behavior under test so pytest's tmp cleanup keeps
@@ -67,6 +70,7 @@ def test_delete_knowledge_base_clears_config_when_rmtree_fails(
         scoped_patch.setattr(manager_module.shutil, "rmtree", _rmtree_always_errors)
         assert manager.delete_knowledge_base("broken", confirm=True) is True
     assert "broken" not in _read_config(manager.config_file).get("knowledge_bases", {})
+    shutil.rmtree(manager.base_dir / "broken")
 
 
 def test_delete_knowledge_base_removes_orphan_config_when_directory_missing(

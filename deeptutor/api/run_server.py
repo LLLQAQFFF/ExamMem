@@ -67,9 +67,10 @@ def main() -> None:
         "yes",
         "on",
     }
+    bind_host = os.environ.get("DEEPTUTOR_BIND_HOST", "").strip() or "127.0.0.1"
     uvicorn.run(
         "deeptutor.api.main:app",
-        host="0.0.0.0",
+        host=bind_host,
         port=backend_port,
         reload=dev_reload,
         reload_excludes=reload_excludes if dev_reload else None,
