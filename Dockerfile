@@ -166,7 +166,10 @@ COPY --from=frontend-builder /app/web/public/ ./web/public/
 # Copy application source code
 COPY deeptutor/ ./deeptutor/
 COPY deeptutor_cli/ ./deeptutor_cli/
+COPY deeptutor_plugins/ ./deeptutor_plugins/
+COPY exam_mem/ ./exam_mem/
 COPY scripts/ ./scripts/
+COPY alembic.ini ./
 COPY pyproject.toml ./
 COPY requirements/ ./requirements/
 COPY requirements.txt ./

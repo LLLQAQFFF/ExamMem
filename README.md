@@ -199,6 +199,33 @@ DeepTutor is an agent-native learning workspace that connects tutoring, problem 
 - **Extensible tools and skills** — built-in tools, MCP servers, CLI apps, image / video / voice generation models, and installable community skills from EduHub.
 - **Inspectable memory** — L1 traces, L2 surface summaries, and L3 synthesis make personalization visible and editable, with a Memory Graph that traces every claim back to its evidence.
 
+### Smart Exam Prep (ExamMem first-party plugin)
+
+This repository also ships ExamMem, a first-party full-stack plugin for a
+versioned, recoverable exam-preparation loop:
+
+```text
+syllabus -> published taxonomy -> mastery chat -> versioned assessment
+         -> grade -> Learning Memory -> recommendation/recovery/review
+```
+
+ExamMem is assembled through DeepTutor's neutral plugin and Host service APIs;
+DeepTutor Core does not import the ExamMem domain. Its Learning Memory uses a
+dedicated PostgreSQL/pgvector database and never treats DeepTutor Native Memory
+as business truth. Source documents are currently used only to create a
+reviewable title hierarchy or transient question-generation context; this is
+not a general multi-source RAG ingestion pipeline.
+
+For a local source-checkout demo with an isolated loopback-only database:
+
+```bash
+./scripts/exam_mem_demo/start-demo.sh --dev
+```
+
+See the [demo guide](scripts/exam_mem_demo/README.md), the
+[Chinese operations Runbook](artifacts/exam_mem_migration/RUNBOOK.zh-CN.md),
+and the [migration report](artifacts/exam_mem_migration/MIGRATION_REPORT.md).
+
 ---
 
 ## 🚀 Get Started
@@ -220,6 +247,12 @@ deeptutor start    # starts backend + frontend; keep the terminal open
 `deeptutor init` prompts for backend port (default `8001`), frontend port (default `3782`), LLM provider / base URL / API key / model, and an optional embedding provider for Knowledge Base / RAG.
 
 After `deeptutor start`, open the frontend URL printed in the terminal — by default [http://127.0.0.1:3782](http://127.0.0.1:3782). Press `Ctrl+C` in that terminal to stop both backend and frontend. Skipping `deeptutor init` is fine for a quick trial; the app boots with default ports and empty model settings, configure them later in **Settings → Models**.
+
+Local source/package launches bind to `127.0.0.1` by default. To serve another
+device on a trusted network, enable authentication first and then set
+`DEEPTUTOR_BIND_HOST=0.0.0.0` for `deeptutor start`, or pass
+`deeptutor serve --host 0.0.0.0` for the API-only command. Docker continues to
+use its documented `BACKEND_HOST` / `FRONTEND_HOST` settings.
 
 </details>
 
@@ -727,7 +760,7 @@ The repo ships a root [`SKILL.md`](SKILL.md) — a ~150-line handover doc that t
 |:---|:---|
 | `deeptutor init` | Create or update `data/user/settings` for the current workspace |
 | `deeptutor start [--home PATH] [--dev]` | Launch backend + frontend together; `--dev` enables frontend HMR |
-| `deeptutor serve [--port PORT]` | Start only the FastAPI backend |
+| `deeptutor serve [--host HOST] [--port PORT]` | Start only the FastAPI backend; defaults to loopback |
 | `deeptutor run <capability> <message>` | Run a single capability turn (`chat`, `deep_solve`, `deep_question`, `deep_research`, `visualize`, `math_animator`, `mastery_path`); add `--format json` for NDJSON output |
 | `deeptutor chat` | Interactive REPL with capability, tool, KB, notebook, and history controls |
 | `deeptutor partner list/create/start/stop` | Manage IM-connected partners |

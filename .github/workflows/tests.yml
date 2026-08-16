@@ -8,10 +8,14 @@ on:
     paths:
       - "deeptutor/**"
       - "deeptutor_cli/**"
+      - "deeptutor_plugins/**"
+      - "exam_mem/**"
       - "tests/**"
       - "requirements/**"
       - "requirements.txt"
       - "pyproject.toml"
+      - "alembic.ini"
+      - "compose.exam-mem.yaml"
       - "web/**"
       - ".github/workflows/tests.yml"
   pull_request:
@@ -21,10 +25,14 @@ on:
     paths:
       - "deeptutor/**"
       - "deeptutor_cli/**"
+      - "deeptutor_plugins/**"
+      - "exam_mem/**"
       - "tests/**"
       - "requirements/**"
       - "requirements.txt"
       - "pyproject.toml"
+      - "alembic.ini"
+      - "compose.exam-mem.yaml"
       - "web/**"
       - ".github/workflows/tests.yml"
 
@@ -121,6 +129,8 @@ jobs:
           python -c "from deeptutor.api.routers.unified_ws import unified_websocket; print('✅ Unified WS imports OK')"
           python -c "from deeptutor.services.prompt.manager import PromptManager; print('✅ Prompt manager imports OK')"
           python -c "from deeptutor.logging import configure_logging, bind_log_context, capture_process_logs, ProcessLogEvent; print('✅ Logging imports OK')"
+          python -c "from exam_mem.practice import CatalogKnowledgeMapper; print('✅ ExamMem domain imports OK')"
+          python -c "from deeptutor_plugins.exam_mem import ExamMemPlugin; print('✅ ExamMem plugin imports OK')"
         env:
           PYTHONPATH: ${{ github.workspace }}
 
@@ -129,6 +139,22 @@ jobs:
     runs-on: ubuntu-latest
     needs: import-check
     continue-on-error: ${{ matrix.experimental == true }}
+    services:
+      postgres:
+        image: pgvector/pgvector:0.8.2-pg16-bookworm
+        env:
+          POSTGRES_USER: exammem_test
+          POSTGRES_PASSWORD: exammem-test-only
+          POSTGRES_DB: exammem_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U exammem_test -d exammem_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      EXAM_MEM_DATABASE_URL: postgresql+asyncpg://exammem_test:exammem-test-only@127.0.0.1:5432/exammem_test
     strategy:
       fail-fast: false
       matrix:
@@ -171,6 +197,9 @@ jobs:
           logging:
             level: WARNING
           YAML
+
+      - name: Apply ExamMem migrations to the isolated CI database
+        run: python -m alembic -c alembic.ini upgrade head
 
       - name: Run Python tests
         run: |

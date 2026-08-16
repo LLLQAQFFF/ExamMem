@@ -116,11 +116,25 @@ python -m alembic -c alembic.ini history
 └── 0009_assessments
 ```
 
+通过 PyPI wheel 安装、没有仓库根目录 `alembic.ini` 时，使用随包发布的等价入口：
+
+```bash
+python -m exam_mem.storage.migrations heads
+python -m exam_mem.storage.migrations history
+```
+
 确认数据库目标后执行写操作：
 
 ```bash
 python -m alembic -c alembic.ini upgrade head
 python -m alembic -c alembic.ini current
+```
+
+wheel 安装环境对应的升级和检查命令为：
+
+```bash
+python -m exam_mem.storage.migrations upgrade head
+python -m exam_mem.storage.migrations current
 ```
 
 `upgrade head` 会在 ExamMem PostgreSQL 中创建或升级表、索引、约束和 trigger。预期
@@ -379,6 +393,11 @@ npm run build
 - 五 Backend 专项：`33 passed`；
 - Web Node：`65/65`；
 - Web production build：63 个路由。
+
+这些数字是迁移时兼容依赖环境的历史基线，不是对任意“最新版依赖”组合的永久保证。
+截至 2026-08-16，无上限的 FastAPI 声明会解析到 Starlette 1.4.x；其 `TestClient` 已优先
+使用 `httpx2`。在项目显式补充该测试依赖并完成全量重跑前，干净环境若在首个
+`TestClient` 请求处停住，应按开源审计报告处理，不能跳过测试或把超时当成通过。
 
 ## 7. PostgreSQL 备份、停止和清理
 

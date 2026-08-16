@@ -66,6 +66,30 @@ DeepTutor 是一个智能体原生的学习工作区，将辅导、解题、测�
 - **可扩展工具与技能** — 内置工具、MCP 服务器、CLI 应用、图像 / 视频 / 语音生成模型，以及从 EduHub 安装的社区技能。
 - **可审计的记忆** — L1 追踪、L2 表面摘要和 L3 综合让个性化透明可编辑，Memory Graph 将每一条结论追溯到其原始证据。
 
+### 智能备考（ExamMem 第一方插件）
+
+本仓库同时包含 ExamMem 第一方全栈插件，提供可版本化、可恢复的备考闭环：
+
+```text
+大纲 → 发布版知识体系 → 精通知识点辅导 → 版本化检测
+     → 判题 → Learning Memory → 推荐 / 恢复 / 复盘
+```
+
+ExamMem 只通过 DeepTutor 的中性插件 API 和 Host Service 装配，DeepTutor Core
+不会直接依赖 ExamMem 领域代码。Learning Memory 使用独立 PostgreSQL/pgvector，
+不会把 DeepTutor Native Memory 当作业务真值。当前文件能力仅用于生成可确认的标题
+层级，或作为一次出题请求的临时上下文，并不是通用的多源 RAG 摄取管线。
+
+在源码仓库中可使用隔离、仅绑定本机回环地址的演示数据库一键启动：
+
+```bash
+./scripts/exam_mem_demo/start-demo.sh --dev
+```
+
+详见[演示说明](../../scripts/exam_mem_demo/README.md)、
+[中文运维 Runbook](../../artifacts/exam_mem_migration/RUNBOOK.zh-CN.md)和
+[迁移报告](../../artifacts/exam_mem_migration/MIGRATION_REPORT.md)。
+
 ---
 
 ## 🚀 快速开始
@@ -87,6 +111,11 @@ deeptutor start    # 启动后端 + 前端；保持终端窗口打开
 `deeptutor init` 会提示配置后端端口（默认 `8001`）、前端端口（默认 `3782`）、LLM 提供商 / 基础 URL / API Key / 模型，以及可选的知识库 / RAG 嵌入提供商。
 
 `deeptutor start` 完成后，打开终端打印的前端 URL — 默认为 [http://127.0.0.1:3782](http://127.0.0.1:3782)。在该终端按 `Ctrl+C` 可同时停止后端和前端。跳过 `deeptutor init` 也可用于快速体验；应用会以默认端口和空模型设置启动，稍后在 **Settings → Models** 中配置即可。
+
+本地源码/Python 包启动默认只监听 `127.0.0.1`。如需让可信局域网中的其他设备访问，
+请先开启认证，再为 `deeptutor start` 设置 `DEEPTUTOR_BIND_HOST=0.0.0.0`；仅启动 API 时
+使用 `deeptutor serve --host 0.0.0.0`。Docker 仍使用文档已有的 `BACKEND_HOST` /
+`FRONTEND_HOST` 配置，不受此默认值调整影响。
 
 </details>
 
@@ -572,7 +601,7 @@ deeptutor run deep_question "就那篇调研测验我" --session "$SID" --format
 |:---|:---|
 | `deeptutor init` | 为当前工作区创建或更新 `data/user/settings` |
 | `deeptutor start [--home PATH] [--dev]` | 同时启动后端 + 前端；`--dev` 启用前端热更新 |
-| `deeptutor serve [--port PORT]` | 仅启动 FastAPI 后端 |
+| `deeptutor serve [--host HOST] [--port PORT]` | 仅启动 FastAPI 后端；默认只监听本机回环地址 |
 | `deeptutor run <capability> <message>` | 运行单次能力对话（`chat`、`deep_solve`、`deep_question`、`deep_research`、`visualize`、`math_animator`、`mastery_path`）；添加 `--format json` 可获得 NDJSON 输出 |
 | `deeptutor chat` | 交互式 REPL，支持能力、工具、知识库、笔记本和历史控制 |
 | `deeptutor partner list/create/start/stop` | 管理 IM 连接的 Partners |

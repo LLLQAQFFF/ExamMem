@@ -276,7 +276,7 @@ deeptutor = [
 ]
 deeptutor_cli = ["**/*.md"]
 deeptutor_web = ["**/*", ".next/**/*"]
-exam_mem = ["**/*.yaml", "storage/migrations/script.py.mako"]
+exam_mem = ["**/*.yaml", "storage/alembic.ini", "storage/migrations/script.py.mako"]
 
 # ============================================
 # Black code formatter configuration

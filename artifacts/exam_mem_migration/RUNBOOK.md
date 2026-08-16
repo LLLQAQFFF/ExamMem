@@ -72,6 +72,14 @@ python -m alembic -c alembic.ini heads
 python -m alembic -c alembic.ini history
 ```
 
+When DeepTutor was installed from a wheel and the repository-root
+`alembic.ini` is not present, use the packaged equivalent:
+
+```bash
+python -m exam_mem.storage.migrations heads
+python -m exam_mem.storage.migrations history
+```
+
 Expected single code head: `0010_learning_observations`.
 
 Apply to the already-confirmed ExamMem database:
@@ -79,6 +87,13 @@ Apply to the already-confirmed ExamMem database:
 ```bash
 python -m alembic -c alembic.ini upgrade head
 python -m alembic -c alembic.ini current
+```
+
+The wheel-installed equivalents are:
+
+```bash
+python -m exam_mem.storage.migrations upgrade head
+python -m exam_mem.storage.migrations current
 ```
 
 Expected current head: `0010_learning_observations`. A fresh database has 22 public
@@ -192,6 +207,14 @@ PostgreSQL integration tests require `EXAM_MEM_DATABASE_URL`; without it they
 skip. Test fixtures use random schemas/rollback and must leave no random schema
 or public business row. A production build may rewrite `web/next-env.d.ts` for
 its output directory; do not commit that generated drift.
+
+The migration-era full-suite counts were recorded under a compatible dependency
+resolution. As of 2026-08-16, an unconstrained FastAPI install may resolve to
+Starlette 1.4.x, whose `TestClient` prefers `httpx2`. Until that test dependency
+is declared and the full suite is rerun, a clean environment that stalls on its
+first `TestClient` request is a dependency reproducibility failure—not a test
+that may be skipped or treated as a timeout pass. See the Chinese open-source
+audit for the exact current evidence.
 
 ## 7. Incident stop conditions
 

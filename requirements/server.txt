@@ -34,3 +34,9 @@ croniter>=6.0.0,<7.0.0
 # Process-tree memory readings behind /api/v1/system/memory. Imported lazily
 # with a /proc fallback, so it is soft rather than required.
 psutil>=5.9.0,<8.0.0
+
+# --- ExamMem independent PostgreSQL business store ---
+SQLAlchemy>=2.0.0,<3.0.0
+alembic>=1.13.0,<2.0.0
+asyncpg>=0.29.0,<1.0.0
+pgvector>=0.3.0,<1.0.0

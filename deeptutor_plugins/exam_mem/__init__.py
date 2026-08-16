@@ -97,7 +97,7 @@ class ExamMemPlugin(BaseFullStackPlugin):
             ),
             settings=settings_contribution,
             migration=MigrationContribution(
-                config_path="alembic.ini",
+                config_path="exam_mem/storage/alembic.ini",
                 versions_path="exam_mem/storage/migrations/versions",
                 expected_head="0010_learning_observations",
             ),
@@ -109,9 +109,7 @@ class ExamMemPlugin(BaseFullStackPlugin):
         )
 
     def _build_practice_capability(self) -> ExamPracticeCapability:
-        return ExamPracticeCapability(
-            runtime_factory=self._runtime_provider
-        )
+        return ExamPracticeCapability(runtime_factory=self._runtime_provider)
 
 
 def get_plugin() -> ExamMemPlugin:
