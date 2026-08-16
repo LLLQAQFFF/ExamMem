@@ -61,6 +61,43 @@ class KnowledgeMappingCompletion(Protocol):
     ) -> str: ...
 
 
+class CatalogKnowledgeMapper:
+    """Resolve the immutable question catalog IDs after strict Taxonomy validation."""
+
+    def __init__(
+        self,
+        taxonomy_version: str = "math1_v1",
+        *,
+        taxonomy: Taxonomy | None = None,
+    ) -> None:
+        self._taxonomy = taxonomy or load_taxonomy(taxonomy_version)
+
+    async def map(self, question: Question) -> KnowledgePointNormalizationResult:
+        knowledge_point_ids = tuple(dict.fromkeys(question.knowledge_point_ids))
+        if len(knowledge_point_ids) != len(question.knowledge_point_ids):
+            raise ValueError("question catalog knowledge point IDs must be unique")
+        for knowledge_point_id in knowledge_point_ids:
+            node = self._taxonomy.get(knowledge_point_id)
+            if node is None:
+                raise ValueError(
+                    f"question catalog knowledge point does not exist: {knowledge_point_id}"
+                )
+            if node.status is not KnowledgePointStatus.ACTIVE:
+                raise ValueError(
+                    f"question catalog knowledge point is not active: {knowledge_point_id}"
+                )
+            if self._taxonomy.children_of(knowledge_point_id):
+                raise ValueError(
+                    f"question catalog knowledge point is not a leaf: {knowledge_point_id}"
+                )
+        return KnowledgePointNormalizationResult(
+            primary_knowledge_point_id=knowledge_point_ids[0],
+            primary_confidence=1.0,
+            secondary_knowledge_point_ids=knowledge_point_ids[1:],
+            secondary_confidences=(1.0,) * (len(knowledge_point_ids) - 1),
+        )
+
+
 class DeepTutorKnowledgeMapperAdapter:
     """Extract semantic names with DeepTutor, then resolve only through Taxonomy."""
 
@@ -123,6 +160,7 @@ def _response_format() -> dict[str, object]:
 
 
 __all__ = [
+    "CatalogKnowledgeMapper",
     "DeepTutorKnowledgeMapperAdapter",
     "KnowledgeMappingCompletion",
     "KnowledgePointExtraction",

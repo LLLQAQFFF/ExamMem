@@ -25,6 +25,7 @@ import {
   analyzeConversation,
   buildLearningArchiveGraph,
   getLearningArchive,
+  learningArchiveKnowledgePointFilter,
   listChatObservations,
   listConversations,
   type ConversationSummary,
@@ -107,11 +108,12 @@ export default function LearningMemoryWorkbench() {
   const subject =
     subjects.find((item) => item.id === subjectId) ?? subjects[0] ?? null;
   const modules = useMemo(() => subject?.modules ?? [], [subject]);
-  const selectedModule =
-    modules.find((item) => item.id === moduleId) ?? modules[0] ?? null;
+  const selectedModule = modules.find((item) => item.id === moduleId) ?? null;
   const knowledgePoints = useMemo(
-    () => selectedModule?.knowledge_points ?? [],
-    [selectedModule],
+    () =>
+      selectedModule?.knowledge_points ??
+      modules.flatMap((item) => item.knowledge_points),
+    [modules, selectedModule],
   );
 
   useEffect(() => {
@@ -126,9 +128,7 @@ export default function LearningMemoryWorkbench() {
   }, [versionNumber, subjects]);
   useEffect(() => {
     setModuleId((current) =>
-      modules.some((item) => item.id === current)
-        ? current
-        : modules[0]?.id || "",
+      modules.some((item) => item.id === current) ? current : "",
     );
     setKnowledgePointId("");
   }, [subjectId, modules]);
@@ -139,13 +139,16 @@ export default function LearningMemoryWorkbench() {
       examId: `plan:${plan.plan_id}`,
       subjectId: subject.id,
       taxonomyVersion: version.taxonomy_versions[subject.id],
-      knowledgePointIds: knowledgePointId
-        ? [knowledgePointId]
-        : knowledgePoints.map((item) => item.id),
+      knowledgePointIds: learningArchiveKnowledgePointFilter(
+        knowledgePointId,
+        selectedModule
+          ? selectedModule.knowledge_points.map((item) => item.id)
+          : null,
+      ),
       namespaces: namespace ? [namespace] : undefined,
       lifecycleStates: lifecycleState ? [lifecycleState] : undefined,
     };
-  }, [knowledgePointId, knowledgePoints, lifecycleState, namespace, plan, subject, version]);
+  }, [knowledgePointId, lifecycleState, namespace, plan, selectedModule, subject, version]);
 
   const load = useCallback(async () => {
     if (!scope) {
@@ -307,7 +310,7 @@ export default function LearningMemoryWorkbench() {
         subjectId={subject?.id ?? ""}
         setSubjectId={setSubjectId}
         modules={modules}
-        moduleId={selectedModule?.id ?? ""}
+        moduleId={moduleId}
         setModuleId={setModuleId}
         knowledgePoints={knowledgePoints}
         knowledgePointId={knowledgePointId}
@@ -531,8 +534,12 @@ function ScopeFilters(props: {
         <select
           className={select}
           value={props.moduleId}
-          onChange={(event) => props.setModuleId(event.target.value)}
+          onChange={(event) => {
+            props.setModuleId(event.target.value);
+            props.setKnowledgePointId("");
+          }}
         >
+          <option value="">{props.tr("全部章节", "All chapters")}</option>
           {props.modules.map((item) => (
             <option key={item.id} value={item.id}>
               {item.name}

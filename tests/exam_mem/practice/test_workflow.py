@@ -404,9 +404,7 @@ async def test_finite_catalog_completes_attempt_without_adding_practice_state() 
     first_result = await workflow.run(first_answer)
     second_question = first_result.checkpoint.recommended_question
     assert second_question == catalog[1]
-    assert first_result.checkpoint.context.answered_question_ids == (
-        "question:bayes:001",
-    )
+    assert first_result.checkpoint.context.answered_question_ids == ("question:bayes:001",)
 
     second_answer = first_result.checkpoint.context.model_copy(
         update={
@@ -502,7 +500,7 @@ async def test_memory_failure_resumes_from_diagnosed_without_regrading() -> None
     assert writer.calls == 2
 
 
-async def test_unknown_mapping_keeps_l1_and_skips_invalid_l2_candidates() -> None:
+async def test_unknown_mapping_fails_before_l1_or_memory_side_effects() -> None:
     mapper = FakeMapper(knowledge_point_id="unknown")
     writer = FakeMemoryWriter()
     workflow, _ = _workflow(mapper=mapper, writer=writer)
@@ -511,11 +509,14 @@ async def test_unknown_mapping_keeps_l1_and_skips_invalid_l2_candidates() -> Non
         _context(trace_id="trace:workflow:unknown"),
     )
 
-    result = await workflow.run(_context(trace_id="trace:workflow:unknown"))
+    with pytest.raises(PracticeWorkflowError) as captured:
+        await workflow.run(_context(trace_id="trace:workflow:unknown"))
 
-    assert result.checkpoint.learning_event is not None
-    assert result.checkpoint.learning_event.knowledge_point_ids == ["unknown"]
-    assert writer.candidate_counts == [0]
+    assert captured.value.error_code == "knowledge_point_contract_violation"
+    assert captured.value.step_state is PracticeState.GRADED
+    assert captured.value.checkpoint is not None
+    assert captured.value.checkpoint.learning_event is None
+    assert writer.calls == 0
 
 
 async def test_submission_rejects_question_material_not_issued_by_server() -> None:

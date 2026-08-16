@@ -85,6 +85,14 @@ export interface ConversationSummary {
   updated_at: string;
 }
 
+export function learningArchiveKnowledgePointFilter(
+  knowledgePointId: string,
+  moduleKnowledgePointIds: readonly string[] | null,
+): string[] | undefined {
+  if (knowledgePointId) return [knowledgePointId];
+  return moduleKnowledgePointIds ? [...moduleKnowledgePointIds] : undefined;
+}
+
 async function jsonOrError<T>(response: Response): Promise<T> {
   const payload = (await response.json().catch(() => ({}))) as T & {
     detail?: string | { message?: string };

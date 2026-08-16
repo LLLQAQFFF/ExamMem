@@ -22,7 +22,7 @@ from .contracts import (
 )
 from .error_analyzer import DeepTutorErrorAnalyzerAdapter
 from .grading import DeepTutorAnswerGraderAdapter
-from .knowledge_mapper import DeepTutorKnowledgeMapperAdapter
+from .knowledge_mapper import CatalogKnowledgeMapper
 from .memory import MemoryWriteResult
 from .question_retriever import QuestionRetriever
 
@@ -188,14 +188,12 @@ class KnowledgeMapperTool(BaseTool):
         taxonomy_version: str = "math1_v1",
         taxonomy=None,  # noqa: ANN001
     ) -> None:
-        self._mapper = mapper or DeepTutorKnowledgeMapperAdapter(
-            taxonomy_version, taxonomy=taxonomy
-        )
+        self._mapper = mapper or CatalogKnowledgeMapper(taxonomy_version, taxonomy=taxonomy)
 
     def get_definition(self) -> ToolDefinition:
         return ToolDefinition(
             name="knowledge_mapper",
-            description="Normalize question concepts only through the frozen taxonomy.",
+            description="Validate immutable question-catalog IDs through the pinned taxonomy.",
             raw_parameters=_KnowledgeMapperInput.model_json_schema(),
         )
 

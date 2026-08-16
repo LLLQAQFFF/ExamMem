@@ -13,7 +13,7 @@ import unicodedata
 from pydantic import JsonValue
 
 from exam_mem.contracts import LearningContext, LearningEvent
-from exam_mem.domain import KnowledgePointNormalizationResult
+from exam_mem.domain import UNKNOWN_KNOWLEDGE_POINT_ID, KnowledgePointNormalizationResult
 from exam_mem.storage.event_repository import AppendStatus
 from exam_mem.storage.practice_checkpoint_repository import (
     PracticeCheckpointRecord,
@@ -51,6 +51,10 @@ class AnswerGrader(Protocol):
 
 class KnowledgeMapper(Protocol):
     async def map(self, question: Question) -> KnowledgePointNormalizationResult: ...
+
+
+class KnowledgeMappingContractError(ValueError):
+    error_code = "knowledge_point_contract_violation"
 
 
 class ErrorAnalyzer(Protocol):
@@ -147,8 +151,7 @@ class ExamPracticeWorkflow:
         runtime_snapshot: PracticeRuntimeSnapshot | None = None,
     ) -> None:
         if not all(
-            value.strip()
-            for value in (taxonomy_version, grader_contract_version, config_revision)
+            value.strip() for value in (taxonomy_version, grader_contract_version, config_revision)
         ):
             raise ValueError("workflow versions must not be blank")
         self._checkpoints = checkpoint_repository
@@ -382,10 +385,11 @@ class ExamPracticeWorkflow:
                 stream=stream,
                 retry_count=retry_count,
                 input_summary={"question_id": question.question_id},
-                operation=lambda: self._knowledge_mapper.map(question),
+                operation=lambda: self._map_with_contract(question),
                 output_summary=lambda value: {"knowledge_point_ids": list(_mapped_ids(value))},
                 versions=lambda _: {"taxonomy_version": self._taxonomy_version},
-                llm_calls=1,
+                llm_calls=0,
+                failure_checkpoint=checkpoint,
             )
             checkpoint = _update_checkpoint(
                 checkpoint,
@@ -560,15 +564,9 @@ class ExamPracticeWorkflow:
         if checkpoint.context.catalog_completed:
             return record
 
-        catalog_ids = {
-            item.question_id for item in checkpoint.context.question_catalog
-        }
+        catalog_ids = {item.question_id for item in checkpoint.context.question_catalog}
         answered_question_ids = (
-            tuple(
-                dict.fromkeys(
-                    (*checkpoint.context.answered_question_ids, question.question_id)
-                )
-            )
+            tuple(dict.fromkeys((*checkpoint.context.answered_question_ids, question.question_id)))
             if catalog_ids
             else checkpoint.context.answered_question_ids
         )
@@ -596,15 +594,11 @@ class ExamPracticeWorkflow:
                 retry_count=retry_count,
                 input_summary={
                     "scope": _scope_summary(checkpoint.context),
-                    "exclude_question_ids": list(
-                        answered_question_ids or (question.question_id,)
-                    ),
+                    "exclude_question_ids": list(answered_question_ids or (question.question_id,)),
                 },
                 operation=lambda: self._recommendation_tool.recommend(
                     checkpoint.context,
-                    exclude_question_ids=(
-                        answered_question_ids or (question.question_id,)
-                    ),
+                    exclude_question_ids=(answered_question_ids or (question.question_id,)),
                 ),
                 output_summary=lambda value: {
                     "question_id": value[1].question_id,
@@ -689,7 +683,10 @@ class ExamPracticeWorkflow:
             )
             raise PracticeWorkflowError(
                 error_code,
-                retryable=not isinstance(exc, GraderContractVersionError),
+                retryable=not isinstance(
+                    exc,
+                    (GraderContractVersionError, KnowledgeMappingContractError),
+                ),
                 step_state=state,
                 checkpoint=failure_checkpoint,
             ) from exc
@@ -726,6 +723,17 @@ class ExamPracticeWorkflow:
             )
         return grade
 
+    async def _map_with_contract(
+        self,
+        question: Question,
+    ) -> KnowledgePointNormalizationResult:
+        mapping = await self._knowledge_mapper.map(question)
+        if UNKNOWN_KNOWLEDGE_POINT_ID in _mapped_ids(mapping):
+            raise KnowledgeMappingContractError(
+                "a persisted question catalog must not resolve to an unknown knowledge point"
+            )
+        return mapping
+
 
 async def _resolved(value: T) -> T:
     return value
@@ -740,9 +748,7 @@ def grade_artifact_identity(
 ) -> GradeArtifactIdentity:
     """Build the exact cache identity without including exam-instance identity."""
     question_payload = question.model_dump(mode="json", exclude={"grading_rubric"})
-    normalized_answer = " ".join(
-        unicodedata.normalize("NFKC", submission.answer).strip().split()
-    )
+    normalized_answer = " ".join(unicodedata.normalize("NFKC", submission.answer).strip().split())
     return GradeArtifactIdentity(
         question_version=_canonical_hash(question_payload),
         normalized_answer_hash=hashlib.sha256(normalized_answer.encode()).hexdigest(),
@@ -827,10 +833,7 @@ def _validate_replay_request(
         requested.practice_session_id != stored_context.practice_session_id
         or requested.scope != stored_context.scope
         or requested.trace_id != stored_context.trace_id
-        or (
-            stored.runtime_snapshot is not None
-            and stored.runtime_snapshot != runtime_snapshot
-        )
+        or (stored.runtime_snapshot is not None and stored.runtime_snapshot != runtime_snapshot)
     ):
         raise PracticeWorkflowError(
             "practice_checkpoint_identity_conflict",

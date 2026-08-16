@@ -31,6 +31,7 @@ from .corrections import (
 from .error_analyzer import DeepTutorErrorAnalyzerAdapter, ErrorAnalysisCompletion
 from .grading import DeepTutorAnswerGraderAdapter, GradingCompletion
 from .knowledge_mapper import (
+    CatalogKnowledgeMapper,
     DeepTutorKnowledgeMapperAdapter,
     KnowledgeMappingCompletion,
     KnowledgePointExtraction,
@@ -136,6 +137,7 @@ def __getattr__(name: str):  # noqa: ANN202
 __all__ = [
     "AnswerSubmission",
     "AnswerGrader",
+    "CatalogKnowledgeMapper",
     "DeepTutorAnswerGraderAdapter",
     "DeepTutorErrorAnalyzerAdapter",
     "DeepTutorKnowledgeMapperAdapter",

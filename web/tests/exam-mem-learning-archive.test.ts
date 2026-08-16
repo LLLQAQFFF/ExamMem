@@ -3,8 +3,21 @@ import test from "node:test";
 
 import {
   buildLearningArchiveGraph,
+  learningArchiveKnowledgePointFilter,
   type LearningArchive,
 } from "../lib/exam-mem-learning-archive";
+
+test("learning archive filters only when the learner selects a chapter or point", () => {
+  assert.equal(learningArchiveKnowledgePointFilter("", null), undefined);
+  assert.deepEqual(
+    learningArchiveKnowledgePointFilter("", ["kp-1", "kp-2"]),
+    ["kp-1", "kp-2"],
+  );
+  assert.deepEqual(
+    learningArchiveKnowledgePointFilter("kp-2", ["kp-1", "kp-2"]),
+    ["kp-2"],
+  );
+});
 
 test("ExamMem graph keeps formal evidence, versioned memory and L3 projection linked", () => {
   const archive: LearningArchive = {

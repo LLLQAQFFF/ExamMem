@@ -11,6 +11,7 @@ from deeptutor.agents.question.pipeline import QuizPair
 from exam_mem.domain import UNKNOWN_KNOWLEDGE_POINT_ID
 from exam_mem.practice import (
     AnswerSubmission,
+    CatalogKnowledgeMapper,
     DeepTutorAnswerGraderAdapter,
     DeepTutorErrorAnalyzerAdapter,
     DeepTutorKnowledgeMapperAdapter,
@@ -44,7 +45,7 @@ def _question() -> Question:
             "required_steps": [
                 {"id": "identify_prior", "description": "Identify the prior."},
                 {"id": "apply_bayes", "description": "Apply Bayes' theorem."},
-            ]
+            ],
         },
     )
 
@@ -97,9 +98,7 @@ def test_question_adapter_reuses_quiz_pair_without_guessing_stage07_fields() -> 
 @pytest.mark.asyncio
 async def test_grader_uses_separated_untrusted_answer_and_strict_schema() -> None:
     completion = RecordingCompletion(
-        response=json.dumps(
-            _grade_result().model_dump(mode="json", exclude={"grader_version"})
-        ),
+        response=json.dumps(_grade_result().model_dump(mode="json", exclude={"grader_version"})),
         calls=[],
     )
     grader = DeepTutorAnswerGraderAdapter(completion=completion)
@@ -151,9 +150,7 @@ async def test_chinese_exam_pins_chinese_grading_and_diagnosis_prompts() -> None
         calls=[],
     )
 
-    await DeepTutorAnswerGraderAdapter(completion=grader_completion).grade(
-        question, _submission()
-    )
+    await DeepTutorAnswerGraderAdapter(completion=grader_completion).grade(question, _submission())
     await DeepTutorErrorAnalyzerAdapter(completion=analyzer_completion).analyze(
         question,
         _submission(),
@@ -161,18 +158,10 @@ async def test_chinese_exam_pins_chinese_grading_and_diagnosis_prompts() -> None
         ["math1.probability.bayes"],
     )
 
-    assert "全部评分理由必须使用简体中文" in str(
-        grader_completion.calls[0]["system_prompt"]
-    )
-    assert "全部错因和理由必须使用简体中文" in str(
-        analyzer_completion.calls[0]["system_prompt"]
-    )
-    assert json.loads(str(grader_completion.calls[0]["prompt"]))[
-        "output_language"
-    ] == "zh"
-    assert json.loads(str(analyzer_completion.calls[0]["prompt"]))[
-        "output_language"
-    ] == "zh"
+    assert "全部评分理由必须使用简体中文" in str(grader_completion.calls[0]["system_prompt"])
+    assert "全部错因和理由必须使用简体中文" in str(analyzer_completion.calls[0]["system_prompt"])
+    assert json.loads(str(grader_completion.calls[0]["prompt"]))["output_language"] == "zh"
+    assert json.loads(str(analyzer_completion.calls[0]["prompt"]))["output_language"] == "zh"
 
 
 @pytest.mark.asyncio
@@ -182,9 +171,7 @@ async def test_grader_rejects_unknown_rubric_item_ids() -> None:
     )
     grader = DeepTutorAnswerGraderAdapter(
         completion=RecordingCompletion(
-            response=json.dumps(
-                invalid_result.model_dump(mode="json", exclude={"grader_version"})
-            ),
+            response=json.dumps(invalid_result.model_dump(mode="json", exclude={"grader_version"})),
             calls=[],
         )
     )
@@ -232,6 +219,37 @@ async def test_knowledge_mapper_resolves_candidates_only_through_frozen_taxonomy
     assert prompt["taxonomy_version"] == "math1_v1"
     assert prompt["question"] == _question().stem
     assert all("canonical_id" in item for item in prompt["active_leaf_vocabulary"])
+
+
+@pytest.mark.asyncio
+async def test_catalog_mapper_uses_pinned_canonical_ids_without_semantic_remapping() -> None:
+    mapper = CatalogKnowledgeMapper("math1_v1")
+
+    result = await mapper.map(_question())
+
+    assert result.primary_knowledge_point_id == "math1.probability.bayes"
+    assert result.primary_confidence == 1.0
+    assert result.secondary_knowledge_point_ids == ()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("knowledge_point_id", "message"),
+    [
+        ("unknown", "does not exist"),
+        ("math1.missing.point", "does not exist"),
+        ("math1.probability", "not a leaf"),
+    ],
+)
+async def test_catalog_mapper_rejects_noncanonical_or_nonleaf_ids(
+    knowledge_point_id: str,
+    message: str,
+) -> None:
+    mapper = CatalogKnowledgeMapper("math1_v1")
+    question = _question().model_copy(update={"knowledge_point_ids": [knowledge_point_id]})
+
+    with pytest.raises(ValueError, match=message):
+        await mapper.map(question)
 
 
 @pytest.mark.asyncio
