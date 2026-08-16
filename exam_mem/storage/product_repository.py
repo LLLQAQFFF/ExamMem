@@ -26,9 +26,7 @@ class PostgresExamProductRepository:
     def __init__(self, connection: AsyncConnection) -> None:
         self._connection = connection
 
-    async def list_practice_sessions(
-        self, context: LearningContext
-    ) -> list[dict[str, Any]]:
+    async def list_practice_sessions(self, context: LearningContext) -> list[dict[str, Any]]:
         rows = await self._checkpoint_rows(context)
         by_session: dict[str, list[Any]] = defaultdict(list)
         for row in rows:
@@ -37,7 +35,9 @@ class PostgresExamProductRepository:
         for practice_session_id, session_rows in by_session.items():
             latest = session_rows[0]
             started_at = min(row["created_at"] for row in session_rows)
-            checkpoints = [PracticeWorkflowCheckpoint.model_validate(row["payload"]) for row in session_rows]
+            checkpoints = [
+                PracticeWorkflowCheckpoint.model_validate(row["payload"]) for row in session_rows
+            ]
             latest_checkpoint = checkpoints[0]
             answer_count = sum(item.context.submitted_answer is not None for item in checkpoints)
             grades = [item.grade_result for item in checkpoints if item.grade_result is not None]
@@ -50,9 +50,7 @@ class PostgresExamProductRepository:
                     "updated_at": latest["updated_at"].isoformat(),
                     "answer_count": answer_count,
                     "score": (
-                        None
-                        if not grades
-                        else sum(grade.score for grade in grades) / len(grades)
+                        None if not grades else sum(grade.score for grade in grades) / len(grades)
                     ),
                     "correct_count": sum(grade.correct for grade in grades),
                     "current_checkpoint": _public_checkpoint(latest_checkpoint),
@@ -287,9 +285,7 @@ def _public_checkpoint(checkpoint: PracticeWorkflowCheckpoint) -> dict[str, Any]
         "question": (
             None
             if question is None
-            else question.model_dump(
-                mode="json", exclude={"reference_answer", "grading_rubric"}
-            )
+            else question.model_dump(mode="json", exclude={"reference_answer", "grading_rubric"})
         ),
         "grade_result": (
             None

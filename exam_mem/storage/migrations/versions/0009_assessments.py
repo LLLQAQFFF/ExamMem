@@ -28,8 +28,12 @@ def upgrade() -> None:
         sa.Column("title", sa.Text(), nullable=False),
         sa.Column("knowledge_point_ids", postgresql.JSONB(), nullable=False),
         sa.Column("latest_version", sa.Integer(), nullable=False),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
-        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
+        sa.Column(
+            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False
+        ),
+        sa.Column(
+            "updated_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False
+        ),
         sa.PrimaryKeyConstraint("assessment_id", name="pk_assessments"),
         sa.CheckConstraint("btrim(title) <> ''", name="ck_assessments_title_nonempty"),
         sa.CheckConstraint(
@@ -46,17 +50,20 @@ def upgrade() -> None:
     )
     op.create_table(
         "assessment_versions",
-        sa.Column("assessment_id", sa.Text(), sa.ForeignKey("assessments.assessment_id"), nullable=False),
+        sa.Column(
+            "assessment_id", sa.Text(), sa.ForeignKey("assessments.assessment_id"), nullable=False
+        ),
         sa.Column("version", sa.Integer(), nullable=False),
         sa.Column("question_catalog", postgresql.JSONB(), nullable=False),
         sa.Column("generation", postgresql.JSONB(), nullable=False),
         sa.Column("content_hash", sa.Text(), nullable=False),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
+        sa.Column(
+            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False
+        ),
         sa.PrimaryKeyConstraint("assessment_id", "version", name="pk_assessment_versions"),
         sa.CheckConstraint("version >= 1", name="ck_assessment_versions_version"),
         sa.CheckConstraint(
-            "jsonb_typeof(question_catalog) = 'array' "
-            "AND jsonb_array_length(question_catalog) > 0",
+            "jsonb_typeof(question_catalog) = 'array' AND jsonb_array_length(question_catalog) > 0",
             name="ck_assessment_versions_catalog",
         ),
         sa.CheckConstraint(
@@ -81,7 +88,9 @@ def upgrade() -> None:
         sa.Column("practice_session_id", sa.Text(), nullable=False),
         sa.Column("trace_id", sa.Text(), nullable=False),
         sa.Column("status", sa.Text(), nullable=False),
-        sa.Column("started_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
+        sa.Column(
+            "started_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False
+        ),
         sa.Column("completed_at", sa.DateTime(timezone=True), nullable=True),
         sa.PrimaryKeyConstraint("attempt_id", name="pk_assessment_attempts"),
         sa.ForeignKeyConstraint(
@@ -90,7 +99,8 @@ def upgrade() -> None:
             name="fk_assessment_attempts_version",
         ),
         sa.UniqueConstraint(
-            "user_id", "practice_session_id",
+            "user_id",
+            "practice_session_id",
             name="uq_assessment_attempts_practice_session",
         ),
         sa.UniqueConstraint("user_id", "trace_id", name="uq_assessment_attempts_trace"),

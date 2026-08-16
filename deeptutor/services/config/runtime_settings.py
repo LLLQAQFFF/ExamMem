@@ -988,11 +988,7 @@ class RuntimeSettingsService:
         return {
             "version": 1,
             "disabled": sorted(
-                {
-                    name
-                    for value in disabled
-                    if isinstance(value, str) and (name := value.strip())
-                }
+                {name for value in disabled if isinstance(value, str) and (name := value.strip())}
             ),
         }
 

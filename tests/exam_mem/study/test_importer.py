@@ -38,9 +38,7 @@ async def _completion(**kwargs) -> str:  # noqa: ANN003
                     "modules": [
                         {
                             "name": "高等数学",
-                            "knowledge_points": [
-                                {"name": "函数极限", "type": "concept"}
-                            ],
+                            "knowledge_points": [{"name": "函数极限", "type": "concept"}],
                         }
                     ],
                 }
@@ -51,9 +49,7 @@ async def _completion(**kwargs) -> str:  # noqa: ANN003
 
 
 async def test_file_import_extracts_only_hierarchy_and_records_provenance() -> None:
-    importer = StudyPlanOutlineImporter(
-        source_host=FakeSourceHost(), completion=_completion
-    )
+    importer = StudyPlanOutlineImporter(source_host=FakeSourceHost(), completion=_completion)
 
     imported = await importer.from_file(
         plan_id="plan-1",
@@ -71,9 +67,7 @@ async def test_file_import_extracts_only_hierarchy_and_records_provenance() -> N
 
 
 async def test_url_import_keeps_url_metadata_but_not_raw_source() -> None:
-    importer = StudyPlanOutlineImporter(
-        source_host=FakeSourceHost(), completion=_completion
-    )
+    importer = StudyPlanOutlineImporter(source_host=FakeSourceHost(), completion=_completion)
 
     imported = await importer.from_url(
         plan_id="plan-1",
@@ -87,9 +81,7 @@ async def test_url_import_keeps_url_metadata_but_not_raw_source() -> None:
 
 
 async def test_file_import_rejects_invalid_base64_before_host_extraction() -> None:
-    importer = StudyPlanOutlineImporter(
-        source_host=FakeSourceHost(), completion=_completion
-    )
+    importer = StudyPlanOutlineImporter(source_host=FakeSourceHost(), completion=_completion)
 
     with pytest.raises(ValueError, match="base64"):
         await importer.from_file(

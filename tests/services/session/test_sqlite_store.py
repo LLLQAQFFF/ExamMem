@@ -82,9 +82,7 @@ def test_session_surface_filters_list_and_detail_at_repository_boundary(
     legacy = asyncio.run(store.create_session(title="Legacy chat"))
     practice = asyncio.run(store.create_session(title="Practice"))
     asyncio.run(
-        store.update_session_preferences(
-            practice["id"], {"session_surface": "exam_practice"}
-        )
+        store.update_session_preferences(practice["id"], {"session_surface": "exam_practice"})
     )
 
     all_sessions = asyncio.run(store.list_sessions())
@@ -97,11 +95,7 @@ def test_session_surface_filters_list_and_detail_at_repository_boundary(
     assert asyncio.run(store.get_session(legacy["id"], surface="chat")) is not None
     assert asyncio.run(store.get_session(practice["id"], surface="chat")) is None
     assert (
-        asyncio.run(
-            store.get_session_with_messages(
-                practice["id"], surface="exam_practice"
-            )
-        )
+        asyncio.run(store.get_session_with_messages(practice["id"], surface="exam_practice"))
         is not None
     )
 

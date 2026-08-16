@@ -263,8 +263,7 @@ class PostgresPracticeCheckpointRepository:
             await self._connection.scalars(
                 select(practice_workflow_checkpoints.c.payload)
                 .where(
-                    practice_workflow_checkpoints.c.practice_session_id
-                    == practice_session_id,
+                    practice_workflow_checkpoints.c.practice_session_id == practice_session_id,
                     *_context_predicates(context),
                 )
                 .order_by(
@@ -291,8 +290,7 @@ class PostgresPracticeCheckpointRepository:
                 await self._connection.execute(
                     select(practice_workflow_checkpoints)
                     .where(
-                        practice_workflow_checkpoints.c.practice_session_id
-                        == practice_session_id,
+                        practice_workflow_checkpoints.c.practice_session_id == practice_session_id,
                         *_context_predicates(context),
                     )
                     .order_by(

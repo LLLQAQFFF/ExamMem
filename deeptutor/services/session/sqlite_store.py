@@ -1431,9 +1431,7 @@ class SQLiteSessionStore:
     ) -> list[dict[str, Any]]:
         # Native chats only — imported histories surface under their own
         # Space category, not the regular history list.
-        return self._list_session_summaries_sync(
-            self._WHERE_NATIVE, limit, offset, surface
-        )
+        return self._list_session_summaries_sync(self._WHERE_NATIVE, limit, offset, surface)
 
     def _list_imported_sessions_sync(
         self,

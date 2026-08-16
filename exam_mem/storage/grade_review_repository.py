@@ -77,9 +77,7 @@ class PostgresGradeReviewRepository:
             if event.review_chain_id == review_chain_id
         ]
 
-    async def _by_idempotency(
-        self, user_id: str, idempotency_key: str
-    ) -> GradeReviewEvent | None:
+    async def _by_idempotency(self, user_id: str, idempotency_key: str) -> GradeReviewEvent | None:
         row = (
             (
                 await self._connection.execute(

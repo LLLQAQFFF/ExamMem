@@ -281,9 +281,7 @@ class RuntimeProvider(Protocol):
         self, *, trace_id: str
     ) -> AbstractAsyncContextManager[LearningMemoryRuntime]: ...
 
-    def open_plan_transitions(
-        self, *, trace_id: str
-    ) -> AbstractAsyncContextManager[Any]: ...
+    def open_plan_transitions(self, *, trace_id: str) -> AbstractAsyncContextManager[Any]: ...
 
     def open_product(self) -> AbstractAsyncContextManager[Any]: ...
 
@@ -429,8 +427,7 @@ def build_router(
         leaves = [
             node
             for node in taxonomy.nodes
-            if node.status is KnowledgePointStatus.ACTIVE
-            and not taxonomy.children_of(node.id)
+            if node.status is KnowledgePointStatus.ACTIVE and not taxonomy.children_of(node.id)
         ]
         return {
             "scopes": [
@@ -612,9 +609,7 @@ def build_router(
     async def publish_study_plan(plan_id: NonEmptyString) -> dict[str, Any]:
         try:
             async with runtime_provider.open_product() as runtime:
-                plan = await runtime.study_plans.publish(
-                    user_id=current_user_id(), plan_id=plan_id
-                )
+                plan = await runtime.study_plans.publish(user_id=current_user_id(), plan_id=plan_id)
                 await runtime.connection.commit()
         except StudyPlanNotFound as exc:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
@@ -668,9 +663,7 @@ def build_router(
                         created=False,
                     )
 
-                host_path_id = _host_objective_path_id(
-                    user_id, plan_id, plan_version, objective_id
-                )
+                host_path_id = _host_objective_path_id(user_id, plan_id, plan_version, objective_id)
                 learning.ensure_single_objective_path(
                     path_id=host_path_id,
                     objective=PluginLearningObjective(
@@ -794,9 +787,7 @@ def build_router(
         )
         return {"related_to_study": True, "observation": observation}
 
-    @router.post(
-        "/study-plans/{plan_id}/objectives/{objective_id}/summarize"
-    )
+    @router.post("/study-plans/{plan_id}/objectives/{objective_id}/summarize")
     async def summarize_study_objective(
         plan_id: NonEmptyString,
         objective_id: NonEmptyString,
@@ -974,11 +965,11 @@ def build_router(
                 )
             submission = AnswerSubmission.model_validate(
                 {
-                "practice_session_id": body.practice_session_id,
-                "question_id": question.question_id,
-                "answer": body.answer,
-                "submitted_at": body.submitted_at.isoformat(),
-                "idempotency_key": body.idempotency_key,
+                    "practice_session_id": body.practice_session_id,
+                    "question_id": question.question_id,
+                    "answer": body.answer,
+                    "submitted_at": body.submitted_at.isoformat(),
+                    "idempotency_key": body.idempotency_key,
                 }
             )
             context = checkpoint.context.model_copy(
@@ -991,9 +982,7 @@ def build_router(
         result = await _run_practice_turn(
             runtime_host(),
             content=(
-                "Submit answer"
-                if _practice_response_language(context) == "en"
-                else "提交答案"
+                "Submit answer" if _practice_response_language(context) == "en" else "提交答案"
             ),
             session_id=body.session_id,
             context=context,
@@ -1025,9 +1014,7 @@ def build_router(
     ) -> dict[str, Any]:
         context = _authenticated_context(exam_id=exam_id, subject_id=subject_id)
         async with runtime_provider.open_product() as runtime:
-            review = await runtime.products.get_practice_session(
-                context, practice_session_id
-            )
+            review = await runtime.products.get_practice_session(context, practice_session_id)
         if review is None:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Exam not found")
         return review
@@ -1047,9 +1034,7 @@ def build_router(
             runtime_host(),
             content=(
                 "Resume assessment"
-                if _practice_response_language(
-                    latest.checkpoint.context.model_dump(mode="json")
-                )
+                if _practice_response_language(latest.checkpoint.context.model_dump(mode="json"))
                 == "en"
                 else "恢复练习"
             ),
@@ -1148,11 +1133,11 @@ def build_router(
                 detail="Grade Review disposition requires an administrator",
             )
         context = _authenticated_context(exam_id=body.exam_id, subject_id=body.subject_id)
-        expected_chain = _review_chain_id(
-            context, body.practice_session_id, body.checkpoint_key
-        )
+        expected_chain = _review_chain_id(context, body.practice_session_id, body.checkpoint_key)
         if expected_chain != review_chain_id:
-            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Review identity conflict")
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT, detail="Review identity conflict"
+            )
         event = _review_event(
             context=context,
             chain_id=review_chain_id,
@@ -1163,7 +1148,9 @@ def build_router(
         async with runtime_provider.open_product() as runtime:
             chain = await runtime.reviews.list_chain(context, review_chain_id)
             if not chain or chain[0].action is not GradeReviewAction.DISPUTE:
-                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Dispute not found")
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND, detail="Dispute not found"
+                )
             if len(chain) > 1 and not any(
                 item.idempotency_key == body.idempotency_key for item in chain
             ):
@@ -1299,12 +1286,9 @@ def build_router(
             "trace_id": trace_id,
             "event": result.event.model_dump(mode="json"),
             "decisions": [
-                decision.model_dump(mode="json")
-                for decision in result.memory_result.decisions
+                decision.model_dump(mode="json") for decision in result.memory_result.decisions
             ],
-            "recommendation_source_memory_ids": list(
-                result.recommendation_source_memory_ids
-            ),
+            "recommendation_source_memory_ids": list(result.recommendation_source_memory_ids),
         }
 
     @router.post("/plans/{memory_id}/transitions")
@@ -1373,8 +1357,7 @@ def build_router(
             "trace_id": trace_id,
             "event": result.event.model_dump(mode="json"),
             "decisions": [
-                decision.model_dump(mode="json")
-                for decision in result.memory_result.decisions
+                decision.model_dump(mode="json") for decision in result.memory_result.decisions
             ],
         }
 
@@ -1612,11 +1595,7 @@ async def _taxonomy_for_scope(
     subject_id: str,
     taxonomy_version: str,
 ) -> Taxonomy:
-    if (
-        exam_id == _EXAM_ID
-        and subject_id == _SUBJECT_ID
-        and taxonomy_version == "math1_v1"
-    ):
+    if exam_id == _EXAM_ID and subject_id == _SUBJECT_ID and taxonomy_version == "math1_v1":
         return load_taxonomy("math1_v1")
     try:
         async with runtime_provider.open_product() as runtime:
@@ -1693,9 +1672,7 @@ async def _append_observation(
                 taxonomy_version=taxonomy_version,
                 channel=channel,
                 source_session_id=session_id,
-                source_turn_ids=tuple(
-                    item["id"] for item in messages if item.get("id")
-                ),
+                source_turn_ids=tuple(item["id"] for item in messages if item.get("id")),
                 knowledge_point_ids=draft.knowledge_point_ids,
                 summary=draft.summary,
                 rationale=draft.rationale,
@@ -1840,9 +1817,7 @@ async def _generate_practice_questions(
         options = pair.get("options")
         option_text = ""
         if isinstance(options, dict) and options:
-            option_text = "\n" + "\n".join(
-                f"{key}. {value}" for key, value in options.items()
-            )
+            option_text = "\n" + "\n".join(f"{key}. {value}" for key, value in options.items())
         difficulty = {"easy": 0.3, "medium": 0.55, "hard": 0.8}.get(
             str(pair.get("difficulty") or body.difficulty).lower(),
             0.5,
@@ -1911,9 +1886,7 @@ async def _study_plan_with_progress(
             )
         except RuntimeError:
             progress = {"status": "unavailable", "mastery": 0.0}
-        sessions[link["objective_id"]] = _objective_session_payload(
-            link, progress, created=False
-        )
+        sessions[link["objective_id"]] = _objective_session_payload(link, progress, created=False)
     return {**plan, "objective_sessions": sessions}
 
 
@@ -1970,9 +1943,7 @@ def _query_trace_id(context: LearningContext, operation: str) -> str:
     return f"exam_mem_query:{hashlib.sha256(identity).hexdigest()}"
 
 
-def _operation_trace_id(
-    context: LearningContext, operation: str, idempotency_key: str
-) -> str:
+def _operation_trace_id(context: LearningContext, operation: str, idempotency_key: str) -> str:
     identity = "\x1f".join((context.user_id, operation, idempotency_key)).encode()
     return f"exam_mem_{operation}:{hashlib.sha256(identity).hexdigest()}"
 

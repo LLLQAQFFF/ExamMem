@@ -41,9 +41,11 @@ class PostgresAssessmentRepository:
         questions: Sequence[Question],
         generation: dict[str, Any],
     ) -> dict[str, Any]:
-        statement = select(assessments).where(
-            assessments.c.assessment_id == assessment_id
-        ).with_for_update()
+        statement = (
+            select(assessments)
+            .where(assessments.c.assessment_id == assessment_id)
+            .with_for_update()
+        )
         existing = (await self._connection.execute(statement)).mappings().one_or_none()
         if existing is not None and existing["user_id"] != user_id:
             raise AssessmentConflict("assessment identity is unavailable")
@@ -112,9 +114,7 @@ class PostgresAssessmentRepository:
         practice_session_id: str,
         trace_id: str,
     ) -> dict[str, Any]:
-        await self.get_version(
-            user_id=user_id, assessment_id=assessment_id, version=version
-        )
+        await self.get_version(user_id=user_id, assessment_id=assessment_id, version=version)
         row = (
             (
                 await self._connection.execute(
@@ -157,9 +157,7 @@ class PostgresAssessmentRepository:
         )
         return None if row is None else dict(row)
 
-    async def fail_attempt(
-        self, *, user_id: str, practice_session_id: str
-    ) -> None:
+    async def fail_attempt(self, *, user_id: str, practice_session_id: str) -> None:
         await self._connection.execute(
             update(assessment_attempts)
             .where(
@@ -173,9 +171,7 @@ class PostgresAssessmentRepository:
     async def get_version(
         self, *, user_id: str, assessment_id: str, version: int
     ) -> dict[str, Any]:
-        assessment = await self._assessment(
-            user_id=user_id, assessment_id=assessment_id
-        )
+        assessment = await self._assessment(user_id=user_id, assessment_id=assessment_id)
         row = (
             (
                 await self._connection.execute(
@@ -193,9 +189,7 @@ class PostgresAssessmentRepository:
         return {
             "assessment": dict(assessment),
             "version": version,
-            "questions": tuple(
-                Question.model_validate(item) for item in row["question_catalog"]
-            ),
+            "questions": tuple(Question.model_validate(item) for item in row["question_catalog"]),
             "generation": dict(row["generation"]),
             "content_hash": row["content_hash"],
         }
@@ -217,10 +211,12 @@ class PostgresAssessmentRepository:
             attempts = (
                 (
                     await self._connection.execute(
-                        select(assessment_attempts).where(
+                        select(assessment_attempts)
+                        .where(
                             assessment_attempts.c.user_id == user_id,
                             assessment_attempts.c.assessment_id == row["assessment_id"],
-                        ).order_by(assessment_attempts.c.started_at.desc())
+                        )
+                        .order_by(assessment_attempts.c.started_at.desc())
                     )
                 )
                 .mappings()
@@ -279,9 +275,7 @@ class PostgresAssessmentRepository:
 
 def _payload_hash(payload: list[dict[str, Any]]) -> str:
     return hashlib.sha256(
-        json.dumps(
-            payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")
-        ).encode()
+        json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode()
     ).hexdigest()
 
 
@@ -293,9 +287,7 @@ def _public_attempt(row: Any) -> dict[str, Any]:
         "trace_id": row["trace_id"],
         "status": row["status"],
         "started_at": row["started_at"].isoformat(),
-        "completed_at": (
-            None if row["completed_at"] is None else row["completed_at"].isoformat()
-        ),
+        "completed_at": (None if row["completed_at"] is None else row["completed_at"].isoformat()),
     }
 
 

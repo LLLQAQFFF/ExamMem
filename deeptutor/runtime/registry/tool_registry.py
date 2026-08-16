@@ -67,9 +67,7 @@ class ToolRegistry:
             if current is tool:
                 continue
             if current is not None:
-                raise PluginLoadError(
-                    f"plugin tool conflicts with registered tool: {tool.name}"
-                )
+                raise PluginLoadError(f"plugin tool conflicts with registered tool: {tool.name}")
             self.register(tool)
 
     def _resolve_request(

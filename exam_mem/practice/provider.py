@@ -645,9 +645,7 @@ def _runtime_questions(context: UnifiedContext) -> tuple[Question, ...]:
     return questions
 
 
-async def _runtime_taxonomy(
-    engine: AsyncEngine, practice_context: PracticeContext
-) -> Taxonomy:
+async def _runtime_taxonomy(engine: AsyncEngine, practice_context: PracticeContext) -> Taxonomy:
     learning_context = _learning_context(practice_context)
     if (
         learning_context.exam_id == "postgraduate_entrance_exam"

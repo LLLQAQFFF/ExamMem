@@ -56,9 +56,7 @@ class ImportedOutline(StrictStudyModel):
     @model_validator(mode="after")
     def validate_labels(self) -> ImportedOutline:
         total = sum(
-            len(module.knowledge_points)
-            for subject in self.subjects
-            for module in subject.modules
+            len(module.knowledge_points) for subject in self.subjects for module in subject.modules
         )
         if total > 2_000:
             raise ValueError("an imported outline may contain at most 2000 knowledge points")
@@ -129,7 +127,9 @@ class StudyPlanTree(StrictStudyModel):
     def subject(self, subject_id: str) -> StudySubject | None:
         return next((subject for subject in self.subjects if subject.id == subject_id), None)
 
-    def objective(self, objective_id: str) -> tuple[StudySubject, StudyModule, StudyObjective] | None:
+    def objective(
+        self, objective_id: str
+    ) -> tuple[StudySubject, StudyModule, StudyObjective] | None:
         for subject in self.subjects:
             for module in subject.modules:
                 for objective in module.knowledge_points:
@@ -145,9 +145,7 @@ class StudyPlanTree(StrictStudyModel):
             TaxonomyNode(id=subject.id, name_zh=subject.name),
         ]
         for module in subject.modules:
-            nodes.append(
-                TaxonomyNode(id=module.id, name_zh=module.name, parent_id=subject.id)
-            )
+            nodes.append(TaxonomyNode(id=module.id, name_zh=module.name, parent_id=subject.id))
             nodes.extend(
                 TaxonomyNode(
                     id=objective.id,
@@ -176,9 +174,7 @@ def materialize_outline(plan_id: str, outline: ImportedOutline) -> StudyPlanTree
                     type=objective.type,
                     order=objective_index,
                 )
-                for objective_index, objective in enumerate(
-                    imported_module.knowledge_points
-                )
+                for objective_index, objective in enumerate(imported_module.knowledge_points)
             )
             modules.append(
                 StudyModule(

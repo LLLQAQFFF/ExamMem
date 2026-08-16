@@ -194,8 +194,7 @@ assessment_versions = Table(
     PrimaryKeyConstraint("assessment_id", "version", name="pk_assessment_versions"),
     CheckConstraint("version >= 1", name="ck_assessment_versions_version"),
     CheckConstraint(
-        "jsonb_typeof(question_catalog) = 'array' "
-        "AND jsonb_array_length(question_catalog) > 0",
+        "jsonb_typeof(question_catalog) = 'array' AND jsonb_array_length(question_catalog) > 0",
         name="ck_assessment_versions_catalog",
     ),
     CheckConstraint(

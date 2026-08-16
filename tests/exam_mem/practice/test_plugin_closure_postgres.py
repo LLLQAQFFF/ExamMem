@@ -186,7 +186,9 @@ async def test_plugin_registry_runs_recoverable_postgresql_closure(monkeypatch) 
         async with administration_engine.connect() as connection:
             await connection.execute(text(f'SET search_path TO "{schema_name}", public'))
             counts = {
-                "events": await connection.scalar(select(func.count()).select_from(learning_events)),
+                "events": await connection.scalar(
+                    select(func.count()).select_from(learning_events)
+                ),
                 "memories": await connection.scalar(
                     select(func.count()).select_from(learning_memories)
                 ),

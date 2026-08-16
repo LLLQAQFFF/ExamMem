@@ -365,9 +365,7 @@ def _practice_context(context: UnifiedContext) -> PracticeContext:
         raise PracticeCapabilityInputError(
             f"config.{PRACTICE_CONTEXT_METADATA_KEY} is invalid"
         ) from exc
-    authenticated_scope = practice_context.scope.model_copy(
-        update={"user_id": current_user_id()}
-    )
+    authenticated_scope = practice_context.scope.model_copy(update={"user_id": current_user_id()})
     return practice_context.model_copy(update={"scope": authenticated_scope})
 
 

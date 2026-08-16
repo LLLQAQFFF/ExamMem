@@ -48,9 +48,7 @@ async def test_non_admin_cannot_save_plugin_configuration(monkeypatch) -> None:
         saved = True
         raise AssertionError("non-admin request reached settings persistence")
 
-    monkeypatch.setattr(
-        "deeptutor_plugins.exam_mem.api.save_plugin_settings", fail_if_saved
-    )
+    monkeypatch.setattr("deeptutor_plugins.exam_mem.api.save_plugin_settings", fail_if_saved)
     contribution = SettingsContribution(
         namespace="exam_mem",
         defaults=ExamMemSettings().model_dump(mode="json"),
@@ -67,9 +65,7 @@ async def test_non_admin_cannot_save_plugin_configuration(monkeypatch) -> None:
     )
 
     with _regular_user():
-        async with AsyncClient(
-            transport=ASGITransport(app=api), base_url="http://test"
-        ) as client:
+        async with AsyncClient(transport=ASGITransport(app=api), base_url="http://test") as client:
             response = await client.put(
                 "/api/v1/exam-mem/configuration",
                 json=ExamMemSettings(memory_backend="none").model_dump(mode="json"),
@@ -112,9 +108,7 @@ async def test_grade_dispute_uses_the_assessment_scope() -> None:
     )
 
     with _regular_user():
-        async with AsyncClient(
-            transport=ASGITransport(app=api), base_url="http://test"
-        ) as client:
+        async with AsyncClient(transport=ASGITransport(app=api), base_url="http://test") as client:
             response = await client.post(
                 "/api/v1/exam-mem/grade-reviews/disputes",
                 json={
@@ -231,8 +225,7 @@ async def test_native_quiz_questions_are_versioned_and_server_side() -> None:
     assert len(questions) == 2
     assert all(question.question_id.startswith("generated:") for question in questions)
     assert all(
-        question.knowledge_point_ids == ["math1.probability.bayes"]
-        for question in questions
+        question.knowledge_point_ids == ["math1.probability.bayes"] for question in questions
     )
     assert questions[0].grading_rubric["source"] == {
         "kind": "deeptutor_native_quiz",

@@ -166,9 +166,7 @@ class DeepTutorApp:
     ) -> list[dict[str, Any]]:
         return await self.store.list_sessions(limit=limit, offset=offset, surface=surface)
 
-    async def get_session(
-        self, session_id: str, *, surface: str = "chat"
-    ) -> dict[str, Any] | None:
+    async def get_session(self, session_id: str, *, surface: str = "chat") -> dict[str, Any] | None:
         return await self.store.get_session_with_messages(session_id, surface=surface)
 
     async def rename_session(self, session_id: str, title: str) -> bool:

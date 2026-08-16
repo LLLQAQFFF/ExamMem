@@ -54,10 +54,7 @@ def test_migration_chain_has_one_linear_head() -> None:
     assert scripts.get_revision("0007_grade_reviews").down_revision == "0006_practice_workflow"
     assert scripts.get_revision("0008_study_plans").down_revision == "0007_grade_reviews"
     assert scripts.get_revision("0009_assessments").down_revision == "0008_study_plans"
-    assert (
-        scripts.get_revision("0010_learning_observations").down_revision
-        == "0009_assessments"
-    )
+    assert scripts.get_revision("0010_learning_observations").down_revision == "0009_assessments"
 
 
 def test_revision_ids_fit_the_alembic_version_column() -> None:

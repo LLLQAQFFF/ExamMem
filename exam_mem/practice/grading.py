@@ -27,6 +27,7 @@ class _GradeEvidence(StrictPracticeModel):
     missed_rubric_items: list[NonEmptyString]
     evidence: list[NonEmptyString]
 
+
 _SYSTEM_PROMPTS = {
     "zh": """你是一个受约束的答案评分器。
 只返回一个符合所给 JSON Schema 的 JSON 对象。

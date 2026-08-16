@@ -27,18 +27,12 @@ def test_exam_mem_manifest_contributes_only_plugin_owned_surfaces() -> None:
     assert [(item.prefix, item.access) for item in manager.routers()] == [
         ("/api/v1/exam-mem", "authenticated")
     ]
-    assert [
-        (item.href, item.label, item.icon, item.section)
-        for item in manager.navigation()
-    ] == [
+    assert [(item.href, item.label, item.icon, item.section) for item in manager.navigation()] == [
         ("/exam-mem/practice", "Smart Exam Prep", "BrainCircuit", "primary")
     ]
     assert manager.settings()[0].namespace == "exam_mem"
     assert manager.plugins[0].manifest.migration is not None
-    assert (
-        manager.plugins[0].manifest.migration.expected_head
-        == "0010_learning_observations"
-    )
+    assert manager.plugins[0].manifest.migration.expected_head == "0010_learning_observations"
 
 
 def test_exam_mem_registers_through_neutral_host_registries(monkeypatch) -> None:

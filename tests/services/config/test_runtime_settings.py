@@ -60,9 +60,7 @@ def test_runtime_settings_creates_defaults_without_reading_dotenv(tmp_path: Path
 def test_plugin_settings_are_normalized_and_do_not_import_plugins(tmp_path: Path) -> None:
     service = RuntimeSettingsService(tmp_path / "settings")
 
-    saved = service.save_plugins(
-        {"disabled": [" second ", "first", "first", "", None]}
-    )
+    saved = service.save_plugins({"disabled": [" second ", "first", "first", "", None]})
 
     assert saved == {"version": 1, "disabled": ["first", "second"]}
     assert service.load_plugins() == saved

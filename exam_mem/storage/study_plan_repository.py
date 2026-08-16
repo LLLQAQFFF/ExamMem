@@ -159,9 +159,7 @@ class PostgresStudyPlanRepository:
         return [await self._hydrate(row) for row in rows]
 
     async def get(self, *, user_id: str, plan_id: str) -> dict[str, Any]:
-        return await self._hydrate(
-            await self._owned_plan(user_id=user_id, plan_id=plan_id)
-        )
+        return await self._hydrate(await self._owned_plan(user_id=user_id, plan_id=plan_id))
 
     async def get_version(
         self, *, user_id: str, plan_id: str, version: int | None = None
@@ -351,9 +349,7 @@ class PostgresStudyPlanRepository:
             (key,),
         )
 
-    async def _owned_plan(
-        self, *, user_id: str, plan_id: str, for_update: bool = False
-    ) -> Any:
+    async def _owned_plan(self, *, user_id: str, plan_id: str, for_update: bool = False) -> Any:
         statement = select(study_plans).where(
             study_plans.c.plan_id == plan_id,
             study_plans.c.user_id == user_id,
@@ -369,9 +365,7 @@ class PostgresStudyPlanRepository:
         draft = (
             (
                 await self._connection.execute(
-                    select(study_plan_drafts).where(
-                        study_plan_drafts.c.plan_id == plan["plan_id"]
-                    )
+                    select(study_plan_drafts).where(study_plan_drafts.c.plan_id == plan["plan_id"])
                 )
             )
             .mappings()
@@ -389,11 +383,7 @@ class PostgresStudyPlanRepository:
             .all()
         )
         active = next(
-            (
-                item
-                for item in versions
-                if item["version"] == plan["active_version"]
-            ),
+            (item for item in versions if item["version"] == plan["active_version"]),
             None,
         )
         return {

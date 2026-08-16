@@ -143,8 +143,7 @@ async def test_non_lifecycle_recommendation_uses_resolved_dynamic_taxonomy() -> 
     assert recommendation.target_knowledge_point_id == "ptest.module.point"
 
 
-async def test_runtime_provider_requires_structured_question_catalog_before_database_use(
-) -> None:
+async def test_runtime_provider_requires_structured_question_catalog_before_database_use() -> None:
     with pytest.raises(PracticeRuntimeConfigurationError, match="structured questions"):
         async with PracticeRuntimeProvider(
             settings=ExamMemSettings.model_validate({"memory_backend": "none"})

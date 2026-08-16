@@ -71,9 +71,7 @@ class PluginTurnHost:
 
         self._app = DeepTutorApp()
 
-    async def start_turn(
-        self, request: PluginTurnRequest
-    ) -> tuple[dict[str, Any], dict[str, Any]]:
+    async def start_turn(self, request: PluginTurnRequest) -> tuple[dict[str, Any], dict[str, Any]]:
         payload = asdict(request)
         if not request.attachments:
             payload.pop("attachments")
@@ -293,9 +291,7 @@ class NativeMemoryHost:
         existing = next(iter_by_ids([native_event.id]), None)
         if existing is not None:
             if asdict(existing) != asdict(native_event):
-                raise PluginDataConflict(
-                    "Native Memory event identity conflicts with stored trace"
-                )
+                raise PluginDataConflict("Native Memory event identity conflicts with stored trace")
             return False
         await self._store.emit(native_event)
         return True

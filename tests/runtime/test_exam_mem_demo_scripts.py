@@ -36,7 +36,7 @@ def test_demo_resources_are_local_explicit_and_separate_from_production() -> Non
     assert "127.0.0.1:${EXAM_MEM_DEMO_POSTGRES_PORT:-55434}:5432" in compose
     assert "exammem-demo-postgres-data" in compose
     assert "down --volumes --remove-orphans" in reset
-    assert 'DELETE ${DEMO_DB_NAME}' in reset
+    assert "DELETE ${DEMO_DB_NAME}" in reset
 
 
 def test_demo_start_defaults_to_dev_and_never_rewrites_workspace_settings() -> None:

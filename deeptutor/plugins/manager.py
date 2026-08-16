@@ -83,9 +83,7 @@ class PluginManager:
                 plugin_tools = tuple(factory() for factory in manifest.tool_factories)
                 for capability in plugin_capabilities:
                     if capability.name in seen_capabilities:
-                        raise PluginLoadError(
-                            f"duplicate plugin capability: {capability.name}"
-                        )
+                        raise PluginLoadError(f"duplicate plugin capability: {capability.name}")
                     seen_capabilities.add(capability.name)
                 for tool in plugin_tools:
                     if tool.name in seen_tools:

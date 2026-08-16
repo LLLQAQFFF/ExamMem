@@ -8,17 +8,13 @@ from deeptutor.plugins import host_services
 
 def test_plugin_host_services_expose_json_and_embedding_validation() -> None:
     assert host_services.extract_json_object('prefix {"ok": true} suffix') == {"ok": True}
-    assert host_services.validate_embedding_batch([[1, 2.5]], expected_count=1) == [
-        [1.0, 2.5]
-    ]
+    assert host_services.validate_embedding_batch([[1, 2.5]], expected_count=1) == [[1.0, 2.5]]
 
 
 def test_turn_facade_carries_only_explicit_mastery_path_identity() -> None:
     assert "mastery_path_id" not in TurnRequest(content="hello").to_payload()
     assert (
-        TurnRequest(content="learn", mastery_path_id="path-one").to_payload()[
-            "mastery_path_id"
-        ]
+        TurnRequest(content="learn", mastery_path_id="path-one").to_payload()["mastery_path_id"]
         == "path-one"
     )
 
@@ -141,9 +137,7 @@ async def test_plugin_turn_host_deletes_transient_session_and_attachments(
             deleted.append(("attachments", session_id))
 
     monkeypatch.setattr("deeptutor.app.DeepTutorApp", FakeApp)
-    monkeypatch.setattr(
-        "deeptutor.services.session.get_session_store", lambda: SessionStore()
-    )
+    monkeypatch.setattr("deeptutor.services.session.get_session_store", lambda: SessionStore())
     monkeypatch.setattr(
         "deeptutor.services.storage.attachment_store.get_attachment_store",
         lambda: AttachmentStore(),
@@ -186,9 +180,7 @@ async def test_plugin_turn_host_exposes_bounded_neutral_chat_reads(monkeypatch) 
             ]
 
     monkeypatch.setattr("deeptutor.app.DeepTutorApp", FakeApp)
-    monkeypatch.setattr(
-        "deeptutor.services.session.get_session_store", lambda: SessionStore()
-    )
+    monkeypatch.setattr("deeptutor.services.session.get_session_store", lambda: SessionStore())
     host = host_services.PluginTurnHost()
 
     summaries = await host.list_conversations()

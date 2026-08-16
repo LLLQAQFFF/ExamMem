@@ -85,9 +85,7 @@ async def test_trace_recorder_clamps_a_backward_wall_clock(monkeypatch) -> None:
             (),
             {
                 "now": staticmethod(
-                    lambda _timezone: datetime(
-                        2026, 8, 13, 12, 0, 0, tzinfo=timezone.utc
-                    )
+                    lambda _timezone: datetime(2026, 8, 13, 12, 0, 0, tzinfo=timezone.utc)
                 )
             },
         ),

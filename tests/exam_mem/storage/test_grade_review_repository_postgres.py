@@ -65,9 +65,7 @@ async def test_grade_review_is_scoped_idempotent_and_append_only() -> None:
             assert other == []
 
             with pytest.raises(Exception, match="append-only"):
-                await connection.execute(
-                    grade_review_events.update().values(action="uphold")
-                )
+                await connection.execute(grade_review_events.update().values(action="uphold"))
             await transaction.rollback()
     finally:
         await engine.dispose()
@@ -82,9 +80,9 @@ async def test_grade_review_transaction_rollback_leaves_no_rows() -> None:
             await transaction.rollback()
         async with engine.connect() as connection:
             count = await connection.scalar(
-                select(func.count()).select_from(grade_review_events).where(
-                    grade_review_events.c.review_event_id == _event().review_event_id
-                )
+                select(func.count())
+                .select_from(grade_review_events)
+                .where(grade_review_events.c.review_event_id == _event().review_event_id)
             )
             trigger = await connection.scalar(
                 text(

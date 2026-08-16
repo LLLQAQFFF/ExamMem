@@ -47,9 +47,7 @@ def _tree(plan_id: str) -> StudyPlanTree:
                         "modules": [
                             {
                                 "name": "高等数学",
-                                "knowledge_points": [
-                                    {"name": "函数极限", "type": "concept"}
-                                ],
+                                "knowledge_points": [{"name": "函数极限", "type": "concept"}],
                             }
                         ],
                     }
@@ -101,9 +99,7 @@ class FakeStudyPlans:
         assert version in (None, 1)
         return self._version()
 
-    async def taxonomy(
-        self, *, user_id, exam_id, subject_id, taxonomy_version
-    ):  # noqa: ANN001, ANN201
+    async def taxonomy(self, *, user_id, exam_id, subject_id, taxonomy_version):  # noqa: ANN001, ANN201
         assert user_id == "study-user"
         assert exam_id == f"plan:{self.plan_id}"
         assert self.tree is not None
@@ -268,9 +264,7 @@ async def test_import_publish_and_open_objective_restores_one_host_session() -> 
     )
 
     with _regular_user():
-        async with AsyncClient(
-            transport=ASGITransport(app=api), base_url="http://test"
-        ) as client:
+        async with AsyncClient(transport=ASGITransport(app=api), base_url="http://test") as client:
             imported = await client.post(
                 "/api/v1/exam-mem/study-plans/import",
                 json={
@@ -281,12 +275,10 @@ async def test_import_publish_and_open_objective_restores_one_host_session() -> 
             )
             assert imported.status_code == 200
             plan_id = imported.json()["plan_id"]
-            published = await client.post(
-                f"/api/v1/exam-mem/study-plans/{plan_id}/publish"
-            )
-            objective_id = published.json()["published"]["tree"]["subjects"][0][
-                "modules"
-            ][0]["knowledge_points"][0]["id"]
+            published = await client.post(f"/api/v1/exam-mem/study-plans/{plan_id}/publish")
+            objective_id = published.json()["published"]["tree"]["subjects"][0]["modules"][0][
+                "knowledge_points"
+            ][0]["id"]
             first = await client.post(
                 f"/api/v1/exam-mem/study-plans/{plan_id}/objectives/{objective_id}/open",
                 json={"version": 1, "language": "zh"},

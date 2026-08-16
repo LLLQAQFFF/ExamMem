@@ -104,9 +104,7 @@ async def _isolated_database(
             assert url == database_url
             return create_async_engine(
                 url,
-                connect_args={
-                    "server_settings": {"search_path": f'"{schema_name}", public'}
-                },
+                connect_args={"server_settings": {"search_path": f'"{schema_name}", public'}},
             )
 
         yield administration_engine, schema_name, engine_factory
@@ -118,9 +116,7 @@ async def _isolated_database(
 
 
 class _FixedEmbeddingClient:
-    async def embed(
-        self, texts: list[str], *, input_type: str | None = None
-    ) -> list[list[float]]:
+    async def embed(self, texts: list[str], *, input_type: str | None = None) -> list[list[float]]:
         assert input_type in {"search_document", "search_query"}
         vector = [1.0, *([0.0] * (LEARNING_MEMORY_EMBEDDING_DIMENSION - 1))]
         return [vector.copy() for _ in texts]
@@ -135,9 +131,7 @@ async def _fixed_completion(**kwargs: object) -> str:
     prompt = str(kwargs.get("prompt") or "")
     probability = "bayes" in prompt.lower() or "贝叶斯" in prompt
     knowledge_point_id = (
-        "math1.probability.bayes"
-        if probability
-        else "math1.linear_algebra.matrix_multiplication"
+        "math1.probability.bayes" if probability else "math1.linear_algebra.matrix_multiplication"
     )
     if name == "exam_mem_grade_result":
         return json.dumps(
@@ -338,9 +332,7 @@ async def _websocket_turn(
         return set_current_user(local_admin_user())
 
     monkeypatch.setattr("deeptutor.api.routers.auth.ws_require_auth", authenticate)
-    monkeypatch.setattr(
-        "deeptutor.services.session.get_turn_runtime_manager", lambda: app.runtime
-    )
+    monkeypatch.setattr("deeptutor.services.session.get_turn_runtime_manager", lambda: app.runtime)
     socket = _MemoryWebSocket({"type": "start_turn", **request.to_payload()})
     await unified_websocket(socket)  # type: ignore[arg-type]
     result = next(event for event in socket.events if event.get("type") == "result")
@@ -415,9 +407,7 @@ async def test_generated_questions_are_checkpointed_and_attempts_share_exam_scop
         schema_name,
         engine_factory,
     ):
-        _manager, plugin, app, path_service = _wire_runtime(
-            monkeypatch, engine_factory, tmp_path
-        )
+        _manager, plugin, app, path_service = _wire_runtime(monkeypatch, engine_factory, tmp_path)
         host = _GeneratedQuestionTurnHost(app)
         api = FastAPI()
         api.include_router(
@@ -452,9 +442,7 @@ async def test_generated_questions_are_checkpointed_and_attempts_share_exam_scop
                     assert generated_response.status_code == 200, generated_response.text
                     generated = generated_response.json()
                     serialized = generated_response.text
-                    assert generated["practice"]["question"]["question_id"].startswith(
-                        "generated:"
-                    )
+                    assert generated["practice"]["question"]["question_id"].startswith("generated:")
                     assert "reference_answer" not in serialized
                     assert "grading_rubric" not in serialized
                     answer_response = await client.post(
@@ -482,15 +470,12 @@ async def test_generated_questions_are_checkpointed_and_attempts_share_exam_scop
                         "/api/v1/exam-mem/practice/sessions/practice:generated:001/resume"
                     )
                     assert resumed_first.status_code == 200, resumed_first.text
-                    history_response = await client.get(
-                        "/api/v1/exam-mem/practice/sessions"
-                    )
+                    history_response = await client.get("/api/v1/exam-mem/practice/sessions")
                     assert history_response.status_code == 200, history_response.text
                     history = history_response.json()["sessions"]
                     assert [item["attempt_number"] for item in history] == [2, 1]
                     assert {
-                        item["practice_session_id"]: item["attempt_number"]
-                        for item in history
+                        item["practice_session_id"]: item["attempt_number"] for item in history
                     } == {
                         "practice:generated:001": 1,
                         "practice:generated:002": 2,
@@ -507,8 +492,7 @@ async def test_generated_questions_are_checkpointed_and_attempts_share_exam_scop
             payload = await connection.scalar(
                 select(practice_workflow_checkpoints.c.payload)
                 .where(
-                    practice_workflow_checkpoints.c.practice_session_id
-                    == "practice:generated:001"
+                    practice_workflow_checkpoints.c.practice_session_id == "practice:generated:001"
                 )
                 .order_by(practice_workflow_checkpoints.c.updated_at.desc())
                 .limit(1)
@@ -518,9 +502,7 @@ async def test_generated_questions_are_checkpointed_and_attempts_share_exam_scop
         assert len(catalog) == 2
         source = catalog[0]["grading_rubric"]["source"]
         assert source["kind"] == "deeptutor_native_quiz"
-        assert source["source_artifacts"][0]["sha256"] == hashlib.sha256(
-            b"lesson"
-        ).hexdigest()
+        assert source["source_artifacts"][0]["sha256"] == hashlib.sha256(b"lesson").hexdigest()
         assert host.deleted_sessions == ["transient-generation"]
 
 
@@ -535,9 +517,7 @@ async def test_real_entry_runs_one_plugin_workflow_and_replays_without_duplicate
         schema_name,
         engine_factory,
     ):
-        manager, _plugin, app, path_service = _wire_runtime(
-            monkeypatch, engine_factory, tmp_path
-        )
+        manager, _plugin, app, path_service = _wire_runtime(monkeypatch, engine_factory, tmp_path)
         monkeypatch.setattr("deeptutor.app.DeepTutorApp", lambda: app)
 
         with memory_path_service_override(path_service):
@@ -601,9 +581,7 @@ async def test_real_entry_runs_one_plugin_workflow_and_replays_without_duplicate
                     assert evidence_response.status_code == 200, evidence_response.text
                     assert detail_response.json()["snapshot"]["memory"]["memory_id"] == memory_id
                     assert evidence_response.json()["events"][0]["event_id"]
-                    history_response = await client.get(
-                        "/api/v1/exam-mem/practice/sessions"
-                    )
+                    history_response = await client.get("/api/v1/exam-mem/practice/sessions")
                     assert history_response.status_code == 200, history_response.text
                     [history] = history_response.json()["sessions"]
                     assert history["practice_session_id"] == PRACTICE_SESSION_ID
@@ -627,9 +605,7 @@ async def test_real_entry_runs_one_plugin_workflow_and_replays_without_duplicate
                     assert review["trace"]
                     assert review["lifecycle"]["decisions"]
                     answer_checkpoint = next(
-                        item
-                        for item in review["checkpoints"]
-                        if item["grade_result"] is not None
+                        item for item in review["checkpoints"] if item["grade_result"] is not None
                     )
                     dispute_body = {
                         "practice_session_id": PRACTICE_SESSION_ID,
@@ -651,8 +627,7 @@ async def test_real_entry_runs_one_plugin_workflow_and_replays_without_duplicate
                     issues_response = await client.get("/api/v1/exam-mem/issues")
                     assert issues_response.status_code == 200, issues_response.text
                     assert any(
-                        issue["type"] == "grade_disputed"
-                        and issue["status"] == "open"
+                        issue["type"] == "grade_disputed" and issue["status"] == "open"
                         for issue in issues_response.json()["issues"]
                     )
                     review_chain_id = dispute_response.json()["review"]["review_chain_id"]
@@ -682,8 +657,7 @@ async def test_real_entry_runs_one_plugin_workflow_and_replays_without_duplicate
                     assert replay_disposition_response.json()["status"] == "existing"
                     resolved_issues_response = await client.get("/api/v1/exam-mem/issues")
                     assert any(
-                        issue["type"] == "grade_disputed"
-                        and issue["status"] == "resolved"
+                        issue["type"] == "grade_disputed" and issue["status"] == "resolved"
                         for issue in resolved_issues_response.json()["issues"]
                     )
                     counts_after_answer = await _counts(administration_engine, schema_name)
@@ -708,17 +682,13 @@ async def test_real_entry_runs_one_plugin_workflow_and_replays_without_duplicate
                     question_id = started["practice"]["question"]["question_id"]
                     _, answered_result, _ = await run(
                         app,
-                        _turn_request(
-                            session_id=str(start_session["id"]), question_id=question_id
-                        ),
+                        _turn_request(session_id=str(start_session["id"]), question_id=question_id),
                     )
                     answered = {"practice": answered_result["metadata"]["practice"]}
                     counts_after_answer = await _counts(administration_engine, schema_name)
                     _, replay_result, _ = await run(
                         app,
-                        _turn_request(
-                            session_id=str(start_session["id"]), question_id=question_id
-                        ),
+                        _turn_request(session_id=str(start_session["id"]), question_id=question_id),
                     )
                     replayed = {"practice": replay_result["metadata"]["practice"]}
                 else:
@@ -734,18 +704,14 @@ async def test_real_entry_runs_one_plugin_workflow_and_replays_without_duplicate
                     question_id = started["practice"]["question"]["question_id"]
                     _, answered_result, _ = await _websocket_turn(
                         app,
-                        _turn_request(
-                            session_id=str(start_session["id"]), question_id=question_id
-                        ),
+                        _turn_request(session_id=str(start_session["id"]), question_id=question_id),
                         monkeypatch,
                     )
                     answered = {"practice": answered_result["metadata"]["practice"]}
                     counts_after_answer = await _counts(administration_engine, schema_name)
                     _, replay_result, _ = await _websocket_turn(
                         app,
-                        _turn_request(
-                            session_id=str(start_session["id"]), question_id=question_id
-                        ),
+                        _turn_request(session_id=str(start_session["id"]), question_id=question_id),
                         monkeypatch,
                     )
                     replayed = {"practice": replay_result["metadata"]["practice"]}
@@ -754,12 +720,7 @@ async def test_real_entry_runs_one_plugin_workflow_and_replays_without_duplicate
         session_record = await app.store.get_session(str(started["session_id"]))
         assert session_record is not None
         assert session_record["preferences"]["session_surface"] == "exam_practice"
-        assert (
-            await app.store.get_session(
-                str(started["session_id"]), surface="chat"
-            )
-            is None
-        )
+        assert await app.store.get_session(str(started["session_id"]), surface="chat") is None
         assert answered["practice"]["step_state"] == "RECOMMENDED"
         assert answered["practice"]["recommendation"]["source_memory_ids"]
         assert replayed["practice"]["replayed"] is True

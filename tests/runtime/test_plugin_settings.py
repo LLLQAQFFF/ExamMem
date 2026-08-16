@@ -10,13 +10,9 @@ def _normalize(value):  # noqa: ANN001, ANN202
     return {"enabled": bool(value.get("enabled", True)), "mode": str(value.get("mode", "a"))}
 
 
-def test_plugin_settings_are_namespaced_normalized_and_atomic(
-    monkeypatch, tmp_path
-) -> None:  # noqa: ANN001
+def test_plugin_settings_are_namespaced_normalized_and_atomic(monkeypatch, tmp_path) -> None:  # noqa: ANN001
     service = PathService(workspace_root=tmp_path / "admin")
-    monkeypatch.setattr(
-        "deeptutor.plugins.settings.get_admin_path_service", lambda: service
-    )
+    monkeypatch.setattr("deeptutor.plugins.settings.get_admin_path_service", lambda: service)
     contribution = SettingsContribution(
         namespace="fake_plugin",
         defaults={"enabled": True, "mode": "a"},

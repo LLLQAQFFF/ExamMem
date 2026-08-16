@@ -131,9 +131,7 @@ async def test_surface_filter_is_applied_before_pagination(fake_pb) -> None:
     store = PocketBaseSessionStore()
     with as_user("alice"):
         practice = await store.create_session(title="practice", session_id="s_practice")
-        await store.update_session_preferences(
-            practice["id"], {"session_surface": "exam_practice"}
-        )
+        await store.update_session_preferences(practice["id"], {"session_surface": "exam_practice"})
         await store.create_session(title="chat", session_id="s_chat")
 
         chat_sessions = await store.list_sessions(limit=1, surface="chat")
