@@ -1,0 +1,435 @@
+{
+  "case_id": "formal:accidental_error:03",
+  "events": [
+    {
+      "answer_correct": false,
+      "context": {
+        "exam_id": "formal:accidental_error:03:postgraduate_entrance_exam",
+        "subject_id": "linear_algebra",
+        "user_id": "formal:accidental_error:03:user_001"
+      },
+      "correction": null,
+      "difficulty": 0.35,
+      "error_detail": "解题方法与推理正确，但最后一步把 -3 + 5 计算成 1",
+      "error_type": "careless_error",
+      "event_id": "formal:accidental_error:03:event_determinant_101",
+      "event_type": "answer_attempt",
+      "evidence_quality": {
+        "confidence": 1.0,
+        "is_temporary_exception": false,
+        "reasons": []
+      },
+      "idempotency_key": "formal:accidental_error:03:determinant-careless-101",
+      "knowledge_point_ids": [
+        "math1.linear_algebra.vector_space"
+      ],
+      "occurred_at": "2026-08-09T13:00:00Z",
+      "plan_transition": null,
+      "question_id": "controlled:vector_space:v1",
+      "session_id": "formal:accidental_error:03:session:1"
+    },
+    {
+      "answer_correct": false,
+      "context": {
+        "exam_id": "formal:accidental_error:03:postgraduate_entrance_exam",
+        "subject_id": "linear_algebra",
+        "user_id": "formal:accidental_error:03:user_001"
+      },
+      "correction": null,
+      "difficulty": 0.35,
+      "error_detail": "本次作答受外部中断影响，不能作为稳定能力证据。",
+      "error_type": "unknown",
+      "event_id": "formal:accidental_error:03:padding_event:2",
+      "event_type": "answer_attempt",
+      "evidence_quality": {
+        "confidence": 0.1,
+        "is_temporary_exception": true,
+        "reasons": [
+          "external_disruption"
+        ]
+      },
+      "idempotency_key": "formal:accidental_error:03:padding_idempotency:2",
+      "knowledge_point_ids": [
+        "math1.linear_algebra.vector_space"
+      ],
+      "occurred_at": "2026-08-16T13:00:00Z",
+      "plan_transition": null,
+      "question_id": "controlled:vector_space:v1",
+      "session_id": "formal:accidental_error:03:session:2"
+    },
+    {
+      "answer_correct": false,
+      "context": {
+        "exam_id": "formal:accidental_error:03:postgraduate_entrance_exam",
+        "subject_id": "linear_algebra",
+        "user_id": "formal:accidental_error:03:user_001"
+      },
+      "correction": null,
+      "difficulty": 0.35,
+      "error_detail": "本次作答受外部中断影响，不能作为稳定能力证据。",
+      "error_type": "unknown",
+      "event_id": "formal:accidental_error:03:padding_event:3",
+      "event_type": "answer_attempt",
+      "evidence_quality": {
+        "confidence": 0.1,
+        "is_temporary_exception": true,
+        "reasons": [
+          "external_disruption"
+        ]
+      },
+      "idempotency_key": "formal:accidental_error:03:padding_idempotency:3",
+      "knowledge_point_ids": [
+        "math1.linear_algebra.vector_space"
+      ],
+      "occurred_at": "2026-08-23T13:00:00Z",
+      "plan_transition": null,
+      "question_id": "controlled:vector_space:v1",
+      "session_id": "formal:accidental_error:03:session:3"
+    }
+  ],
+  "gold_actions": [
+    {
+      "action_type": "no_action",
+      "knowledge_point_ids": [
+        "math1.linear_algebra.vector_space"
+      ],
+      "reason_code": "isolated_careless_error_requires_no_teaching_change",
+      "step_id": "formal:accidental_error:03:step_001"
+    },
+    {
+      "action_type": "no_action",
+      "knowledge_point_ids": [],
+      "reason_code": "temporary_low_confidence_evidence_requires_no_action",
+      "step_id": "formal:accidental_error:03:padding_step:2"
+    },
+    {
+      "action_type": "no_action",
+      "knowledge_point_ids": [],
+      "reason_code": "temporary_low_confidence_evidence_requires_no_action",
+      "step_id": "formal:accidental_error:03:padding_step:3"
+    }
+  ],
+  "gold_operations": [
+    {
+      "candidate_memory_ids": [
+        "formal:accidental_error:03:mastery_determinant_high_v1"
+      ],
+      "canonical_knowledge_point_ids": [
+        "math1.linear_algebra.vector_space"
+      ],
+      "event_id": "formal:accidental_error:03:event_determinant_101",
+      "evidence_event_ids": [
+        "formal:accidental_error:03:event_determinant_101"
+      ],
+      "expected_result_value": null,
+      "extracted_fields": {
+        "answer_correct": false,
+        "correction": null,
+        "error_detail": "解题方法与推理正确，但最后一步把 -3 + 5 计算成 1",
+        "error_type": "careless_error",
+        "event_type": "answer_attempt",
+        "evidence_quality": {
+          "confidence": 1.0,
+          "is_temporary_exception": false,
+          "reasons": []
+        },
+        "knowledge_point_ids": [
+          "math1.linear_algebra.vector_space"
+        ],
+        "plan_transition": null
+      },
+      "operation": "NO_OP",
+      "operation_id": "formal:accidental_error:03:step_001:mastery",
+      "reason_code": "single_careless_error_does_not_change_concept_mastery",
+      "result_memory_id": null,
+      "slot_key": "mastery:math1.linear_algebra.vector_space",
+      "step_id": "formal:accidental_error:03:step_001",
+      "target_memory_ids": [
+        "formal:accidental_error:03:mastery_determinant_high_v1"
+      ]
+    },
+    {
+      "candidate_memory_ids": [],
+      "canonical_knowledge_point_ids": [
+        "math1.linear_algebra.vector_space"
+      ],
+      "event_id": "formal:accidental_error:03:event_determinant_101",
+      "evidence_event_ids": [
+        "formal:accidental_error:03:event_determinant_101"
+      ],
+      "expected_result_value": null,
+      "extracted_fields": {
+        "answer_correct": false,
+        "correction": null,
+        "error_detail": "解题方法与推理正确，但最后一步把 -3 + 5 计算成 1",
+        "error_type": "careless_error",
+        "event_type": "answer_attempt",
+        "evidence_quality": {
+          "confidence": 1.0,
+          "is_temporary_exception": false,
+          "reasons": []
+        },
+        "knowledge_point_ids": [
+          "math1.linear_algebra.vector_space"
+        ],
+        "plan_transition": null
+      },
+      "operation": "NO_OP",
+      "operation_id": "formal:accidental_error:03:step_001:error_pattern",
+      "reason_code": "single_careless_event_is_not_a_stable_error_pattern",
+      "result_memory_id": null,
+      "slot_key": "error_pattern:math1.linear_algebra.vector_space:careless_error",
+      "step_id": "formal:accidental_error:03:step_001",
+      "target_memory_ids": []
+    },
+    {
+      "candidate_memory_ids": [
+        "formal:accidental_error:03:mastery_determinant_high_v1"
+      ],
+      "canonical_knowledge_point_ids": [
+        "math1.linear_algebra.vector_space"
+      ],
+      "event_id": "formal:accidental_error:03:padding_event:2",
+      "evidence_event_ids": [
+        "formal:accidental_error:03:padding_event:2"
+      ],
+      "expected_result_value": null,
+      "extracted_fields": {
+        "answer_correct": false,
+        "correction": null,
+        "error_detail": "本次作答受外部中断影响，不能作为稳定能力证据。",
+        "error_type": "unknown",
+        "event_type": "answer_attempt",
+        "evidence_quality": {
+          "confidence": 0.1,
+          "is_temporary_exception": true,
+          "reasons": [
+            "external_disruption"
+          ]
+        },
+        "knowledge_point_ids": [
+          "math1.linear_algebra.vector_space"
+        ],
+        "plan_transition": null
+      },
+      "operation": "NO_OP",
+      "operation_id": "formal:accidental_error:03:padding_operation:2:1",
+      "reason_code": "temporary_low_confidence_evidence_is_not_persisted",
+      "result_memory_id": null,
+      "slot_key": "mastery:math1.linear_algebra.vector_space",
+      "step_id": "formal:accidental_error:03:padding_step:2",
+      "target_memory_ids": [
+        "formal:accidental_error:03:mastery_determinant_high_v1"
+      ]
+    },
+    {
+      "candidate_memory_ids": [],
+      "canonical_knowledge_point_ids": [
+        "math1.linear_algebra.vector_space"
+      ],
+      "event_id": "formal:accidental_error:03:padding_event:2",
+      "evidence_event_ids": [
+        "formal:accidental_error:03:padding_event:2"
+      ],
+      "expected_result_value": null,
+      "extracted_fields": {
+        "answer_correct": false,
+        "correction": null,
+        "error_detail": "本次作答受外部中断影响，不能作为稳定能力证据。",
+        "error_type": "unknown",
+        "event_type": "answer_attempt",
+        "evidence_quality": {
+          "confidence": 0.1,
+          "is_temporary_exception": true,
+          "reasons": [
+            "external_disruption"
+          ]
+        },
+        "knowledge_point_ids": [
+          "math1.linear_algebra.vector_space"
+        ],
+        "plan_transition": null
+      },
+      "operation": "NO_OP",
+      "operation_id": "formal:accidental_error:03:padding_operation:2:2",
+      "reason_code": "temporary_low_confidence_evidence_is_not_persisted",
+      "result_memory_id": null,
+      "slot_key": "error_pattern:math1.linear_algebra.vector_space:unknown",
+      "step_id": "formal:accidental_error:03:padding_step:2",
+      "target_memory_ids": []
+    },
+    {
+      "candidate_memory_ids": [
+        "formal:accidental_error:03:mastery_determinant_high_v1"
+      ],
+      "canonical_knowledge_point_ids": [
+        "math1.linear_algebra.vector_space"
+      ],
+      "event_id": "formal:accidental_error:03:padding_event:3",
+      "evidence_event_ids": [
+        "formal:accidental_error:03:padding_event:3"
+      ],
+      "expected_result_value": null,
+      "extracted_fields": {
+        "answer_correct": false,
+        "correction": null,
+        "error_detail": "本次作答受外部中断影响，不能作为稳定能力证据。",
+        "error_type": "unknown",
+        "event_type": "answer_attempt",
+        "evidence_quality": {
+          "confidence": 0.1,
+          "is_temporary_exception": true,
+          "reasons": [
+            "external_disruption"
+          ]
+        },
+        "knowledge_point_ids": [
+          "math1.linear_algebra.vector_space"
+        ],
+        "plan_transition": null
+      },
+      "operation": "NO_OP",
+      "operation_id": "formal:accidental_error:03:padding_operation:3:1",
+      "reason_code": "temporary_low_confidence_evidence_is_not_persisted",
+      "result_memory_id": null,
+      "slot_key": "mastery:math1.linear_algebra.vector_space",
+      "step_id": "formal:accidental_error:03:padding_step:3",
+      "target_memory_ids": [
+        "formal:accidental_error:03:mastery_determinant_high_v1"
+      ]
+    },
+    {
+      "candidate_memory_ids": [],
+      "canonical_knowledge_point_ids": [
+        "math1.linear_algebra.vector_space"
+      ],
+      "event_id": "formal:accidental_error:03:padding_event:3",
+      "evidence_event_ids": [
+        "formal:accidental_error:03:padding_event:3"
+      ],
+      "expected_result_value": null,
+      "extracted_fields": {
+        "answer_correct": false,
+        "correction": null,
+        "error_detail": "本次作答受外部中断影响，不能作为稳定能力证据。",
+        "error_type": "unknown",
+        "event_type": "answer_attempt",
+        "evidence_quality": {
+          "confidence": 0.1,
+          "is_temporary_exception": true,
+          "reasons": [
+            "external_disruption"
+          ]
+        },
+        "knowledge_point_ids": [
+          "math1.linear_algebra.vector_space"
+        ],
+        "plan_transition": null
+      },
+      "operation": "NO_OP",
+      "operation_id": "formal:accidental_error:03:padding_operation:3:2",
+      "reason_code": "temporary_low_confidence_evidence_is_not_persisted",
+      "result_memory_id": null,
+      "slot_key": "error_pattern:math1.linear_algebra.vector_space:unknown",
+      "step_id": "formal:accidental_error:03:padding_step:3",
+      "target_memory_ids": []
+    }
+  ],
+  "gold_states": [
+    {
+      "active_memory_ids": [
+        "formal:accidental_error:03:mastery_determinant_high_v1"
+      ],
+      "archived_memory_ids": [],
+      "contested_memory_ids": [],
+      "invalidated_memory_ids": [],
+      "step_id": "formal:accidental_error:03:step_001",
+      "version_relations": []
+    },
+    {
+      "active_memory_ids": [
+        "formal:accidental_error:03:mastery_determinant_high_v1"
+      ],
+      "archived_memory_ids": [],
+      "contested_memory_ids": [],
+      "invalidated_memory_ids": [],
+      "step_id": "formal:accidental_error:03:padding_step:2",
+      "version_relations": []
+    },
+    {
+      "active_memory_ids": [
+        "formal:accidental_error:03:mastery_determinant_high_v1"
+      ],
+      "archived_memory_ids": [],
+      "contested_memory_ids": [],
+      "invalidated_memory_ids": [],
+      "step_id": "formal:accidental_error:03:padding_step:3",
+      "version_relations": []
+    }
+  ],
+  "initial_memory": [
+    {
+      "confidence": 0.9,
+      "evidence_count": 12,
+      "lifecycle_state": "active",
+      "memory_id": "formal:accidental_error:03:mastery_determinant_high_v1",
+      "provenance": [
+        "formal:accidental_error:03:event_determinant_089",
+        "formal:accidental_error:03:event_determinant_090",
+        "formal:accidental_error:03:event_determinant_091",
+        "formal:accidental_error:03:event_determinant_092",
+        "formal:accidental_error:03:event_determinant_093",
+        "formal:accidental_error:03:event_determinant_094",
+        "formal:accidental_error:03:event_determinant_095",
+        "formal:accidental_error:03:event_determinant_096",
+        "formal:accidental_error:03:event_determinant_097",
+        "formal:accidental_error:03:event_determinant_098",
+        "formal:accidental_error:03:event_determinant_099",
+        "formal:accidental_error:03:event_determinant_100"
+      ],
+      "scope": {
+        "exam_id": "formal:accidental_error:03:postgraduate_entrance_exam",
+        "memory_namespace": "mastery",
+        "subject_id": "linear_algebra",
+        "user_id": "formal:accidental_error:03:user_001"
+      },
+      "slot_key": "mastery:math1.linear_algebra.vector_space",
+      "superseded_by": null,
+      "valid_from": "2026-08-01T08:00:00Z",
+      "valid_to": null,
+      "value": {
+        "level": "high",
+        "score": 0.85,
+        "type": "mastery"
+      },
+      "version": 1
+    }
+  ],
+  "metadata": {
+    "gold_revision": 3,
+    "policy_parameters": {
+      "formal_dataset_version": "exam_mem_controlled_v1",
+      "padding_policy": "temporary_low_confidence_no_op",
+      "target_knowledge_point_id": "math1.linear_algebra.vector_space",
+      "template_case_id": "accidental_error_without_stable_pattern_001"
+    },
+    "seed": 20260806,
+    "split": "dev"
+  },
+  "protocol_version": "evaluation_protocol_v1",
+  "queries": [
+    {
+      "after_step_id": "formal:accidental_error:03:step_001",
+      "query_id": "formal:accidental_error:03:query_001",
+      "scope": {
+        "exam_id": "formal:accidental_error:03:postgraduate_entrance_exam",
+        "memory_namespace": "mastery",
+        "subject_id": "linear_algebra",
+        "user_id": "formal:accidental_error:03:user_001"
+      },
+      "text": "是否应因一次粗心错误降低行列式掌握度？",
+      "top_k": 3
+    }
+  ],
+  "scenario_type": "accidental_error"
+}

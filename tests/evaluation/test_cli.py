@@ -52,6 +52,31 @@ def test_dataset_validate_cli_reports_completed_independent_reviews(
 
 @pytest.mark.protocol
 @pytest.mark.schema
+def test_dataset_verify_cli_keeps_frozen_test_content_hidden(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    exit_code = main(
+        [
+            "dataset",
+            "verify",
+            "--dataset-version",
+            "exam_mem_controlled_v1",
+            "--no-content-output",
+        ]
+    )
+    output = json.loads(capsys.readouterr().out)
+
+    assert exit_code == 0
+    assert output["status"] == "ok"
+    assert output["case_count"] == 120
+    assert output["splits"]["dev"]["case_count"] == 40
+    assert output["splits"]["test"]["case_count"] == 80
+    assert output["splits"]["test"]["case_content_disclosed"] is False
+    assert output["test_gold_replayed_step_count"] == 0
+
+
+@pytest.mark.protocol
+@pytest.mark.schema
 def test_gold_replay_cli_reconstructs_every_declared_state(
     capsys: pytest.CaptureFixture[str],
 ) -> None:

@@ -1,0 +1,511 @@
+{
+  "case_id": "formal:stable_weakness:06",
+  "events": [
+    {
+      "answer_correct": false,
+      "context": {
+        "exam_id": "formal:stable_weakness:06:postgraduate_entrance_exam",
+        "subject_id": "probability_theory",
+        "user_id": "formal:stable_weakness:06:user_001"
+      },
+      "correction": null,
+      "difficulty": 0.45,
+      "error_detail": "再次把任意向量集合直接视为其张成的子空间",
+      "error_type": "concept_confusion",
+      "event_id": "formal:stable_weakness:06:event_vector_space_error_105",
+      "event_type": "answer_attempt",
+      "evidence_quality": {
+        "confidence": 1.0,
+        "is_temporary_exception": false,
+        "reasons": []
+      },
+      "idempotency_key": "formal:stable_weakness:06:vector-space-concept-error-105",
+      "knowledge_point_ids": [
+        "math1.probability.bayes"
+      ],
+      "occurred_at": "2026-08-09T15:00:00Z",
+      "plan_transition": null,
+      "question_id": "controlled:bayes:v1",
+      "session_id": "formal:stable_weakness:06:session:1"
+    },
+    {
+      "answer_correct": false,
+      "context": {
+        "exam_id": "formal:stable_weakness:06:postgraduate_entrance_exam",
+        "subject_id": "probability_theory",
+        "user_id": "formal:stable_weakness:06:user_001"
+      },
+      "correction": null,
+      "difficulty": 0.45,
+      "error_detail": "本次作答受外部中断影响，不能作为稳定能力证据。",
+      "error_type": "unknown",
+      "event_id": "formal:stable_weakness:06:padding_event:2",
+      "event_type": "answer_attempt",
+      "evidence_quality": {
+        "confidence": 0.1,
+        "is_temporary_exception": true,
+        "reasons": [
+          "external_disruption"
+        ]
+      },
+      "idempotency_key": "formal:stable_weakness:06:padding_idempotency:2",
+      "knowledge_point_ids": [
+        "math1.probability.bayes"
+      ],
+      "occurred_at": "2026-08-16T15:00:00Z",
+      "plan_transition": null,
+      "question_id": "controlled:bayes:v1",
+      "session_id": "formal:stable_weakness:06:session:2"
+    },
+    {
+      "answer_correct": false,
+      "context": {
+        "exam_id": "formal:stable_weakness:06:postgraduate_entrance_exam",
+        "subject_id": "probability_theory",
+        "user_id": "formal:stable_weakness:06:user_001"
+      },
+      "correction": null,
+      "difficulty": 0.45,
+      "error_detail": "本次作答受外部中断影响，不能作为稳定能力证据。",
+      "error_type": "unknown",
+      "event_id": "formal:stable_weakness:06:padding_event:3",
+      "event_type": "answer_attempt",
+      "evidence_quality": {
+        "confidence": 0.1,
+        "is_temporary_exception": true,
+        "reasons": [
+          "external_disruption"
+        ]
+      },
+      "idempotency_key": "formal:stable_weakness:06:padding_idempotency:3",
+      "knowledge_point_ids": [
+        "math1.probability.bayes"
+      ],
+      "occurred_at": "2026-08-23T15:00:00Z",
+      "plan_transition": null,
+      "question_id": "controlled:bayes:v1",
+      "session_id": "formal:stable_weakness:06:session:3"
+    }
+  ],
+  "gold_actions": [
+    {
+      "action_type": "recommend_review",
+      "knowledge_point_ids": [
+        "math1.probability.bayes"
+      ],
+      "reason_code": "low_mastery_and_stable_concept_pattern_require_review",
+      "step_id": "formal:stable_weakness:06:step_001"
+    },
+    {
+      "action_type": "no_action",
+      "knowledge_point_ids": [],
+      "reason_code": "temporary_low_confidence_evidence_requires_no_action",
+      "step_id": "formal:stable_weakness:06:padding_step:2"
+    },
+    {
+      "action_type": "no_action",
+      "knowledge_point_ids": [],
+      "reason_code": "temporary_low_confidence_evidence_requires_no_action",
+      "step_id": "formal:stable_weakness:06:padding_step:3"
+    }
+  ],
+  "gold_operations": [
+    {
+      "candidate_memory_ids": [
+        "formal:stable_weakness:06:mastery_vector_space_low_v1"
+      ],
+      "canonical_knowledge_point_ids": [
+        "math1.probability.bayes"
+      ],
+      "event_id": "formal:stable_weakness:06:event_vector_space_error_105",
+      "evidence_event_ids": [
+        "formal:stable_weakness:06:event_vector_space_error_105"
+      ],
+      "expected_result_value": null,
+      "extracted_fields": {
+        "answer_correct": false,
+        "correction": null,
+        "error_detail": "再次把任意向量集合直接视为其张成的子空间",
+        "error_type": "concept_confusion",
+        "event_type": "answer_attempt",
+        "evidence_quality": {
+          "confidence": 1.0,
+          "is_temporary_exception": false,
+          "reasons": []
+        },
+        "knowledge_point_ids": [
+          "math1.probability.bayes"
+        ],
+        "plan_transition": null
+      },
+      "operation": "MERGE",
+      "operation_id": "formal:stable_weakness:06:step_001:mastery",
+      "reason_code": "new_error_strengthens_evidence_within_low_level",
+      "result_memory_id": "formal:stable_weakness:06:mastery_vector_space_low_v2",
+      "slot_key": "mastery:math1.probability.bayes",
+      "step_id": "formal:stable_weakness:06:step_001",
+      "target_memory_ids": [
+        "formal:stable_weakness:06:mastery_vector_space_low_v1"
+      ]
+    },
+    {
+      "candidate_memory_ids": [
+        "formal:stable_weakness:06:error_vector_space_definition_v1"
+      ],
+      "canonical_knowledge_point_ids": [
+        "math1.probability.bayes"
+      ],
+      "event_id": "formal:stable_weakness:06:event_vector_space_error_105",
+      "evidence_event_ids": [
+        "formal:stable_weakness:06:event_vector_space_error_105"
+      ],
+      "expected_result_value": null,
+      "extracted_fields": {
+        "answer_correct": false,
+        "correction": null,
+        "error_detail": "再次把任意向量集合直接视为其张成的子空间",
+        "error_type": "concept_confusion",
+        "event_type": "answer_attempt",
+        "evidence_quality": {
+          "confidence": 1.0,
+          "is_temporary_exception": false,
+          "reasons": []
+        },
+        "knowledge_point_ids": [
+          "math1.probability.bayes"
+        ],
+        "plan_transition": null
+      },
+      "operation": "MERGE",
+      "operation_id": "formal:stable_weakness:06:step_001:error_pattern",
+      "reason_code": "independent_error_strengthens_existing_stable_pattern",
+      "result_memory_id": "formal:stable_weakness:06:error_vector_space_definition_v2",
+      "slot_key": "error_pattern:math1.probability.bayes:concept_confusion",
+      "step_id": "formal:stable_weakness:06:step_001",
+      "target_memory_ids": [
+        "formal:stable_weakness:06:error_vector_space_definition_v1"
+      ]
+    },
+    {
+      "candidate_memory_ids": [
+        "formal:stable_weakness:06:mastery_vector_space_low_v2"
+      ],
+      "canonical_knowledge_point_ids": [
+        "math1.probability.bayes"
+      ],
+      "event_id": "formal:stable_weakness:06:padding_event:2",
+      "evidence_event_ids": [
+        "formal:stable_weakness:06:padding_event:2"
+      ],
+      "expected_result_value": null,
+      "extracted_fields": {
+        "answer_correct": false,
+        "correction": null,
+        "error_detail": "本次作答受外部中断影响，不能作为稳定能力证据。",
+        "error_type": "unknown",
+        "event_type": "answer_attempt",
+        "evidence_quality": {
+          "confidence": 0.1,
+          "is_temporary_exception": true,
+          "reasons": [
+            "external_disruption"
+          ]
+        },
+        "knowledge_point_ids": [
+          "math1.probability.bayes"
+        ],
+        "plan_transition": null
+      },
+      "operation": "NO_OP",
+      "operation_id": "formal:stable_weakness:06:padding_operation:2:1",
+      "reason_code": "temporary_low_confidence_evidence_is_not_persisted",
+      "result_memory_id": null,
+      "slot_key": "mastery:math1.probability.bayes",
+      "step_id": "formal:stable_weakness:06:padding_step:2",
+      "target_memory_ids": [
+        "formal:stable_weakness:06:mastery_vector_space_low_v2"
+      ]
+    },
+    {
+      "candidate_memory_ids": [],
+      "canonical_knowledge_point_ids": [
+        "math1.probability.bayes"
+      ],
+      "event_id": "formal:stable_weakness:06:padding_event:2",
+      "evidence_event_ids": [
+        "formal:stable_weakness:06:padding_event:2"
+      ],
+      "expected_result_value": null,
+      "extracted_fields": {
+        "answer_correct": false,
+        "correction": null,
+        "error_detail": "本次作答受外部中断影响，不能作为稳定能力证据。",
+        "error_type": "unknown",
+        "event_type": "answer_attempt",
+        "evidence_quality": {
+          "confidence": 0.1,
+          "is_temporary_exception": true,
+          "reasons": [
+            "external_disruption"
+          ]
+        },
+        "knowledge_point_ids": [
+          "math1.probability.bayes"
+        ],
+        "plan_transition": null
+      },
+      "operation": "NO_OP",
+      "operation_id": "formal:stable_weakness:06:padding_operation:2:2",
+      "reason_code": "temporary_low_confidence_evidence_is_not_persisted",
+      "result_memory_id": null,
+      "slot_key": "error_pattern:math1.probability.bayes:unknown",
+      "step_id": "formal:stable_weakness:06:padding_step:2",
+      "target_memory_ids": []
+    },
+    {
+      "candidate_memory_ids": [
+        "formal:stable_weakness:06:mastery_vector_space_low_v2"
+      ],
+      "canonical_knowledge_point_ids": [
+        "math1.probability.bayes"
+      ],
+      "event_id": "formal:stable_weakness:06:padding_event:3",
+      "evidence_event_ids": [
+        "formal:stable_weakness:06:padding_event:3"
+      ],
+      "expected_result_value": null,
+      "extracted_fields": {
+        "answer_correct": false,
+        "correction": null,
+        "error_detail": "本次作答受外部中断影响，不能作为稳定能力证据。",
+        "error_type": "unknown",
+        "event_type": "answer_attempt",
+        "evidence_quality": {
+          "confidence": 0.1,
+          "is_temporary_exception": true,
+          "reasons": [
+            "external_disruption"
+          ]
+        },
+        "knowledge_point_ids": [
+          "math1.probability.bayes"
+        ],
+        "plan_transition": null
+      },
+      "operation": "NO_OP",
+      "operation_id": "formal:stable_weakness:06:padding_operation:3:1",
+      "reason_code": "temporary_low_confidence_evidence_is_not_persisted",
+      "result_memory_id": null,
+      "slot_key": "mastery:math1.probability.bayes",
+      "step_id": "formal:stable_weakness:06:padding_step:3",
+      "target_memory_ids": [
+        "formal:stable_weakness:06:mastery_vector_space_low_v2"
+      ]
+    },
+    {
+      "candidate_memory_ids": [],
+      "canonical_knowledge_point_ids": [
+        "math1.probability.bayes"
+      ],
+      "event_id": "formal:stable_weakness:06:padding_event:3",
+      "evidence_event_ids": [
+        "formal:stable_weakness:06:padding_event:3"
+      ],
+      "expected_result_value": null,
+      "extracted_fields": {
+        "answer_correct": false,
+        "correction": null,
+        "error_detail": "本次作答受外部中断影响，不能作为稳定能力证据。",
+        "error_type": "unknown",
+        "event_type": "answer_attempt",
+        "evidence_quality": {
+          "confidence": 0.1,
+          "is_temporary_exception": true,
+          "reasons": [
+            "external_disruption"
+          ]
+        },
+        "knowledge_point_ids": [
+          "math1.probability.bayes"
+        ],
+        "plan_transition": null
+      },
+      "operation": "NO_OP",
+      "operation_id": "formal:stable_weakness:06:padding_operation:3:2",
+      "reason_code": "temporary_low_confidence_evidence_is_not_persisted",
+      "result_memory_id": null,
+      "slot_key": "error_pattern:math1.probability.bayes:unknown",
+      "step_id": "formal:stable_weakness:06:padding_step:3",
+      "target_memory_ids": []
+    }
+  ],
+  "gold_states": [
+    {
+      "active_memory_ids": [
+        "formal:stable_weakness:06:mastery_vector_space_low_v2",
+        "formal:stable_weakness:06:error_vector_space_definition_v2"
+      ],
+      "archived_memory_ids": [
+        "formal:stable_weakness:06:mastery_vector_space_low_v1",
+        "formal:stable_weakness:06:error_vector_space_definition_v1"
+      ],
+      "contested_memory_ids": [],
+      "invalidated_memory_ids": [],
+      "step_id": "formal:stable_weakness:06:step_001",
+      "version_relations": [
+        {
+          "predecessor_memory_id": "formal:stable_weakness:06:mastery_vector_space_low_v1",
+          "relation": "superseded_by",
+          "successor_memory_id": "formal:stable_weakness:06:mastery_vector_space_low_v2"
+        },
+        {
+          "predecessor_memory_id": "formal:stable_weakness:06:error_vector_space_definition_v1",
+          "relation": "superseded_by",
+          "successor_memory_id": "formal:stable_weakness:06:error_vector_space_definition_v2"
+        }
+      ]
+    },
+    {
+      "active_memory_ids": [
+        "formal:stable_weakness:06:mastery_vector_space_low_v2",
+        "formal:stable_weakness:06:error_vector_space_definition_v2"
+      ],
+      "archived_memory_ids": [
+        "formal:stable_weakness:06:mastery_vector_space_low_v1",
+        "formal:stable_weakness:06:error_vector_space_definition_v1"
+      ],
+      "contested_memory_ids": [],
+      "invalidated_memory_ids": [],
+      "step_id": "formal:stable_weakness:06:padding_step:2",
+      "version_relations": [
+        {
+          "predecessor_memory_id": "formal:stable_weakness:06:mastery_vector_space_low_v1",
+          "relation": "superseded_by",
+          "successor_memory_id": "formal:stable_weakness:06:mastery_vector_space_low_v2"
+        },
+        {
+          "predecessor_memory_id": "formal:stable_weakness:06:error_vector_space_definition_v1",
+          "relation": "superseded_by",
+          "successor_memory_id": "formal:stable_weakness:06:error_vector_space_definition_v2"
+        }
+      ]
+    },
+    {
+      "active_memory_ids": [
+        "formal:stable_weakness:06:mastery_vector_space_low_v2",
+        "formal:stable_weakness:06:error_vector_space_definition_v2"
+      ],
+      "archived_memory_ids": [
+        "formal:stable_weakness:06:mastery_vector_space_low_v1",
+        "formal:stable_weakness:06:error_vector_space_definition_v1"
+      ],
+      "contested_memory_ids": [],
+      "invalidated_memory_ids": [],
+      "step_id": "formal:stable_weakness:06:padding_step:3",
+      "version_relations": [
+        {
+          "predecessor_memory_id": "formal:stable_weakness:06:mastery_vector_space_low_v1",
+          "relation": "superseded_by",
+          "successor_memory_id": "formal:stable_weakness:06:mastery_vector_space_low_v2"
+        },
+        {
+          "predecessor_memory_id": "formal:stable_weakness:06:error_vector_space_definition_v1",
+          "relation": "superseded_by",
+          "successor_memory_id": "formal:stable_weakness:06:error_vector_space_definition_v2"
+        }
+      ]
+    }
+  ],
+  "initial_memory": [
+    {
+      "confidence": 0.86,
+      "evidence_count": 8,
+      "lifecycle_state": "active",
+      "memory_id": "formal:stable_weakness:06:mastery_vector_space_low_v1",
+      "provenance": [
+        "formal:stable_weakness:06:event_vector_space_093",
+        "formal:stable_weakness:06:event_vector_space_094",
+        "formal:stable_weakness:06:event_vector_space_095",
+        "formal:stable_weakness:06:event_vector_space_096",
+        "formal:stable_weakness:06:event_vector_space_097",
+        "formal:stable_weakness:06:event_vector_space_098",
+        "formal:stable_weakness:06:event_vector_space_099",
+        "formal:stable_weakness:06:event_vector_space_100"
+      ],
+      "scope": {
+        "exam_id": "formal:stable_weakness:06:postgraduate_entrance_exam",
+        "memory_namespace": "mastery",
+        "subject_id": "probability_theory",
+        "user_id": "formal:stable_weakness:06:user_001"
+      },
+      "slot_key": "mastery:math1.probability.bayes",
+      "superseded_by": null,
+      "valid_from": "2026-08-01T09:30:00Z",
+      "valid_to": null,
+      "value": {
+        "level": "low",
+        "score": 0.3,
+        "type": "mastery"
+      },
+      "version": 1
+    },
+    {
+      "confidence": 0.84,
+      "evidence_count": 4,
+      "lifecycle_state": "active",
+      "memory_id": "formal:stable_weakness:06:error_vector_space_definition_v1",
+      "provenance": [
+        "formal:stable_weakness:06:event_vector_space_error_101",
+        "formal:stable_weakness:06:event_vector_space_error_102",
+        "formal:stable_weakness:06:event_vector_space_error_103",
+        "formal:stable_weakness:06:event_vector_space_error_104"
+      ],
+      "scope": {
+        "exam_id": "formal:stable_weakness:06:postgraduate_entrance_exam",
+        "memory_namespace": "error_pattern",
+        "subject_id": "probability_theory",
+        "user_id": "formal:stable_weakness:06:user_001"
+      },
+      "slot_key": "error_pattern:math1.probability.bayes:concept_confusion",
+      "superseded_by": null,
+      "valid_from": "2026-08-02T09:30:00Z",
+      "valid_to": null,
+      "value": {
+        "details": [
+          "贝叶斯公式轨迹中的可复核错误证据"
+        ],
+        "error_type": "concept_confusion",
+        "summary": "贝叶斯公式的 concept_confusion 型受控错误",
+        "type": "error_pattern"
+      },
+      "version": 1
+    }
+  ],
+  "metadata": {
+    "gold_revision": 3,
+    "policy_parameters": {
+      "formal_dataset_version": "exam_mem_controlled_v1",
+      "padding_policy": "temporary_low_confidence_no_op",
+      "target_knowledge_point_id": "math1.probability.bayes",
+      "template_case_id": "stable_weakness_existing_pattern_strengthened_002"
+    },
+    "seed": 20260806,
+    "split": "test"
+  },
+  "protocol_version": "evaluation_protocol_v1",
+  "queries": [
+    {
+      "after_step_id": "formal:stable_weakness:06:step_001",
+      "query_id": "formal:stable_weakness:06:query_001",
+      "scope": {
+        "exam_id": "formal:stable_weakness:06:postgraduate_entrance_exam",
+        "memory_namespace": "error_pattern",
+        "subject_id": "probability_theory",
+        "user_id": "formal:stable_weakness:06:user_001"
+      },
+      "text": "向量空间定义是否仍应作为重点薄弱点复习？",
+      "top_k": 3
+    }
+  ],
+  "scenario_type": "stable_weakness"
+}

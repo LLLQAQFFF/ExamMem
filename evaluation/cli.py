@@ -8,12 +8,14 @@ import json
 import sys
 from typing import Any
 
-from evaluation.contracts.case import PROTOCOL_VERSION
+from evaluation.contracts.case import PROTOCOL_SEED, PROTOCOL_VERSION
+from evaluation.data_builder import DATASET_VERSION, build_formal_dataset
 from evaluation.evaluators.slot import evaluate_slot
 from evaluation.protocols.validation import (
     load_protocol,
     replay_split,
     validate_dataset,
+    validate_formal_dataset,
 )
 
 CommandHandler = Callable[[argparse.Namespace], dict[str, Any]]
@@ -34,6 +36,30 @@ def _protocol_validate(args: argparse.Namespace) -> dict[str, Any]:
 def _dataset_validate(args: argparse.Namespace) -> dict[str, Any]:
     result = validate_dataset(args.split, protocol_version=args.version)
     return {"status": "ok", "command": "dataset validate", **result}
+
+
+def _dataset_build(args: argparse.Namespace) -> dict[str, Any]:
+    if args.seed != PROTOCOL_SEED:
+        raise ValueError(f"formal dataset seed is frozen at {PROTOCOL_SEED}")
+    manifest = build_formal_dataset()
+    return {
+        "status": "ok",
+        "command": "dataset build",
+        "dataset_version": manifest.dataset_version,
+        "seed": manifest.seed,
+        "splits": {
+            split.split.value: {
+                "case_count": split.case_count,
+                "aggregate_sha256": split.aggregate_sha256,
+            }
+            for split in manifest.splits
+        },
+    }
+
+
+def _dataset_verify(args: argparse.Namespace) -> dict[str, Any]:
+    result = validate_formal_dataset(args.dataset_version)
+    return {"status": "ok", "command": "dataset verify", **result}
 
 
 def _gold_replay(args: argparse.Namespace) -> dict[str, Any]:
@@ -70,6 +96,24 @@ def build_parser() -> argparse.ArgumentParser:
     dataset_validate.add_argument("--split", required=True)
     _add_version_argument(dataset_validate)
     dataset_validate.set_defaults(handler=_dataset_validate)
+
+    dataset_build = dataset_actions.add_parser(
+        "build", help="Deterministically materialize the formal controlled dataset."
+    )
+    dataset_build.add_argument("--seed", type=int, default=PROTOCOL_SEED)
+    dataset_build.set_defaults(handler=_dataset_build)
+
+    dataset_verify = dataset_actions.add_parser(
+        "verify", help="Verify formal cases, sidecars, quotas, and frozen hashes."
+    )
+    dataset_verify.add_argument("--dataset-version", default=DATASET_VERSION)
+    dataset_verify.add_argument(
+        "--no-content-output",
+        action="store_true",
+        required=True,
+        help="Required holdout guard: never emit frozen test case contents.",
+    )
+    dataset_verify.set_defaults(handler=_dataset_verify)
 
     gold = commands.add_parser("gold", help="Replay Gold lifecycle states.")
     gold_actions = gold.add_subparsers(dest="action", required=True)

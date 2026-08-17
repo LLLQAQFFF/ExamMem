@@ -1,0 +1,366 @@
+{
+  "case_id": "formal:long_range_change:03",
+  "events": [
+    {
+      "answer_correct": true,
+      "context": {
+        "exam_id": "formal:long_range_change:03:postgraduate_entrance_exam",
+        "subject_id": "linear_algebra",
+        "user_id": "formal:long_range_change:03:user_001"
+      },
+      "correction": null,
+      "difficulty": 0.25,
+      "error_detail": null,
+      "error_type": null,
+      "event_id": "formal:long_range_change:03:event_quadratic_form_101",
+      "event_type": "answer_attempt",
+      "evidence_quality": {
+        "confidence": 1.0,
+        "is_temporary_exception": false,
+        "reasons": []
+      },
+      "idempotency_key": "formal:long_range_change:03:quadratic-form-correct-101",
+      "knowledge_point_ids": [
+        "math1.linear_algebra.determinant"
+      ],
+      "occurred_at": "2026-08-08T09:00:00Z",
+      "plan_transition": null,
+      "question_id": "controlled:determinant:v1",
+      "session_id": "formal:long_range_change:03:session:1"
+    },
+    {
+      "answer_correct": true,
+      "context": {
+        "exam_id": "formal:long_range_change:03:postgraduate_entrance_exam",
+        "subject_id": "linear_algebra",
+        "user_id": "formal:long_range_change:03:user_001"
+      },
+      "correction": null,
+      "difficulty": 0.25,
+      "error_detail": null,
+      "error_type": null,
+      "event_id": "formal:long_range_change:03:event_quadratic_form_102",
+      "event_type": "answer_attempt",
+      "evidence_quality": {
+        "confidence": 1.0,
+        "is_temporary_exception": false,
+        "reasons": []
+      },
+      "idempotency_key": "formal:long_range_change:03:quadratic-form-correct-102",
+      "knowledge_point_ids": [
+        "math1.linear_algebra.determinant"
+      ],
+      "occurred_at": "2026-08-09T09:00:00Z",
+      "plan_transition": null,
+      "question_id": "controlled:determinant:v1",
+      "session_id": "formal:long_range_change:03:session:2"
+    },
+    {
+      "answer_correct": true,
+      "context": {
+        "exam_id": "formal:long_range_change:03:postgraduate_entrance_exam",
+        "subject_id": "linear_algebra",
+        "user_id": "formal:long_range_change:03:user_001"
+      },
+      "correction": null,
+      "difficulty": 0.25,
+      "error_detail": null,
+      "error_type": null,
+      "event_id": "formal:long_range_change:03:event_quadratic_form_103",
+      "event_type": "answer_attempt",
+      "evidence_quality": {
+        "confidence": 1.0,
+        "is_temporary_exception": false,
+        "reasons": []
+      },
+      "idempotency_key": "formal:long_range_change:03:quadratic-form-correct-103",
+      "knowledge_point_ids": [
+        "math1.linear_algebra.determinant"
+      ],
+      "occurred_at": "2026-08-09T09:30:00Z",
+      "plan_transition": null,
+      "question_id": "controlled:determinant:v1",
+      "session_id": "formal:long_range_change:03:session:3"
+    }
+  ],
+  "gold_actions": [
+    {
+      "action_type": "recommend_review",
+      "knowledge_point_ids": [
+        "math1.linear_algebra.determinant"
+      ],
+      "reason_code": "first_recent_success_is_not_sufficient_for_promotion",
+      "step_id": "formal:long_range_change:03:step_001"
+    },
+    {
+      "action_type": "recommend_review",
+      "knowledge_point_ids": [
+        "math1.linear_algebra.determinant"
+      ],
+      "reason_code": "second_recent_success_is_not_sufficient_for_promotion",
+      "step_id": "formal:long_range_change:03:step_002"
+    },
+    {
+      "action_type": "avoid_over_review",
+      "knowledge_point_ids": [
+        "math1.linear_algebra.determinant"
+      ],
+      "reason_code": "recent_sustained_success_replaces_stale_low_state",
+      "step_id": "formal:long_range_change:03:step_003"
+    }
+  ],
+  "gold_operations": [
+    {
+      "candidate_memory_ids": [
+        "formal:long_range_change:03:mastery_quadratic_form_low_v1"
+      ],
+      "canonical_knowledge_point_ids": [
+        "math1.linear_algebra.determinant"
+      ],
+      "event_id": "formal:long_range_change:03:event_quadratic_form_101",
+      "evidence_event_ids": [
+        "formal:long_range_change:03:event_quadratic_form_101"
+      ],
+      "expected_result_value": null,
+      "extracted_fields": {
+        "answer_correct": true,
+        "correction": null,
+        "error_detail": null,
+        "error_type": null,
+        "event_type": "answer_attempt",
+        "evidence_quality": {
+          "confidence": 1.0,
+          "is_temporary_exception": false,
+          "reasons": []
+        },
+        "knowledge_point_ids": [
+          "math1.linear_algebra.determinant"
+        ],
+        "plan_transition": null
+      },
+      "operation": "MERGE",
+      "operation_id": "formal:long_range_change:03:step_001:mastery",
+      "reason_code": "first_recent_success_extends_existing_version_chain",
+      "result_memory_id": "formal:long_range_change:03:mastery_quadratic_form_low_v2",
+      "slot_key": "mastery:math1.linear_algebra.determinant",
+      "step_id": "formal:long_range_change:03:step_001",
+      "target_memory_ids": [
+        "formal:long_range_change:03:mastery_quadratic_form_low_v1"
+      ]
+    },
+    {
+      "candidate_memory_ids": [
+        "formal:long_range_change:03:mastery_quadratic_form_low_v2"
+      ],
+      "canonical_knowledge_point_ids": [
+        "math1.linear_algebra.determinant"
+      ],
+      "event_id": "formal:long_range_change:03:event_quadratic_form_102",
+      "evidence_event_ids": [
+        "formal:long_range_change:03:event_quadratic_form_102"
+      ],
+      "expected_result_value": null,
+      "extracted_fields": {
+        "answer_correct": true,
+        "correction": null,
+        "error_detail": null,
+        "error_type": null,
+        "event_type": "answer_attempt",
+        "evidence_quality": {
+          "confidence": 1.0,
+          "is_temporary_exception": false,
+          "reasons": []
+        },
+        "knowledge_point_ids": [
+          "math1.linear_algebra.determinant"
+        ],
+        "plan_transition": null
+      },
+      "operation": "MERGE",
+      "operation_id": "formal:long_range_change:03:step_002:mastery",
+      "reason_code": "second_cross_session_success_remains_below_promotion_threshold",
+      "result_memory_id": "formal:long_range_change:03:mastery_quadratic_form_low_v3",
+      "slot_key": "mastery:math1.linear_algebra.determinant",
+      "step_id": "formal:long_range_change:03:step_002",
+      "target_memory_ids": [
+        "formal:long_range_change:03:mastery_quadratic_form_low_v2"
+      ]
+    },
+    {
+      "candidate_memory_ids": [
+        "formal:long_range_change:03:mastery_quadratic_form_low_v3"
+      ],
+      "canonical_knowledge_point_ids": [
+        "math1.linear_algebra.determinant"
+      ],
+      "event_id": "formal:long_range_change:03:event_quadratic_form_103",
+      "evidence_event_ids": [
+        "formal:long_range_change:03:event_quadratic_form_101",
+        "formal:long_range_change:03:event_quadratic_form_102",
+        "formal:long_range_change:03:event_quadratic_form_103"
+      ],
+      "expected_result_value": {
+        "level": "high",
+        "score": 0.82,
+        "type": "mastery"
+      },
+      "extracted_fields": {
+        "answer_correct": true,
+        "correction": null,
+        "error_detail": null,
+        "error_type": null,
+        "event_type": "answer_attempt",
+        "evidence_quality": {
+          "confidence": 1.0,
+          "is_temporary_exception": false,
+          "reasons": []
+        },
+        "knowledge_point_ids": [
+          "math1.linear_algebra.determinant"
+        ],
+        "plan_transition": null
+      },
+      "operation": "SUPERSEDE",
+      "operation_id": "formal:long_range_change:03:step_003:mastery",
+      "reason_code": "three_recent_cross_session_successes_replace_old_low_state",
+      "result_memory_id": "formal:long_range_change:03:mastery_quadratic_form_high_v4",
+      "slot_key": "mastery:math1.linear_algebra.determinant",
+      "step_id": "formal:long_range_change:03:step_003",
+      "target_memory_ids": [
+        "formal:long_range_change:03:mastery_quadratic_form_low_v3"
+      ]
+    }
+  ],
+  "gold_states": [
+    {
+      "active_memory_ids": [
+        "formal:long_range_change:03:mastery_quadratic_form_low_v2"
+      ],
+      "archived_memory_ids": [
+        "formal:long_range_change:03:mastery_quadratic_form_low_v1"
+      ],
+      "contested_memory_ids": [],
+      "invalidated_memory_ids": [],
+      "step_id": "formal:long_range_change:03:step_001",
+      "version_relations": [
+        {
+          "predecessor_memory_id": "formal:long_range_change:03:mastery_quadratic_form_low_v1",
+          "relation": "superseded_by",
+          "successor_memory_id": "formal:long_range_change:03:mastery_quadratic_form_low_v2"
+        }
+      ]
+    },
+    {
+      "active_memory_ids": [
+        "formal:long_range_change:03:mastery_quadratic_form_low_v3"
+      ],
+      "archived_memory_ids": [
+        "formal:long_range_change:03:mastery_quadratic_form_low_v1",
+        "formal:long_range_change:03:mastery_quadratic_form_low_v2"
+      ],
+      "contested_memory_ids": [],
+      "invalidated_memory_ids": [],
+      "step_id": "formal:long_range_change:03:step_002",
+      "version_relations": [
+        {
+          "predecessor_memory_id": "formal:long_range_change:03:mastery_quadratic_form_low_v1",
+          "relation": "superseded_by",
+          "successor_memory_id": "formal:long_range_change:03:mastery_quadratic_form_low_v2"
+        },
+        {
+          "predecessor_memory_id": "formal:long_range_change:03:mastery_quadratic_form_low_v2",
+          "relation": "superseded_by",
+          "successor_memory_id": "formal:long_range_change:03:mastery_quadratic_form_low_v3"
+        }
+      ]
+    },
+    {
+      "active_memory_ids": [
+        "formal:long_range_change:03:mastery_quadratic_form_high_v4"
+      ],
+      "archived_memory_ids": [
+        "formal:long_range_change:03:mastery_quadratic_form_low_v1",
+        "formal:long_range_change:03:mastery_quadratic_form_low_v2",
+        "formal:long_range_change:03:mastery_quadratic_form_low_v3"
+      ],
+      "contested_memory_ids": [],
+      "invalidated_memory_ids": [],
+      "step_id": "formal:long_range_change:03:step_003",
+      "version_relations": [
+        {
+          "predecessor_memory_id": "formal:long_range_change:03:mastery_quadratic_form_low_v1",
+          "relation": "superseded_by",
+          "successor_memory_id": "formal:long_range_change:03:mastery_quadratic_form_low_v2"
+        },
+        {
+          "predecessor_memory_id": "formal:long_range_change:03:mastery_quadratic_form_low_v2",
+          "relation": "superseded_by",
+          "successor_memory_id": "formal:long_range_change:03:mastery_quadratic_form_low_v3"
+        },
+        {
+          "predecessor_memory_id": "formal:long_range_change:03:mastery_quadratic_form_low_v3",
+          "relation": "superseded_by",
+          "successor_memory_id": "formal:long_range_change:03:mastery_quadratic_form_high_v4"
+        }
+      ]
+    }
+  ],
+  "initial_memory": [
+    {
+      "confidence": 0.82,
+      "evidence_count": 5,
+      "lifecycle_state": "active",
+      "memory_id": "formal:long_range_change:03:mastery_quadratic_form_low_v1",
+      "provenance": [
+        "formal:long_range_change:03:event_quadratic_form_096",
+        "formal:long_range_change:03:event_quadratic_form_097",
+        "formal:long_range_change:03:event_quadratic_form_098",
+        "formal:long_range_change:03:event_quadratic_form_099",
+        "formal:long_range_change:03:event_quadratic_form_100"
+      ],
+      "scope": {
+        "exam_id": "formal:long_range_change:03:postgraduate_entrance_exam",
+        "memory_namespace": "mastery",
+        "subject_id": "linear_algebra",
+        "user_id": "formal:long_range_change:03:user_001"
+      },
+      "slot_key": "mastery:math1.linear_algebra.determinant",
+      "superseded_by": null,
+      "valid_from": "2026-06-20T08:00:00Z",
+      "valid_to": null,
+      "value": {
+        "level": "low",
+        "score": 0.34,
+        "type": "mastery"
+      },
+      "version": 1
+    }
+  ],
+  "metadata": {
+    "gold_revision": 3,
+    "policy_parameters": {
+      "formal_dataset_version": "exam_mem_controlled_v1",
+      "padding_policy": "temporary_low_confidence_no_op",
+      "target_knowledge_point_id": "math1.linear_algebra.determinant",
+      "template_case_id": "old_low_mastery_is_replaced_by_recent_cross_session_success_001"
+    },
+    "seed": 20260806,
+    "split": "test"
+  },
+  "protocol_version": "evaluation_protocol_v1",
+  "queries": [
+    {
+      "after_step_id": "formal:long_range_change:03:step_003",
+      "query_id": "formal:long_range_change:03:query_001",
+      "scope": {
+        "exam_id": "formal:long_range_change:03:postgraduate_entrance_exam",
+        "memory_namespace": "mastery",
+        "subject_id": "linear_algebra",
+        "user_id": "formal:long_range_change:03:user_001"
+      },
+      "text": "二次型是否仍应按历史 low 状态过度复习？",
+      "top_k": 3
+    }
+  ],
+  "scenario_type": "long_range_change"
+}

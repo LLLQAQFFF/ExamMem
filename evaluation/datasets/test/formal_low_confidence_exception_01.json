@@ -1,0 +1,440 @@
+{
+  "case_id": "formal:low_confidence_exception:01",
+  "events": [
+    {
+      "answer_correct": false,
+      "context": {
+        "exam_id": "formal:low_confidence_exception:01:postgraduate_entrance_exam",
+        "subject_id": "linear_algebra",
+        "user_id": "formal:low_confidence_exception:01:user_001"
+      },
+      "correction": null,
+      "difficulty": 0.5,
+      "error_detail": "答案采用了未被当前评分器可靠识别的等价行变换，判错结果存在歧义",
+      "error_type": "unknown",
+      "event_id": "formal:low_confidence_exception:01:event_matrix_rank_101",
+      "event_type": "answer_attempt",
+      "evidence_quality": {
+        "confidence": 0.32,
+        "is_temporary_exception": false,
+        "reasons": [
+          "low_grader_confidence",
+          "ambiguous_response"
+        ]
+      },
+      "idempotency_key": "formal:low_confidence_exception:01:matrix-rank-ambiguous-grade-101",
+      "knowledge_point_ids": [
+        "math1.linear_algebra.quadratic_form"
+      ],
+      "occurred_at": "2026-08-10T10:00:00Z",
+      "plan_transition": null,
+      "question_id": "controlled:quadratic_form:v1",
+      "session_id": "formal:low_confidence_exception:01:session:1"
+    },
+    {
+      "answer_correct": false,
+      "context": {
+        "exam_id": "formal:low_confidence_exception:01:postgraduate_entrance_exam",
+        "subject_id": "linear_algebra",
+        "user_id": "formal:low_confidence_exception:01:user_001"
+      },
+      "correction": null,
+      "difficulty": 0.5,
+      "error_detail": "本次作答受外部中断影响，不能作为稳定能力证据。",
+      "error_type": "unknown",
+      "event_id": "formal:low_confidence_exception:01:padding_event:2",
+      "event_type": "answer_attempt",
+      "evidence_quality": {
+        "confidence": 0.1,
+        "is_temporary_exception": true,
+        "reasons": [
+          "external_disruption"
+        ]
+      },
+      "idempotency_key": "formal:low_confidence_exception:01:padding_idempotency:2",
+      "knowledge_point_ids": [
+        "math1.linear_algebra.quadratic_form"
+      ],
+      "occurred_at": "2026-08-17T10:00:00Z",
+      "plan_transition": null,
+      "question_id": "controlled:quadratic_form:v1",
+      "session_id": "formal:low_confidence_exception:01:session:2"
+    },
+    {
+      "answer_correct": false,
+      "context": {
+        "exam_id": "formal:low_confidence_exception:01:postgraduate_entrance_exam",
+        "subject_id": "linear_algebra",
+        "user_id": "formal:low_confidence_exception:01:user_001"
+      },
+      "correction": null,
+      "difficulty": 0.5,
+      "error_detail": "本次作答受外部中断影响，不能作为稳定能力证据。",
+      "error_type": "unknown",
+      "event_id": "formal:low_confidence_exception:01:padding_event:3",
+      "event_type": "answer_attempt",
+      "evidence_quality": {
+        "confidence": 0.1,
+        "is_temporary_exception": true,
+        "reasons": [
+          "external_disruption"
+        ]
+      },
+      "idempotency_key": "formal:low_confidence_exception:01:padding_idempotency:3",
+      "knowledge_point_ids": [
+        "math1.linear_algebra.quadratic_form"
+      ],
+      "occurred_at": "2026-08-24T10:00:00Z",
+      "plan_transition": null,
+      "question_id": "controlled:quadratic_form:v1",
+      "session_id": "formal:low_confidence_exception:01:session:3"
+    }
+  ],
+  "gold_actions": [
+    {
+      "action_type": "no_action",
+      "knowledge_point_ids": [
+        "math1.linear_algebra.quadratic_form"
+      ],
+      "reason_code": "ambiguous_grade_must_be_reviewed_before_teaching_policy_changes",
+      "step_id": "formal:low_confidence_exception:01:step_001"
+    },
+    {
+      "action_type": "no_action",
+      "knowledge_point_ids": [],
+      "reason_code": "temporary_low_confidence_evidence_requires_no_action",
+      "step_id": "formal:low_confidence_exception:01:padding_step:2"
+    },
+    {
+      "action_type": "no_action",
+      "knowledge_point_ids": [],
+      "reason_code": "temporary_low_confidence_evidence_requires_no_action",
+      "step_id": "formal:low_confidence_exception:01:padding_step:3"
+    }
+  ],
+  "gold_operations": [
+    {
+      "candidate_memory_ids": [
+        "formal:low_confidence_exception:01:mastery_matrix_rank_high_v1"
+      ],
+      "canonical_knowledge_point_ids": [
+        "math1.linear_algebra.quadratic_form"
+      ],
+      "event_id": "formal:low_confidence_exception:01:event_matrix_rank_101",
+      "evidence_event_ids": [
+        "formal:low_confidence_exception:01:event_matrix_rank_101"
+      ],
+      "expected_result_value": null,
+      "extracted_fields": {
+        "answer_correct": false,
+        "correction": null,
+        "error_detail": "答案采用了未被当前评分器可靠识别的等价行变换，判错结果存在歧义",
+        "error_type": "unknown",
+        "event_type": "answer_attempt",
+        "evidence_quality": {
+          "confidence": 0.32,
+          "is_temporary_exception": false,
+          "reasons": [
+            "low_grader_confidence",
+            "ambiguous_response"
+          ]
+        },
+        "knowledge_point_ids": [
+          "math1.linear_algebra.quadratic_form"
+        ],
+        "plan_transition": null
+      },
+      "operation": "NO_OP",
+      "operation_id": "formal:low_confidence_exception:01:step_001:mastery",
+      "reason_code": "low_confidence_grade_does_not_change_mastery",
+      "result_memory_id": null,
+      "slot_key": "mastery:math1.linear_algebra.quadratic_form",
+      "step_id": "formal:low_confidence_exception:01:step_001",
+      "target_memory_ids": [
+        "formal:low_confidence_exception:01:mastery_matrix_rank_high_v1"
+      ]
+    },
+    {
+      "candidate_memory_ids": [],
+      "canonical_knowledge_point_ids": [
+        "math1.linear_algebra.quadratic_form"
+      ],
+      "event_id": "formal:low_confidence_exception:01:event_matrix_rank_101",
+      "evidence_event_ids": [
+        "formal:low_confidence_exception:01:event_matrix_rank_101"
+      ],
+      "expected_result_value": null,
+      "extracted_fields": {
+        "answer_correct": false,
+        "correction": null,
+        "error_detail": "答案采用了未被当前评分器可靠识别的等价行变换，判错结果存在歧义",
+        "error_type": "unknown",
+        "event_type": "answer_attempt",
+        "evidence_quality": {
+          "confidence": 0.32,
+          "is_temporary_exception": false,
+          "reasons": [
+            "low_grader_confidence",
+            "ambiguous_response"
+          ]
+        },
+        "knowledge_point_ids": [
+          "math1.linear_algebra.quadratic_form"
+        ],
+        "plan_transition": null
+      },
+      "operation": "NO_OP",
+      "operation_id": "formal:low_confidence_exception:01:step_001:error_pattern",
+      "reason_code": "ambiguous_low_confidence_result_does_not_create_error_pattern",
+      "result_memory_id": null,
+      "slot_key": "error_pattern:math1.linear_algebra.quadratic_form:unknown",
+      "step_id": "formal:low_confidence_exception:01:step_001",
+      "target_memory_ids": []
+    },
+    {
+      "candidate_memory_ids": [
+        "formal:low_confidence_exception:01:mastery_matrix_rank_high_v1"
+      ],
+      "canonical_knowledge_point_ids": [
+        "math1.linear_algebra.quadratic_form"
+      ],
+      "event_id": "formal:low_confidence_exception:01:padding_event:2",
+      "evidence_event_ids": [
+        "formal:low_confidence_exception:01:padding_event:2"
+      ],
+      "expected_result_value": null,
+      "extracted_fields": {
+        "answer_correct": false,
+        "correction": null,
+        "error_detail": "本次作答受外部中断影响，不能作为稳定能力证据。",
+        "error_type": "unknown",
+        "event_type": "answer_attempt",
+        "evidence_quality": {
+          "confidence": 0.1,
+          "is_temporary_exception": true,
+          "reasons": [
+            "external_disruption"
+          ]
+        },
+        "knowledge_point_ids": [
+          "math1.linear_algebra.quadratic_form"
+        ],
+        "plan_transition": null
+      },
+      "operation": "NO_OP",
+      "operation_id": "formal:low_confidence_exception:01:padding_operation:2:1",
+      "reason_code": "temporary_low_confidence_evidence_is_not_persisted",
+      "result_memory_id": null,
+      "slot_key": "mastery:math1.linear_algebra.quadratic_form",
+      "step_id": "formal:low_confidence_exception:01:padding_step:2",
+      "target_memory_ids": [
+        "formal:low_confidence_exception:01:mastery_matrix_rank_high_v1"
+      ]
+    },
+    {
+      "candidate_memory_ids": [],
+      "canonical_knowledge_point_ids": [
+        "math1.linear_algebra.quadratic_form"
+      ],
+      "event_id": "formal:low_confidence_exception:01:padding_event:2",
+      "evidence_event_ids": [
+        "formal:low_confidence_exception:01:padding_event:2"
+      ],
+      "expected_result_value": null,
+      "extracted_fields": {
+        "answer_correct": false,
+        "correction": null,
+        "error_detail": "本次作答受外部中断影响，不能作为稳定能力证据。",
+        "error_type": "unknown",
+        "event_type": "answer_attempt",
+        "evidence_quality": {
+          "confidence": 0.1,
+          "is_temporary_exception": true,
+          "reasons": [
+            "external_disruption"
+          ]
+        },
+        "knowledge_point_ids": [
+          "math1.linear_algebra.quadratic_form"
+        ],
+        "plan_transition": null
+      },
+      "operation": "NO_OP",
+      "operation_id": "formal:low_confidence_exception:01:padding_operation:2:2",
+      "reason_code": "temporary_low_confidence_evidence_is_not_persisted",
+      "result_memory_id": null,
+      "slot_key": "error_pattern:math1.linear_algebra.quadratic_form:unknown",
+      "step_id": "formal:low_confidence_exception:01:padding_step:2",
+      "target_memory_ids": []
+    },
+    {
+      "candidate_memory_ids": [
+        "formal:low_confidence_exception:01:mastery_matrix_rank_high_v1"
+      ],
+      "canonical_knowledge_point_ids": [
+        "math1.linear_algebra.quadratic_form"
+      ],
+      "event_id": "formal:low_confidence_exception:01:padding_event:3",
+      "evidence_event_ids": [
+        "formal:low_confidence_exception:01:padding_event:3"
+      ],
+      "expected_result_value": null,
+      "extracted_fields": {
+        "answer_correct": false,
+        "correction": null,
+        "error_detail": "本次作答受外部中断影响，不能作为稳定能力证据。",
+        "error_type": "unknown",
+        "event_type": "answer_attempt",
+        "evidence_quality": {
+          "confidence": 0.1,
+          "is_temporary_exception": true,
+          "reasons": [
+            "external_disruption"
+          ]
+        },
+        "knowledge_point_ids": [
+          "math1.linear_algebra.quadratic_form"
+        ],
+        "plan_transition": null
+      },
+      "operation": "NO_OP",
+      "operation_id": "formal:low_confidence_exception:01:padding_operation:3:1",
+      "reason_code": "temporary_low_confidence_evidence_is_not_persisted",
+      "result_memory_id": null,
+      "slot_key": "mastery:math1.linear_algebra.quadratic_form",
+      "step_id": "formal:low_confidence_exception:01:padding_step:3",
+      "target_memory_ids": [
+        "formal:low_confidence_exception:01:mastery_matrix_rank_high_v1"
+      ]
+    },
+    {
+      "candidate_memory_ids": [],
+      "canonical_knowledge_point_ids": [
+        "math1.linear_algebra.quadratic_form"
+      ],
+      "event_id": "formal:low_confidence_exception:01:padding_event:3",
+      "evidence_event_ids": [
+        "formal:low_confidence_exception:01:padding_event:3"
+      ],
+      "expected_result_value": null,
+      "extracted_fields": {
+        "answer_correct": false,
+        "correction": null,
+        "error_detail": "本次作答受外部中断影响，不能作为稳定能力证据。",
+        "error_type": "unknown",
+        "event_type": "answer_attempt",
+        "evidence_quality": {
+          "confidence": 0.1,
+          "is_temporary_exception": true,
+          "reasons": [
+            "external_disruption"
+          ]
+        },
+        "knowledge_point_ids": [
+          "math1.linear_algebra.quadratic_form"
+        ],
+        "plan_transition": null
+      },
+      "operation": "NO_OP",
+      "operation_id": "formal:low_confidence_exception:01:padding_operation:3:2",
+      "reason_code": "temporary_low_confidence_evidence_is_not_persisted",
+      "result_memory_id": null,
+      "slot_key": "error_pattern:math1.linear_algebra.quadratic_form:unknown",
+      "step_id": "formal:low_confidence_exception:01:padding_step:3",
+      "target_memory_ids": []
+    }
+  ],
+  "gold_states": [
+    {
+      "active_memory_ids": [
+        "formal:low_confidence_exception:01:mastery_matrix_rank_high_v1"
+      ],
+      "archived_memory_ids": [],
+      "contested_memory_ids": [],
+      "invalidated_memory_ids": [],
+      "step_id": "formal:low_confidence_exception:01:step_001",
+      "version_relations": []
+    },
+    {
+      "active_memory_ids": [
+        "formal:low_confidence_exception:01:mastery_matrix_rank_high_v1"
+      ],
+      "archived_memory_ids": [],
+      "contested_memory_ids": [],
+      "invalidated_memory_ids": [],
+      "step_id": "formal:low_confidence_exception:01:padding_step:2",
+      "version_relations": []
+    },
+    {
+      "active_memory_ids": [
+        "formal:low_confidence_exception:01:mastery_matrix_rank_high_v1"
+      ],
+      "archived_memory_ids": [],
+      "contested_memory_ids": [],
+      "invalidated_memory_ids": [],
+      "step_id": "formal:low_confidence_exception:01:padding_step:3",
+      "version_relations": []
+    }
+  ],
+  "initial_memory": [
+    {
+      "confidence": 0.91,
+      "evidence_count": 8,
+      "lifecycle_state": "active",
+      "memory_id": "formal:low_confidence_exception:01:mastery_matrix_rank_high_v1",
+      "provenance": [
+        "formal:low_confidence_exception:01:event_matrix_rank_093",
+        "formal:low_confidence_exception:01:event_matrix_rank_094",
+        "formal:low_confidence_exception:01:event_matrix_rank_095",
+        "formal:low_confidence_exception:01:event_matrix_rank_096",
+        "formal:low_confidence_exception:01:event_matrix_rank_097",
+        "formal:low_confidence_exception:01:event_matrix_rank_098",
+        "formal:low_confidence_exception:01:event_matrix_rank_099",
+        "formal:low_confidence_exception:01:event_matrix_rank_100"
+      ],
+      "scope": {
+        "exam_id": "formal:low_confidence_exception:01:postgraduate_entrance_exam",
+        "memory_namespace": "mastery",
+        "subject_id": "linear_algebra",
+        "user_id": "formal:low_confidence_exception:01:user_001"
+      },
+      "slot_key": "mastery:math1.linear_algebra.quadratic_form",
+      "superseded_by": null,
+      "valid_from": "2026-08-01T08:00:00Z",
+      "valid_to": null,
+      "value": {
+        "level": "high",
+        "score": 0.86,
+        "type": "mastery"
+      },
+      "version": 1
+    }
+  ],
+  "metadata": {
+    "gold_revision": 3,
+    "policy_parameters": {
+      "formal_dataset_version": "exam_mem_controlled_v1",
+      "padding_policy": "temporary_low_confidence_no_op",
+      "target_knowledge_point_id": "math1.linear_algebra.quadratic_form",
+      "template_case_id": "low_confidence_grading_does_not_pollute_memory_001"
+    },
+    "seed": 20260806,
+    "split": "test"
+  },
+  "protocol_version": "evaluation_protocol_v1",
+  "queries": [
+    {
+      "after_step_id": "formal:low_confidence_exception:01:step_001",
+      "query_id": "formal:low_confidence_exception:01:query_001",
+      "scope": {
+        "exam_id": "formal:low_confidence_exception:01:postgraduate_entrance_exam",
+        "memory_namespace": "mastery",
+        "subject_id": "linear_algebra",
+        "user_id": "formal:low_confidence_exception:01:user_001"
+      },
+      "text": "一次低置信度判错是否应降低矩阵秩掌握度？",
+      "top_k": 3
+    }
+  ],
+  "scenario_type": "low_confidence_exception"
+}

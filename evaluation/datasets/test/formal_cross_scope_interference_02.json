@@ -1,0 +1,443 @@
+{
+  "case_id": "formal:cross_scope_interference:02",
+  "events": [
+    {
+      "answer_correct": false,
+      "context": {
+        "exam_id": "formal:cross_scope_interference:02:postgraduate_entrance_exam",
+        "subject_id": "probability_theory",
+        "user_id": "formal:cross_scope_interference:02:user_001"
+      },
+      "correction": null,
+      "difficulty": 0.35,
+      "error_detail": "认为向量个数少于维数时向量组必然线性无关",
+      "error_type": "concept_confusion",
+      "event_id": "formal:cross_scope_interference:02:event_linear_independence_101",
+      "event_type": "answer_attempt",
+      "evidence_quality": {
+        "confidence": 1.0,
+        "is_temporary_exception": false,
+        "reasons": []
+      },
+      "idempotency_key": "formal:cross_scope_interference:02:linear-independence-101",
+      "knowledge_point_ids": [
+        "math1.probability.distribution_function"
+      ],
+      "occurred_at": "2026-08-10T13:30:00Z",
+      "plan_transition": null,
+      "question_id": "controlled:distribution_function:v1",
+      "session_id": "formal:cross_scope_interference:02:session:1"
+    },
+    {
+      "answer_correct": false,
+      "context": {
+        "exam_id": "formal:cross_scope_interference:02:postgraduate_entrance_exam",
+        "subject_id": "probability_theory",
+        "user_id": "formal:cross_scope_interference:02:user_001"
+      },
+      "correction": null,
+      "difficulty": 0.35,
+      "error_detail": "本次作答受外部中断影响，不能作为稳定能力证据。",
+      "error_type": "unknown",
+      "event_id": "formal:cross_scope_interference:02:padding_event:2",
+      "event_type": "answer_attempt",
+      "evidence_quality": {
+        "confidence": 0.1,
+        "is_temporary_exception": true,
+        "reasons": [
+          "external_disruption"
+        ]
+      },
+      "idempotency_key": "formal:cross_scope_interference:02:padding_idempotency:2",
+      "knowledge_point_ids": [
+        "math1.probability.distribution_function"
+      ],
+      "occurred_at": "2026-08-17T13:30:00Z",
+      "plan_transition": null,
+      "question_id": "controlled:distribution_function:v1",
+      "session_id": "formal:cross_scope_interference:02:session:2"
+    },
+    {
+      "answer_correct": false,
+      "context": {
+        "exam_id": "formal:cross_scope_interference:02:postgraduate_entrance_exam",
+        "subject_id": "probability_theory",
+        "user_id": "formal:cross_scope_interference:02:user_001"
+      },
+      "correction": null,
+      "difficulty": 0.35,
+      "error_detail": "本次作答受外部中断影响，不能作为稳定能力证据。",
+      "error_type": "unknown",
+      "event_id": "formal:cross_scope_interference:02:padding_event:3",
+      "event_type": "answer_attempt",
+      "evidence_quality": {
+        "confidence": 0.1,
+        "is_temporary_exception": true,
+        "reasons": [
+          "external_disruption"
+        ]
+      },
+      "idempotency_key": "formal:cross_scope_interference:02:padding_idempotency:3",
+      "knowledge_point_ids": [
+        "math1.probability.distribution_function"
+      ],
+      "occurred_at": "2026-08-24T13:30:00Z",
+      "plan_transition": null,
+      "question_id": "controlled:distribution_function:v1",
+      "session_id": "formal:cross_scope_interference:02:session:3"
+    }
+  ],
+  "gold_actions": [
+    {
+      "action_type": "recommend_review",
+      "knowledge_point_ids": [
+        "math1.probability.distribution_function"
+      ],
+      "reason_code": "only_linear_algebra_independence_drives_this_review",
+      "step_id": "formal:cross_scope_interference:02:step_001"
+    },
+    {
+      "action_type": "no_action",
+      "knowledge_point_ids": [],
+      "reason_code": "temporary_low_confidence_evidence_requires_no_action",
+      "step_id": "formal:cross_scope_interference:02:padding_step:2"
+    },
+    {
+      "action_type": "no_action",
+      "knowledge_point_ids": [],
+      "reason_code": "temporary_low_confidence_evidence_requires_no_action",
+      "step_id": "formal:cross_scope_interference:02:padding_step:3"
+    }
+  ],
+  "gold_operations": [
+    {
+      "candidate_memory_ids": [
+        "formal:cross_scope_interference:02:error_linear_independence_v1"
+      ],
+      "canonical_knowledge_point_ids": [
+        "math1.probability.distribution_function"
+      ],
+      "event_id": "formal:cross_scope_interference:02:event_linear_independence_101",
+      "evidence_event_ids": [
+        "formal:cross_scope_interference:02:event_linear_independence_101"
+      ],
+      "expected_result_value": null,
+      "extracted_fields": {
+        "answer_correct": false,
+        "correction": null,
+        "error_detail": "认为向量个数少于维数时向量组必然线性无关",
+        "error_type": "concept_confusion",
+        "event_type": "answer_attempt",
+        "evidence_quality": {
+          "confidence": 1.0,
+          "is_temporary_exception": false,
+          "reasons": []
+        },
+        "knowledge_point_ids": [
+          "math1.probability.distribution_function"
+        ],
+        "plan_transition": null
+      },
+      "operation": "MERGE",
+      "operation_id": "formal:cross_scope_interference:02:step_001:error_pattern",
+      "reason_code": "full_scope_precedes_semantic_similarity",
+      "result_memory_id": "formal:cross_scope_interference:02:error_linear_independence_v2",
+      "slot_key": "error_pattern:math1.probability.distribution_function:concept_confusion",
+      "step_id": "formal:cross_scope_interference:02:step_001",
+      "target_memory_ids": [
+        "formal:cross_scope_interference:02:error_linear_independence_v1"
+      ]
+    },
+    {
+      "candidate_memory_ids": [],
+      "canonical_knowledge_point_ids": [
+        "math1.probability.distribution_function"
+      ],
+      "event_id": "formal:cross_scope_interference:02:padding_event:2",
+      "evidence_event_ids": [
+        "formal:cross_scope_interference:02:padding_event:2"
+      ],
+      "expected_result_value": null,
+      "extracted_fields": {
+        "answer_correct": false,
+        "correction": null,
+        "error_detail": "本次作答受外部中断影响，不能作为稳定能力证据。",
+        "error_type": "unknown",
+        "event_type": "answer_attempt",
+        "evidence_quality": {
+          "confidence": 0.1,
+          "is_temporary_exception": true,
+          "reasons": [
+            "external_disruption"
+          ]
+        },
+        "knowledge_point_ids": [
+          "math1.probability.distribution_function"
+        ],
+        "plan_transition": null
+      },
+      "operation": "NO_OP",
+      "operation_id": "formal:cross_scope_interference:02:padding_operation:2:1",
+      "reason_code": "temporary_low_confidence_evidence_is_not_persisted",
+      "result_memory_id": null,
+      "slot_key": "mastery:math1.probability.distribution_function",
+      "step_id": "formal:cross_scope_interference:02:padding_step:2",
+      "target_memory_ids": []
+    },
+    {
+      "candidate_memory_ids": [],
+      "canonical_knowledge_point_ids": [
+        "math1.probability.distribution_function"
+      ],
+      "event_id": "formal:cross_scope_interference:02:padding_event:2",
+      "evidence_event_ids": [
+        "formal:cross_scope_interference:02:padding_event:2"
+      ],
+      "expected_result_value": null,
+      "extracted_fields": {
+        "answer_correct": false,
+        "correction": null,
+        "error_detail": "本次作答受外部中断影响，不能作为稳定能力证据。",
+        "error_type": "unknown",
+        "event_type": "answer_attempt",
+        "evidence_quality": {
+          "confidence": 0.1,
+          "is_temporary_exception": true,
+          "reasons": [
+            "external_disruption"
+          ]
+        },
+        "knowledge_point_ids": [
+          "math1.probability.distribution_function"
+        ],
+        "plan_transition": null
+      },
+      "operation": "NO_OP",
+      "operation_id": "formal:cross_scope_interference:02:padding_operation:2:2",
+      "reason_code": "temporary_low_confidence_evidence_is_not_persisted",
+      "result_memory_id": null,
+      "slot_key": "error_pattern:math1.probability.distribution_function:unknown",
+      "step_id": "formal:cross_scope_interference:02:padding_step:2",
+      "target_memory_ids": []
+    },
+    {
+      "candidate_memory_ids": [],
+      "canonical_knowledge_point_ids": [
+        "math1.probability.distribution_function"
+      ],
+      "event_id": "formal:cross_scope_interference:02:padding_event:3",
+      "evidence_event_ids": [
+        "formal:cross_scope_interference:02:padding_event:3"
+      ],
+      "expected_result_value": null,
+      "extracted_fields": {
+        "answer_correct": false,
+        "correction": null,
+        "error_detail": "本次作答受外部中断影响，不能作为稳定能力证据。",
+        "error_type": "unknown",
+        "event_type": "answer_attempt",
+        "evidence_quality": {
+          "confidence": 0.1,
+          "is_temporary_exception": true,
+          "reasons": [
+            "external_disruption"
+          ]
+        },
+        "knowledge_point_ids": [
+          "math1.probability.distribution_function"
+        ],
+        "plan_transition": null
+      },
+      "operation": "NO_OP",
+      "operation_id": "formal:cross_scope_interference:02:padding_operation:3:1",
+      "reason_code": "temporary_low_confidence_evidence_is_not_persisted",
+      "result_memory_id": null,
+      "slot_key": "mastery:math1.probability.distribution_function",
+      "step_id": "formal:cross_scope_interference:02:padding_step:3",
+      "target_memory_ids": []
+    },
+    {
+      "candidate_memory_ids": [],
+      "canonical_knowledge_point_ids": [
+        "math1.probability.distribution_function"
+      ],
+      "event_id": "formal:cross_scope_interference:02:padding_event:3",
+      "evidence_event_ids": [
+        "formal:cross_scope_interference:02:padding_event:3"
+      ],
+      "expected_result_value": null,
+      "extracted_fields": {
+        "answer_correct": false,
+        "correction": null,
+        "error_detail": "本次作答受外部中断影响，不能作为稳定能力证据。",
+        "error_type": "unknown",
+        "event_type": "answer_attempt",
+        "evidence_quality": {
+          "confidence": 0.1,
+          "is_temporary_exception": true,
+          "reasons": [
+            "external_disruption"
+          ]
+        },
+        "knowledge_point_ids": [
+          "math1.probability.distribution_function"
+        ],
+        "plan_transition": null
+      },
+      "operation": "NO_OP",
+      "operation_id": "formal:cross_scope_interference:02:padding_operation:3:2",
+      "reason_code": "temporary_low_confidence_evidence_is_not_persisted",
+      "result_memory_id": null,
+      "slot_key": "error_pattern:math1.probability.distribution_function:unknown",
+      "step_id": "formal:cross_scope_interference:02:padding_step:3",
+      "target_memory_ids": []
+    }
+  ],
+  "gold_states": [
+    {
+      "active_memory_ids": [
+        "formal:cross_scope_interference:02:error_probability_independence_v1",
+        "formal:cross_scope_interference:02:error_linear_independence_v2"
+      ],
+      "archived_memory_ids": [
+        "formal:cross_scope_interference:02:error_linear_independence_v1"
+      ],
+      "contested_memory_ids": [],
+      "invalidated_memory_ids": [],
+      "step_id": "formal:cross_scope_interference:02:step_001",
+      "version_relations": [
+        {
+          "predecessor_memory_id": "formal:cross_scope_interference:02:error_linear_independence_v1",
+          "relation": "superseded_by",
+          "successor_memory_id": "formal:cross_scope_interference:02:error_linear_independence_v2"
+        }
+      ]
+    },
+    {
+      "active_memory_ids": [
+        "formal:cross_scope_interference:02:error_probability_independence_v1",
+        "formal:cross_scope_interference:02:error_linear_independence_v2"
+      ],
+      "archived_memory_ids": [
+        "formal:cross_scope_interference:02:error_linear_independence_v1"
+      ],
+      "contested_memory_ids": [],
+      "invalidated_memory_ids": [],
+      "step_id": "formal:cross_scope_interference:02:padding_step:2",
+      "version_relations": [
+        {
+          "predecessor_memory_id": "formal:cross_scope_interference:02:error_linear_independence_v1",
+          "relation": "superseded_by",
+          "successor_memory_id": "formal:cross_scope_interference:02:error_linear_independence_v2"
+        }
+      ]
+    },
+    {
+      "active_memory_ids": [
+        "formal:cross_scope_interference:02:error_probability_independence_v1",
+        "formal:cross_scope_interference:02:error_linear_independence_v2"
+      ],
+      "archived_memory_ids": [
+        "formal:cross_scope_interference:02:error_linear_independence_v1"
+      ],
+      "contested_memory_ids": [],
+      "invalidated_memory_ids": [],
+      "step_id": "formal:cross_scope_interference:02:padding_step:3",
+      "version_relations": [
+        {
+          "predecessor_memory_id": "formal:cross_scope_interference:02:error_linear_independence_v1",
+          "relation": "superseded_by",
+          "successor_memory_id": "formal:cross_scope_interference:02:error_linear_independence_v2"
+        }
+      ]
+    }
+  ],
+  "initial_memory": [
+    {
+      "confidence": 0.84,
+      "evidence_count": 3,
+      "lifecycle_state": "active",
+      "memory_id": "formal:cross_scope_interference:02:error_probability_independence_v1",
+      "provenance": [
+        "formal:cross_scope_interference:02:event_probability_independence_098",
+        "formal:cross_scope_interference:02:event_probability_independence_099",
+        "formal:cross_scope_interference:02:event_probability_independence_100"
+      ],
+      "scope": {
+        "exam_id": "formal:cross_scope_interference:02:postgraduate_entrance_exam",
+        "memory_namespace": "error_pattern",
+        "subject_id": "probability_theory",
+        "user_id": "formal:cross_scope_interference:02:user_002"
+      },
+      "slot_key": "error_pattern:math1.probability.independence:concept_confusion",
+      "superseded_by": null,
+      "valid_from": "2026-08-01T08:00:00Z",
+      "valid_to": null,
+      "value": {
+        "details": [
+          "分布函数轨迹中的可复核错误证据"
+        ],
+        "error_type": "concept_confusion",
+        "summary": "分布函数的 concept_confusion 型受控错误",
+        "type": "error_pattern"
+      },
+      "version": 1
+    },
+    {
+      "confidence": 0.79,
+      "evidence_count": 2,
+      "lifecycle_state": "active",
+      "memory_id": "formal:cross_scope_interference:02:error_linear_independence_v1",
+      "provenance": [
+        "formal:cross_scope_interference:02:event_linear_independence_099",
+        "formal:cross_scope_interference:02:event_linear_independence_100"
+      ],
+      "scope": {
+        "exam_id": "formal:cross_scope_interference:02:postgraduate_entrance_exam",
+        "memory_namespace": "error_pattern",
+        "subject_id": "probability_theory",
+        "user_id": "formal:cross_scope_interference:02:user_001"
+      },
+      "slot_key": "error_pattern:math1.probability.distribution_function:concept_confusion",
+      "superseded_by": null,
+      "valid_from": "2026-08-02T08:00:00Z",
+      "valid_to": null,
+      "value": {
+        "details": [
+          "分布函数轨迹中的可复核错误证据"
+        ],
+        "error_type": "concept_confusion",
+        "summary": "分布函数的 concept_confusion 型受控错误",
+        "type": "error_pattern"
+      },
+      "version": 1
+    }
+  ],
+  "metadata": {
+    "gold_revision": 3,
+    "policy_parameters": {
+      "formal_dataset_version": "exam_mem_controlled_v1",
+      "padding_policy": "temporary_low_confidence_no_op",
+      "target_knowledge_point_id": "math1.probability.distribution_function",
+      "template_case_id": "similar_independence_terms_remain_subject_isolated_002"
+    },
+    "seed": 20260806,
+    "split": "test"
+  },
+  "protocol_version": "evaluation_protocol_v1",
+  "queries": [
+    {
+      "after_step_id": "formal:cross_scope_interference:02:step_001",
+      "query_id": "formal:cross_scope_interference:02:query_001",
+      "scope": {
+        "exam_id": "formal:cross_scope_interference:02:postgraduate_entrance_exam",
+        "memory_namespace": "error_pattern",
+        "subject_id": "probability_theory",
+        "user_id": "formal:cross_scope_interference:02:user_001"
+      },
+      "text": "线性无关方面有哪些错误模式？",
+      "top_k": 3
+    }
+  ],
+  "scenario_type": "cross_scope_interference"
+}

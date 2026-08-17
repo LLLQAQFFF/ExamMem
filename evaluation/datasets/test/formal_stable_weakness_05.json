@@ -1,0 +1,498 @@
+{
+  "case_id": "formal:stable_weakness:05",
+  "events": [
+    {
+      "answer_correct": false,
+      "context": {
+        "exam_id": "formal:stable_weakness:05:postgraduate_entrance_exam",
+        "subject_id": "probability_theory",
+        "user_id": "formal:stable_weakness:05:user_001"
+      },
+      "correction": null,
+      "difficulty": 0.4,
+      "error_detail": "把分布函数 F(x) 误写为概率质量函数在 x 处的取值",
+      "error_type": "formula_misuse",
+      "event_id": "formal:stable_weakness:05:event_random_variable_101",
+      "event_type": "answer_attempt",
+      "evidence_quality": {
+        "confidence": 1.0,
+        "is_temporary_exception": false,
+        "reasons": []
+      },
+      "idempotency_key": "formal:stable_weakness:05:random-variable-formula-error-101",
+      "knowledge_point_ids": [
+        "math1.probability.total_probability"
+      ],
+      "occurred_at": "2026-08-08T14:00:00Z",
+      "plan_transition": null,
+      "question_id": "controlled:total_probability:v1",
+      "session_id": "formal:stable_weakness:05:session:1"
+    },
+    {
+      "answer_correct": false,
+      "context": {
+        "exam_id": "formal:stable_weakness:05:postgraduate_entrance_exam",
+        "subject_id": "probability_theory",
+        "user_id": "formal:stable_weakness:05:user_001"
+      },
+      "correction": null,
+      "difficulty": 0.4,
+      "error_detail": "计算离散随机变量分布函数时没有累加 x 之前的概率",
+      "error_type": "formula_misuse",
+      "event_id": "formal:stable_weakness:05:event_random_variable_102",
+      "event_type": "answer_attempt",
+      "evidence_quality": {
+        "confidence": 1.0,
+        "is_temporary_exception": false,
+        "reasons": []
+      },
+      "idempotency_key": "formal:stable_weakness:05:random-variable-formula-error-102",
+      "knowledge_point_ids": [
+        "math1.probability.total_probability"
+      ],
+      "occurred_at": "2026-08-09T14:00:00Z",
+      "plan_transition": null,
+      "question_id": "controlled:total_probability:v1",
+      "session_id": "formal:stable_weakness:05:session:2"
+    },
+    {
+      "answer_correct": false,
+      "context": {
+        "exam_id": "formal:stable_weakness:05:postgraduate_entrance_exam",
+        "subject_id": "probability_theory",
+        "user_id": "formal:stable_weakness:05:user_001"
+      },
+      "correction": null,
+      "difficulty": 0.4,
+      "error_detail": "混用分布函数与密度函数公式，直接对 F(x) 积分",
+      "error_type": "formula_misuse",
+      "event_id": "formal:stable_weakness:05:event_random_variable_103",
+      "event_type": "answer_attempt",
+      "evidence_quality": {
+        "confidence": 1.0,
+        "is_temporary_exception": false,
+        "reasons": []
+      },
+      "idempotency_key": "formal:stable_weakness:05:random-variable-formula-error-103",
+      "knowledge_point_ids": [
+        "math1.probability.total_probability"
+      ],
+      "occurred_at": "2026-08-09T14:30:00Z",
+      "plan_transition": null,
+      "question_id": "controlled:total_probability:v1",
+      "session_id": "formal:stable_weakness:05:session:3"
+    }
+  ],
+  "gold_actions": [
+    {
+      "action_type": "recommend_review",
+      "knowledge_point_ids": [
+        "math1.probability.total_probability"
+      ],
+      "reason_code": "record_and_review_cold_topic_before_pattern_is_stable",
+      "step_id": "formal:stable_weakness:05:step_001"
+    },
+    {
+      "action_type": "recommend_review",
+      "knowledge_point_ids": [
+        "math1.probability.total_probability"
+      ],
+      "reason_code": "continued_errors_keep_targeted_review_active",
+      "step_id": "formal:stable_weakness:05:step_002"
+    },
+    {
+      "action_type": "recommend_review",
+      "knowledge_point_ids": [
+        "math1.probability.total_probability"
+      ],
+      "reason_code": "active_error_pattern_and_low_mastery_confirm_weakness",
+      "step_id": "formal:stable_weakness:05:step_003"
+    }
+  ],
+  "gold_operations": [
+    {
+      "candidate_memory_ids": [
+        "formal:stable_weakness:05:mastery_random_variable_improving_v1"
+      ],
+      "canonical_knowledge_point_ids": [
+        "math1.probability.total_probability"
+      ],
+      "event_id": "formal:stable_weakness:05:event_random_variable_101",
+      "evidence_event_ids": [
+        "formal:stable_weakness:05:event_random_variable_101"
+      ],
+      "expected_result_value": null,
+      "extracted_fields": {
+        "answer_correct": false,
+        "correction": null,
+        "error_detail": "把分布函数 F(x) 误写为概率质量函数在 x 处的取值",
+        "error_type": "formula_misuse",
+        "event_type": "answer_attempt",
+        "evidence_quality": {
+          "confidence": 1.0,
+          "is_temporary_exception": false,
+          "reasons": []
+        },
+        "knowledge_point_ids": [
+          "math1.probability.total_probability"
+        ],
+        "plan_transition": null
+      },
+      "operation": "MERGE",
+      "operation_id": "formal:stable_weakness:05:step_001:mastery",
+      "reason_code": "first_error_updates_mastery_evidence_without_level_change",
+      "result_memory_id": "formal:stable_weakness:05:mastery_random_variable_improving_v2",
+      "slot_key": "mastery:math1.probability.total_probability",
+      "step_id": "formal:stable_weakness:05:step_001",
+      "target_memory_ids": [
+        "formal:stable_weakness:05:mastery_random_variable_improving_v1"
+      ]
+    },
+    {
+      "candidate_memory_ids": [],
+      "canonical_knowledge_point_ids": [
+        "math1.probability.total_probability"
+      ],
+      "event_id": "formal:stable_weakness:05:event_random_variable_101",
+      "evidence_event_ids": [
+        "formal:stable_weakness:05:event_random_variable_101"
+      ],
+      "expected_result_value": null,
+      "extracted_fields": {
+        "answer_correct": false,
+        "correction": null,
+        "error_detail": "把分布函数 F(x) 误写为概率质量函数在 x 处的取值",
+        "error_type": "formula_misuse",
+        "event_type": "answer_attempt",
+        "evidence_quality": {
+          "confidence": 1.0,
+          "is_temporary_exception": false,
+          "reasons": []
+        },
+        "knowledge_point_ids": [
+          "math1.probability.total_probability"
+        ],
+        "plan_transition": null
+      },
+      "operation": "CONTESTED",
+      "operation_id": "formal:stable_weakness:05:step_001:error_pattern",
+      "reason_code": "first_error_is_recorded_but_not_yet_a_stable_pattern",
+      "result_memory_id": "formal:stable_weakness:05:error_random_variable_formula_contested_v1",
+      "slot_key": "error_pattern:math1.probability.total_probability:formula_misuse",
+      "step_id": "formal:stable_weakness:05:step_001",
+      "target_memory_ids": []
+    },
+    {
+      "candidate_memory_ids": [
+        "formal:stable_weakness:05:mastery_random_variable_improving_v2"
+      ],
+      "canonical_knowledge_point_ids": [
+        "math1.probability.total_probability"
+      ],
+      "event_id": "formal:stable_weakness:05:event_random_variable_102",
+      "evidence_event_ids": [
+        "formal:stable_weakness:05:event_random_variable_102"
+      ],
+      "expected_result_value": null,
+      "extracted_fields": {
+        "answer_correct": false,
+        "correction": null,
+        "error_detail": "计算离散随机变量分布函数时没有累加 x 之前的概率",
+        "error_type": "formula_misuse",
+        "event_type": "answer_attempt",
+        "evidence_quality": {
+          "confidence": 1.0,
+          "is_temporary_exception": false,
+          "reasons": []
+        },
+        "knowledge_point_ids": [
+          "math1.probability.total_probability"
+        ],
+        "plan_transition": null
+      },
+      "operation": "MERGE",
+      "operation_id": "formal:stable_weakness:05:step_002:mastery",
+      "reason_code": "second_error_updates_mastery_evidence_without_level_change",
+      "result_memory_id": "formal:stable_weakness:05:mastery_random_variable_improving_v3",
+      "slot_key": "mastery:math1.probability.total_probability",
+      "step_id": "formal:stable_weakness:05:step_002",
+      "target_memory_ids": [
+        "formal:stable_weakness:05:mastery_random_variable_improving_v2"
+      ]
+    },
+    {
+      "candidate_memory_ids": [
+        "formal:stable_weakness:05:error_random_variable_formula_contested_v1"
+      ],
+      "canonical_knowledge_point_ids": [
+        "math1.probability.total_probability"
+      ],
+      "event_id": "formal:stable_weakness:05:event_random_variable_102",
+      "evidence_event_ids": [
+        "formal:stable_weakness:05:event_random_variable_102"
+      ],
+      "expected_result_value": null,
+      "extracted_fields": {
+        "answer_correct": false,
+        "correction": null,
+        "error_detail": "计算离散随机变量分布函数时没有累加 x 之前的概率",
+        "error_type": "formula_misuse",
+        "event_type": "answer_attempt",
+        "evidence_quality": {
+          "confidence": 1.0,
+          "is_temporary_exception": false,
+          "reasons": []
+        },
+        "knowledge_point_ids": [
+          "math1.probability.total_probability"
+        ],
+        "plan_transition": null
+      },
+      "operation": "MERGE",
+      "operation_id": "formal:stable_weakness:05:step_002:error_pattern",
+      "reason_code": "second_error_merges_into_potential_pattern",
+      "result_memory_id": "formal:stable_weakness:05:error_random_variable_formula_contested_v2",
+      "slot_key": "error_pattern:math1.probability.total_probability:formula_misuse",
+      "step_id": "formal:stable_weakness:05:step_002",
+      "target_memory_ids": [
+        "formal:stable_weakness:05:error_random_variable_formula_contested_v1"
+      ]
+    },
+    {
+      "candidate_memory_ids": [
+        "formal:stable_weakness:05:mastery_random_variable_improving_v3"
+      ],
+      "canonical_knowledge_point_ids": [
+        "math1.probability.total_probability"
+      ],
+      "event_id": "formal:stable_weakness:05:event_random_variable_103",
+      "evidence_event_ids": [
+        "formal:stable_weakness:05:event_random_variable_101",
+        "formal:stable_weakness:05:event_random_variable_102",
+        "formal:stable_weakness:05:event_random_variable_103"
+      ],
+      "expected_result_value": null,
+      "extracted_fields": {
+        "answer_correct": false,
+        "correction": null,
+        "error_detail": "混用分布函数与密度函数公式，直接对 F(x) 积分",
+        "error_type": "formula_misuse",
+        "event_type": "answer_attempt",
+        "evidence_quality": {
+          "confidence": 1.0,
+          "is_temporary_exception": false,
+          "reasons": []
+        },
+        "knowledge_point_ids": [
+          "math1.probability.total_probability"
+        ],
+        "plan_transition": null
+      },
+      "operation": "SUPERSEDE",
+      "operation_id": "formal:stable_weakness:05:step_003:mastery",
+      "reason_code": "third_qualifying_error_downgrades_mastery_to_low",
+      "result_memory_id": "formal:stable_weakness:05:mastery_random_variable_low_v4",
+      "slot_key": "mastery:math1.probability.total_probability",
+      "step_id": "formal:stable_weakness:05:step_003",
+      "target_memory_ids": [
+        "formal:stable_weakness:05:mastery_random_variable_improving_v3"
+      ]
+    },
+    {
+      "candidate_memory_ids": [
+        "formal:stable_weakness:05:error_random_variable_formula_contested_v2"
+      ],
+      "canonical_knowledge_point_ids": [
+        "math1.probability.total_probability"
+      ],
+      "event_id": "formal:stable_weakness:05:event_random_variable_103",
+      "evidence_event_ids": [
+        "formal:stable_weakness:05:event_random_variable_101",
+        "formal:stable_weakness:05:event_random_variable_102",
+        "formal:stable_weakness:05:event_random_variable_103"
+      ],
+      "expected_result_value": null,
+      "extracted_fields": {
+        "answer_correct": false,
+        "correction": null,
+        "error_detail": "混用分布函数与密度函数公式，直接对 F(x) 积分",
+        "error_type": "formula_misuse",
+        "event_type": "answer_attempt",
+        "evidence_quality": {
+          "confidence": 1.0,
+          "is_temporary_exception": false,
+          "reasons": []
+        },
+        "knowledge_point_ids": [
+          "math1.probability.total_probability"
+        ],
+        "plan_transition": null
+      },
+      "operation": "SUPERSEDE",
+      "operation_id": "formal:stable_weakness:05:step_003:error_pattern",
+      "reason_code": "third_independent_error_confirms_active_stable_pattern",
+      "result_memory_id": "formal:stable_weakness:05:error_random_variable_formula_stable_v3",
+      "slot_key": "error_pattern:math1.probability.total_probability:formula_misuse",
+      "step_id": "formal:stable_weakness:05:step_003",
+      "target_memory_ids": [
+        "formal:stable_weakness:05:error_random_variable_formula_contested_v2"
+      ]
+    }
+  ],
+  "gold_states": [
+    {
+      "active_memory_ids": [
+        "formal:stable_weakness:05:mastery_random_variable_improving_v2"
+      ],
+      "archived_memory_ids": [
+        "formal:stable_weakness:05:mastery_random_variable_improving_v1"
+      ],
+      "contested_memory_ids": [
+        "formal:stable_weakness:05:error_random_variable_formula_contested_v1"
+      ],
+      "invalidated_memory_ids": [],
+      "step_id": "formal:stable_weakness:05:step_001",
+      "version_relations": [
+        {
+          "predecessor_memory_id": "formal:stable_weakness:05:mastery_random_variable_improving_v1",
+          "relation": "superseded_by",
+          "successor_memory_id": "formal:stable_weakness:05:mastery_random_variable_improving_v2"
+        }
+      ]
+    },
+    {
+      "active_memory_ids": [
+        "formal:stable_weakness:05:mastery_random_variable_improving_v3"
+      ],
+      "archived_memory_ids": [
+        "formal:stable_weakness:05:mastery_random_variable_improving_v1",
+        "formal:stable_weakness:05:mastery_random_variable_improving_v2",
+        "formal:stable_weakness:05:error_random_variable_formula_contested_v1"
+      ],
+      "contested_memory_ids": [
+        "formal:stable_weakness:05:error_random_variable_formula_contested_v2"
+      ],
+      "invalidated_memory_ids": [],
+      "step_id": "formal:stable_weakness:05:step_002",
+      "version_relations": [
+        {
+          "predecessor_memory_id": "formal:stable_weakness:05:mastery_random_variable_improving_v1",
+          "relation": "superseded_by",
+          "successor_memory_id": "formal:stable_weakness:05:mastery_random_variable_improving_v2"
+        },
+        {
+          "predecessor_memory_id": "formal:stable_weakness:05:mastery_random_variable_improving_v2",
+          "relation": "superseded_by",
+          "successor_memory_id": "formal:stable_weakness:05:mastery_random_variable_improving_v3"
+        },
+        {
+          "predecessor_memory_id": "formal:stable_weakness:05:error_random_variable_formula_contested_v1",
+          "relation": "superseded_by",
+          "successor_memory_id": "formal:stable_weakness:05:error_random_variable_formula_contested_v2"
+        }
+      ]
+    },
+    {
+      "active_memory_ids": [
+        "formal:stable_weakness:05:mastery_random_variable_low_v4",
+        "formal:stable_weakness:05:error_random_variable_formula_stable_v3"
+      ],
+      "archived_memory_ids": [
+        "formal:stable_weakness:05:mastery_random_variable_improving_v1",
+        "formal:stable_weakness:05:mastery_random_variable_improving_v2",
+        "formal:stable_weakness:05:mastery_random_variable_improving_v3",
+        "formal:stable_weakness:05:error_random_variable_formula_contested_v1",
+        "formal:stable_weakness:05:error_random_variable_formula_contested_v2"
+      ],
+      "contested_memory_ids": [],
+      "invalidated_memory_ids": [],
+      "step_id": "formal:stable_weakness:05:step_003",
+      "version_relations": [
+        {
+          "predecessor_memory_id": "formal:stable_weakness:05:mastery_random_variable_improving_v1",
+          "relation": "superseded_by",
+          "successor_memory_id": "formal:stable_weakness:05:mastery_random_variable_improving_v2"
+        },
+        {
+          "predecessor_memory_id": "formal:stable_weakness:05:mastery_random_variable_improving_v2",
+          "relation": "superseded_by",
+          "successor_memory_id": "formal:stable_weakness:05:mastery_random_variable_improving_v3"
+        },
+        {
+          "predecessor_memory_id": "formal:stable_weakness:05:mastery_random_variable_improving_v3",
+          "relation": "superseded_by",
+          "successor_memory_id": "formal:stable_weakness:05:mastery_random_variable_low_v4"
+        },
+        {
+          "predecessor_memory_id": "formal:stable_weakness:05:error_random_variable_formula_contested_v1",
+          "relation": "superseded_by",
+          "successor_memory_id": "formal:stable_weakness:05:error_random_variable_formula_contested_v2"
+        },
+        {
+          "predecessor_memory_id": "formal:stable_weakness:05:error_random_variable_formula_contested_v2",
+          "relation": "superseded_by",
+          "successor_memory_id": "formal:stable_weakness:05:error_random_variable_formula_stable_v3"
+        }
+      ]
+    }
+  ],
+  "initial_memory": [
+    {
+      "confidence": 0.74,
+      "evidence_count": 6,
+      "lifecycle_state": "active",
+      "memory_id": "formal:stable_weakness:05:mastery_random_variable_improving_v1",
+      "provenance": [
+        "formal:stable_weakness:05:event_random_variable_095",
+        "formal:stable_weakness:05:event_random_variable_096",
+        "formal:stable_weakness:05:event_random_variable_097",
+        "formal:stable_weakness:05:event_random_variable_098",
+        "formal:stable_weakness:05:event_random_variable_099",
+        "formal:stable_weakness:05:event_random_variable_100"
+      ],
+      "scope": {
+        "exam_id": "formal:stable_weakness:05:postgraduate_entrance_exam",
+        "memory_namespace": "mastery",
+        "subject_id": "probability_theory",
+        "user_id": "formal:stable_weakness:05:user_001"
+      },
+      "slot_key": "mastery:math1.probability.total_probability",
+      "superseded_by": null,
+      "valid_from": "2026-08-01T09:00:00Z",
+      "valid_to": null,
+      "value": {
+        "level": "improving",
+        "score": 0.58,
+        "type": "mastery"
+      },
+      "version": 1
+    }
+  ],
+  "metadata": {
+    "gold_revision": 3,
+    "policy_parameters": {
+      "formal_dataset_version": "exam_mem_controlled_v1",
+      "padding_policy": "temporary_low_confidence_no_op",
+      "target_knowledge_point_id": "math1.probability.total_probability",
+      "template_case_id": "stable_weakness_emerges_from_repeated_errors_001"
+    },
+    "seed": 20260806,
+    "split": "test"
+  },
+  "protocol_version": "evaluation_protocol_v1",
+  "queries": [
+    {
+      "after_step_id": "formal:stable_weakness:05:step_003",
+      "query_id": "formal:stable_weakness:05:query_001",
+      "scope": {
+        "exam_id": "formal:stable_weakness:05:postgraduate_entrance_exam",
+        "memory_namespace": "error_pattern",
+        "subject_id": "probability_theory",
+        "user_id": "formal:stable_weakness:05:user_001"
+      },
+      "text": "随机变量分布函数是否已经形成稳定薄弱点？",
+      "top_k": 3
+    }
+  ],
+  "scenario_type": "stable_weakness"
+}

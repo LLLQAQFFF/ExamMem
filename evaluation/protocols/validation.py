@@ -3,13 +3,16 @@
 from __future__ import annotations
 
 from collections import Counter
+import hashlib
 import json
 from pathlib import Path
 from typing import Any
 
-from evaluation.contracts.case import DatasetSplit, EvaluationCase
+from evaluation.contracts.case import DatasetSplit, EvaluationCase, ScenarioType
+from evaluation.contracts.dataset import BenchmarkEntry, ControlledQuestion, DatasetManifest
 from evaluation.contracts.protocol import ProtocolConfig
 from exam_mem.contracts import LifecycleOperation, LifecycleState
+from exam_mem.domain.taxonomy import load_taxonomy
 
 EVALUATION_ROOT = Path(__file__).resolve().parents[1]
 PROTOCOL_DIR = EVALUATION_ROOT / "protocols"
@@ -181,6 +184,221 @@ def validate_dataset(
     return summary
 
 
+def _sha256(payload: bytes) -> str:
+    return hashlib.sha256(payload).hexdigest()
+
+
+def _aggregate_hash(records: list[Any]) -> str:
+    payload = "".join(f"{record.path}\0{record.sha256}\n" for record in records)
+    return _sha256(payload.encode("utf-8"))
+
+
+def _load_formal_sidecars(
+    dataset_root: Path,
+    manifest: DatasetManifest,
+) -> tuple[dict[str, ControlledQuestion], dict[str, BenchmarkEntry]]:
+    question_path = dataset_root / f"{manifest.dataset_version}.questions.json"
+    question_payload = question_path.read_bytes()
+    if _sha256(question_payload) != manifest.question_bank_sha256:
+        raise ArtifactValidationError("controlled question bank hash mismatch")
+    raw_questions = json.loads(question_payload)
+    if not isinstance(raw_questions, list):
+        raise ArtifactValidationError("controlled question bank must be a JSON list")
+    questions = [ControlledQuestion.model_validate(item) for item in raw_questions]
+    question_by_id = {question.question_id: question for question in questions}
+    if len(question_by_id) != len(questions):
+        raise ArtifactValidationError("controlled question_id values must be unique")
+
+    taxonomy = load_taxonomy("math1_v1")
+    for question in questions:
+        node = taxonomy.get(question.knowledge_point_id)
+        if node is None or taxonomy.children_of(question.knowledge_point_id):
+            raise ArtifactValidationError(
+                f"controlled question must reference a taxonomy leaf: {question.question_id}"
+            )
+
+    entry_path = dataset_root / f"{manifest.dataset_version}.benchmark.jsonl"
+    entry_payload = entry_path.read_bytes()
+    if _sha256(entry_payload) != manifest.benchmark_entries_sha256:
+        raise ArtifactValidationError("benchmark entry sidecar hash mismatch")
+    entries = [
+        BenchmarkEntry.model_validate_json(line)
+        for line in entry_payload.decode("utf-8").splitlines()
+        if line.strip()
+    ]
+    entry_by_case = {entry.case_id: entry for entry in entries}
+    if len(entry_by_case) != len(entries):
+        raise ArtifactValidationError("benchmark entries must have unique case_id values")
+    trajectory_families = [entry.trajectory_family for entry in entries]
+    if len(trajectory_families) != len(set(trajectory_families)):
+        raise ArtifactValidationError("benchmark trajectory_family values must be unique")
+    return question_by_id, entry_by_case
+
+
+def _validate_formal_case(
+    case: EvaluationCase,
+    *,
+    questions: dict[str, ControlledQuestion],
+    entry: BenchmarkEntry,
+    replay_gold: bool,
+) -> int:
+    if not 3 <= len(case.events) <= 20:
+        raise ArtifactValidationError(f"{case.case_id} requires 3-20 learning events")
+    if len({event.session_id for event in case.events}) < 2:
+        raise ArtifactValidationError(f"{case.case_id} requires at least two sessions")
+    occurred_at = [event.occurred_at for event in case.events]
+    if occurred_at != sorted(occurred_at):
+        raise ArtifactValidationError(f"{case.case_id} events must be chronological")
+
+    answer_events = {
+        event.event_id: event for event in case.events if event.event_type.value == "answer_attempt"
+    }
+    if set(entry.answer_by_event_id) != set(answer_events):
+        raise ArtifactValidationError(
+            f"{case.case_id} answer sidecar must cover every answer-attempt event"
+        )
+    for event_id, event in answer_events.items():
+        question = questions.get(event.question_id or "")
+        if question is None:
+            raise ArtifactValidationError(
+                f"{case.case_id}/{event_id} references an unknown controlled question"
+            )
+        if event.knowledge_point_ids != [question.knowledge_point_id]:
+            raise ArtifactValidationError(
+                f"{case.case_id}/{event_id} question and event knowledge point differ"
+            )
+        if event.difficulty != question.difficulty:
+            raise ArtifactValidationError(
+                f"{case.case_id}/{event_id} question difficulty is not frozen"
+            )
+        answer_id = entry.answer_by_event_id[event_id]
+        answers = {answer.answer_id: answer for answer in question.answer_forms}
+        answer = answers.get(answer_id)
+        if answer is None or answer.correct is not event.answer_correct:
+            raise ArtifactValidationError(
+                f"{case.case_id}/{event_id} controlled answer does not match Gold correctness"
+            )
+
+    target_ids = set(entry.target_knowledge_point_ids)
+    operation_ids = {
+        knowledge_point_id
+        for operation in case.gold_operations
+        for knowledge_point_id in operation.canonical_knowledge_point_ids
+    }
+    if target_ids != operation_ids:
+        raise ArtifactValidationError(
+            f"{case.case_id} benchmark targets do not match Gold operations"
+        )
+    return replay_case(case) if replay_gold else 0
+
+
+def validate_formal_dataset(
+    dataset_version: str,
+    *,
+    dataset_root: Path = DATASET_ROOT,
+) -> dict[str, Any]:
+    """Validate formal data while keeping frozen test case contents out of output."""
+    manifest_path = dataset_root / f"{dataset_version}.manifest.json"
+    if not manifest_path.is_file():
+        raise ArtifactValidationError(f"formal manifest does not exist: {manifest_path}")
+    manifest = DatasetManifest.model_validate_json(manifest_path.read_text(encoding="utf-8"))
+    if manifest.dataset_version != dataset_version:
+        raise ArtifactValidationError("formal manifest dataset_version mismatch")
+    questions, entries = _load_formal_sidecars(dataset_root, manifest)
+
+    all_cases: list[EvaluationCase] = []
+    replayed_dev_steps = 0
+    split_summaries: dict[str, Any] = {}
+    for split_manifest in manifest.splits:
+        expected_paths = {record.path for record in split_manifest.files}
+        split_dir = dataset_root / split_manifest.split.value
+        actual_paths = {str(path.relative_to(dataset_root)) for path in split_dir.glob("*.json")}
+        if actual_paths != expected_paths:
+            raise ArtifactValidationError(
+                f"{split_manifest.split.value} files do not exactly match the manifest"
+            )
+        cases: list[EvaluationCase] = []
+        for record in split_manifest.files:
+            payload = (dataset_root / record.path).read_bytes()
+            if _sha256(payload) != record.sha256:
+                raise ArtifactValidationError(f"formal case hash mismatch: {record.path}")
+            case = EvaluationCase.model_validate_json(payload)
+            if (
+                case.case_id != record.case_id
+                or case.scenario_type is not record.scenario_type
+                or case.metadata.split is not record.split
+            ):
+                raise ArtifactValidationError(f"formal case manifest mismatch: {record.path}")
+            entry = entries.get(case.case_id)
+            if entry is None:
+                raise ArtifactValidationError(f"missing benchmark entry: {case.case_id}")
+            replayed_dev_steps += _validate_formal_case(
+                case,
+                questions=questions,
+                entry=entry,
+                replay_gold=split_manifest.split is DatasetSplit.DEV,
+            )
+            cases.append(case)
+        if _aggregate_hash(split_manifest.files) != split_manifest.aggregate_sha256:
+            raise ArtifactValidationError(f"{split_manifest.split.value} aggregate hash mismatch")
+        scenario_counts = Counter(case.scenario_type.value for case in cases)
+        dev_scenarios = set(list(ScenarioType)[:4])
+        expected_counts = {
+            scenario.value: (
+                4
+                if split_manifest.split is DatasetSplit.DEV and scenario in dev_scenarios
+                else 3
+                if split_manifest.split is DatasetSplit.DEV
+                else 6
+                if scenario in dev_scenarios
+                else 7
+            )
+            for scenario in ScenarioType
+        }
+        if scenario_counts != Counter(expected_counts):
+            raise ArtifactValidationError(
+                f"{split_manifest.split.value} scenario quotas do not match the protocol"
+            )
+        split_summaries[split_manifest.split.value] = {
+            "case_count": len(cases),
+            "scenario_counts": dict(sorted(scenario_counts.items())),
+            "aggregate_sha256": split_manifest.aggregate_sha256,
+            "case_content_disclosed": False,
+        }
+        all_cases.extend(cases)
+
+    case_ids = [case.case_id for case in all_cases]
+    if len(case_ids) != 120 or len(set(case_ids)) != 120:
+        raise ArtifactValidationError("formal dataset requires 120 globally unique case_id values")
+    if set(entries) != set(case_ids):
+        raise ArtifactValidationError("benchmark entries must exactly cover formal cases")
+    total_scenarios = Counter(case.scenario_type.value for case in all_cases)
+    if total_scenarios != Counter({scenario.value: 10 for scenario in ScenarioType}):
+        raise ArtifactValidationError("formal dataset requires ten cases per scenario")
+    for scenario in ScenarioType:
+        scenario_targets = {
+            tuple(entries[case.case_id].target_knowledge_point_ids)
+            for case in all_cases
+            if case.scenario_type is scenario
+        }
+        if len(scenario_targets) != 10:
+            raise ArtifactValidationError(
+                f"{scenario.value} must contain ten distinct knowledge-point tasks"
+            )
+    return {
+        "dataset_version": manifest.dataset_version,
+        "protocol_version": manifest.protocol_version,
+        "seed": manifest.seed,
+        "question_count": len(questions),
+        "benchmark_entry_count": len(entries),
+        "case_count": len(all_cases),
+        "dev_gold_replayed_step_count": replayed_dev_steps,
+        "test_gold_replayed_step_count": 0,
+        "frozen_test_sha256": manifest.frozen_test_sha256,
+        "splits": split_summaries,
+    }
+
+
 def _remove_from_all_states(states: dict[str, set[str]], memory_id: str) -> str:
     matches = [name for name, memory_ids in states.items() if memory_id in memory_ids]
     if len(matches) != 1:
@@ -301,4 +519,5 @@ __all__ = [
     "replay_case",
     "replay_split",
     "validate_dataset",
+    "validate_formal_dataset",
 ]

@@ -1,0 +1,418 @@
+{
+  "case_id": "formal:mastery_improvement:07",
+  "events": [
+    {
+      "answer_correct": true,
+      "context": {
+        "exam_id": "formal:mastery_improvement:07:postgraduate_entrance_exam",
+        "subject_id": "probability_theory",
+        "user_id": "formal:mastery_improvement:07:user_001"
+      },
+      "correction": null,
+      "difficulty": 0.3,
+      "error_detail": null,
+      "error_type": null,
+      "event_id": "formal:mastery_improvement:07:event_rank_101",
+      "event_type": "answer_attempt",
+      "evidence_quality": {
+        "confidence": 1.0,
+        "is_temporary_exception": false,
+        "reasons": []
+      },
+      "idempotency_key": "formal:mastery_improvement:07:rank-correct-101",
+      "knowledge_point_ids": [
+        "math1.probability.conditional_probability"
+      ],
+      "occurred_at": "2026-08-08T09:00:00Z",
+      "plan_transition": null,
+      "question_id": "controlled:conditional_probability:v1",
+      "session_id": "formal:mastery_improvement:07:session:1"
+    },
+    {
+      "answer_correct": false,
+      "context": {
+        "exam_id": "formal:mastery_improvement:07:postgraduate_entrance_exam",
+        "subject_id": "probability_theory",
+        "user_id": "formal:mastery_improvement:07:user_001"
+      },
+      "correction": null,
+      "difficulty": 0.3,
+      "error_detail": "本次作答受外部中断影响，不能作为稳定能力证据。",
+      "error_type": "unknown",
+      "event_id": "formal:mastery_improvement:07:padding_event:2",
+      "event_type": "answer_attempt",
+      "evidence_quality": {
+        "confidence": 0.1,
+        "is_temporary_exception": true,
+        "reasons": [
+          "external_disruption"
+        ]
+      },
+      "idempotency_key": "formal:mastery_improvement:07:padding_idempotency:2",
+      "knowledge_point_ids": [
+        "math1.probability.conditional_probability"
+      ],
+      "occurred_at": "2026-08-15T09:00:00Z",
+      "plan_transition": null,
+      "question_id": "controlled:conditional_probability:v1",
+      "session_id": "formal:mastery_improvement:07:session:2"
+    },
+    {
+      "answer_correct": false,
+      "context": {
+        "exam_id": "formal:mastery_improvement:07:postgraduate_entrance_exam",
+        "subject_id": "probability_theory",
+        "user_id": "formal:mastery_improvement:07:user_001"
+      },
+      "correction": null,
+      "difficulty": 0.3,
+      "error_detail": "本次作答受外部中断影响，不能作为稳定能力证据。",
+      "error_type": "unknown",
+      "event_id": "formal:mastery_improvement:07:padding_event:3",
+      "event_type": "answer_attempt",
+      "evidence_quality": {
+        "confidence": 0.1,
+        "is_temporary_exception": true,
+        "reasons": [
+          "external_disruption"
+        ]
+      },
+      "idempotency_key": "formal:mastery_improvement:07:padding_idempotency:3",
+      "knowledge_point_ids": [
+        "math1.probability.conditional_probability"
+      ],
+      "occurred_at": "2026-08-22T09:00:00Z",
+      "plan_transition": null,
+      "question_id": "controlled:conditional_probability:v1",
+      "session_id": "formal:mastery_improvement:07:session:3"
+    }
+  ],
+  "gold_actions": [
+    {
+      "action_type": "recommend_review",
+      "knowledge_point_ids": [
+        "math1.probability.conditional_probability"
+      ],
+      "reason_code": "single_correct_does_not_remove_low_mastery",
+      "step_id": "formal:mastery_improvement:07:step_001"
+    },
+    {
+      "action_type": "no_action",
+      "knowledge_point_ids": [],
+      "reason_code": "temporary_low_confidence_evidence_requires_no_action",
+      "step_id": "formal:mastery_improvement:07:padding_step:2"
+    },
+    {
+      "action_type": "no_action",
+      "knowledge_point_ids": [],
+      "reason_code": "temporary_low_confidence_evidence_requires_no_action",
+      "step_id": "formal:mastery_improvement:07:padding_step:3"
+    }
+  ],
+  "gold_operations": [
+    {
+      "candidate_memory_ids": [
+        "formal:mastery_improvement:07:mastery_matrix_rank_low_v1"
+      ],
+      "canonical_knowledge_point_ids": [
+        "math1.probability.conditional_probability"
+      ],
+      "event_id": "formal:mastery_improvement:07:event_rank_101",
+      "evidence_event_ids": [
+        "formal:mastery_improvement:07:event_rank_101"
+      ],
+      "expected_result_value": null,
+      "extracted_fields": {
+        "answer_correct": true,
+        "correction": null,
+        "error_detail": null,
+        "error_type": null,
+        "event_type": "answer_attempt",
+        "evidence_quality": {
+          "confidence": 1.0,
+          "is_temporary_exception": false,
+          "reasons": []
+        },
+        "knowledge_point_ids": [
+          "math1.probability.conditional_probability"
+        ],
+        "plan_transition": null
+      },
+      "operation": "MERGE",
+      "operation_id": "formal:mastery_improvement:07:step_001:mastery",
+      "reason_code": "single_correct_updates_evidence_without_level_change",
+      "result_memory_id": "formal:mastery_improvement:07:mastery_matrix_rank_low_v2",
+      "slot_key": "mastery:math1.probability.conditional_probability",
+      "step_id": "formal:mastery_improvement:07:step_001",
+      "target_memory_ids": [
+        "formal:mastery_improvement:07:mastery_matrix_rank_low_v1"
+      ]
+    },
+    {
+      "candidate_memory_ids": [
+        "formal:mastery_improvement:07:mastery_matrix_rank_low_v2"
+      ],
+      "canonical_knowledge_point_ids": [
+        "math1.probability.conditional_probability"
+      ],
+      "event_id": "formal:mastery_improvement:07:padding_event:2",
+      "evidence_event_ids": [
+        "formal:mastery_improvement:07:padding_event:2"
+      ],
+      "expected_result_value": null,
+      "extracted_fields": {
+        "answer_correct": false,
+        "correction": null,
+        "error_detail": "本次作答受外部中断影响，不能作为稳定能力证据。",
+        "error_type": "unknown",
+        "event_type": "answer_attempt",
+        "evidence_quality": {
+          "confidence": 0.1,
+          "is_temporary_exception": true,
+          "reasons": [
+            "external_disruption"
+          ]
+        },
+        "knowledge_point_ids": [
+          "math1.probability.conditional_probability"
+        ],
+        "plan_transition": null
+      },
+      "operation": "NO_OP",
+      "operation_id": "formal:mastery_improvement:07:padding_operation:2:1",
+      "reason_code": "temporary_low_confidence_evidence_is_not_persisted",
+      "result_memory_id": null,
+      "slot_key": "mastery:math1.probability.conditional_probability",
+      "step_id": "formal:mastery_improvement:07:padding_step:2",
+      "target_memory_ids": [
+        "formal:mastery_improvement:07:mastery_matrix_rank_low_v2"
+      ]
+    },
+    {
+      "candidate_memory_ids": [],
+      "canonical_knowledge_point_ids": [
+        "math1.probability.conditional_probability"
+      ],
+      "event_id": "formal:mastery_improvement:07:padding_event:2",
+      "evidence_event_ids": [
+        "formal:mastery_improvement:07:padding_event:2"
+      ],
+      "expected_result_value": null,
+      "extracted_fields": {
+        "answer_correct": false,
+        "correction": null,
+        "error_detail": "本次作答受外部中断影响，不能作为稳定能力证据。",
+        "error_type": "unknown",
+        "event_type": "answer_attempt",
+        "evidence_quality": {
+          "confidence": 0.1,
+          "is_temporary_exception": true,
+          "reasons": [
+            "external_disruption"
+          ]
+        },
+        "knowledge_point_ids": [
+          "math1.probability.conditional_probability"
+        ],
+        "plan_transition": null
+      },
+      "operation": "NO_OP",
+      "operation_id": "formal:mastery_improvement:07:padding_operation:2:2",
+      "reason_code": "temporary_low_confidence_evidence_is_not_persisted",
+      "result_memory_id": null,
+      "slot_key": "error_pattern:math1.probability.conditional_probability:unknown",
+      "step_id": "formal:mastery_improvement:07:padding_step:2",
+      "target_memory_ids": []
+    },
+    {
+      "candidate_memory_ids": [
+        "formal:mastery_improvement:07:mastery_matrix_rank_low_v2"
+      ],
+      "canonical_knowledge_point_ids": [
+        "math1.probability.conditional_probability"
+      ],
+      "event_id": "formal:mastery_improvement:07:padding_event:3",
+      "evidence_event_ids": [
+        "formal:mastery_improvement:07:padding_event:3"
+      ],
+      "expected_result_value": null,
+      "extracted_fields": {
+        "answer_correct": false,
+        "correction": null,
+        "error_detail": "本次作答受外部中断影响，不能作为稳定能力证据。",
+        "error_type": "unknown",
+        "event_type": "answer_attempt",
+        "evidence_quality": {
+          "confidence": 0.1,
+          "is_temporary_exception": true,
+          "reasons": [
+            "external_disruption"
+          ]
+        },
+        "knowledge_point_ids": [
+          "math1.probability.conditional_probability"
+        ],
+        "plan_transition": null
+      },
+      "operation": "NO_OP",
+      "operation_id": "formal:mastery_improvement:07:padding_operation:3:1",
+      "reason_code": "temporary_low_confidence_evidence_is_not_persisted",
+      "result_memory_id": null,
+      "slot_key": "mastery:math1.probability.conditional_probability",
+      "step_id": "formal:mastery_improvement:07:padding_step:3",
+      "target_memory_ids": [
+        "formal:mastery_improvement:07:mastery_matrix_rank_low_v2"
+      ]
+    },
+    {
+      "candidate_memory_ids": [],
+      "canonical_knowledge_point_ids": [
+        "math1.probability.conditional_probability"
+      ],
+      "event_id": "formal:mastery_improvement:07:padding_event:3",
+      "evidence_event_ids": [
+        "formal:mastery_improvement:07:padding_event:3"
+      ],
+      "expected_result_value": null,
+      "extracted_fields": {
+        "answer_correct": false,
+        "correction": null,
+        "error_detail": "本次作答受外部中断影响，不能作为稳定能力证据。",
+        "error_type": "unknown",
+        "event_type": "answer_attempt",
+        "evidence_quality": {
+          "confidence": 0.1,
+          "is_temporary_exception": true,
+          "reasons": [
+            "external_disruption"
+          ]
+        },
+        "knowledge_point_ids": [
+          "math1.probability.conditional_probability"
+        ],
+        "plan_transition": null
+      },
+      "operation": "NO_OP",
+      "operation_id": "formal:mastery_improvement:07:padding_operation:3:2",
+      "reason_code": "temporary_low_confidence_evidence_is_not_persisted",
+      "result_memory_id": null,
+      "slot_key": "error_pattern:math1.probability.conditional_probability:unknown",
+      "step_id": "formal:mastery_improvement:07:padding_step:3",
+      "target_memory_ids": []
+    }
+  ],
+  "gold_states": [
+    {
+      "active_memory_ids": [
+        "formal:mastery_improvement:07:mastery_matrix_rank_low_v2"
+      ],
+      "archived_memory_ids": [
+        "formal:mastery_improvement:07:mastery_matrix_rank_low_v1"
+      ],
+      "contested_memory_ids": [],
+      "invalidated_memory_ids": [],
+      "step_id": "formal:mastery_improvement:07:step_001",
+      "version_relations": [
+        {
+          "predecessor_memory_id": "formal:mastery_improvement:07:mastery_matrix_rank_low_v1",
+          "relation": "superseded_by",
+          "successor_memory_id": "formal:mastery_improvement:07:mastery_matrix_rank_low_v2"
+        }
+      ]
+    },
+    {
+      "active_memory_ids": [
+        "formal:mastery_improvement:07:mastery_matrix_rank_low_v2"
+      ],
+      "archived_memory_ids": [
+        "formal:mastery_improvement:07:mastery_matrix_rank_low_v1"
+      ],
+      "contested_memory_ids": [],
+      "invalidated_memory_ids": [],
+      "step_id": "formal:mastery_improvement:07:padding_step:2",
+      "version_relations": [
+        {
+          "predecessor_memory_id": "formal:mastery_improvement:07:mastery_matrix_rank_low_v1",
+          "relation": "superseded_by",
+          "successor_memory_id": "formal:mastery_improvement:07:mastery_matrix_rank_low_v2"
+        }
+      ]
+    },
+    {
+      "active_memory_ids": [
+        "formal:mastery_improvement:07:mastery_matrix_rank_low_v2"
+      ],
+      "archived_memory_ids": [
+        "formal:mastery_improvement:07:mastery_matrix_rank_low_v1"
+      ],
+      "contested_memory_ids": [],
+      "invalidated_memory_ids": [],
+      "step_id": "formal:mastery_improvement:07:padding_step:3",
+      "version_relations": [
+        {
+          "predecessor_memory_id": "formal:mastery_improvement:07:mastery_matrix_rank_low_v1",
+          "relation": "superseded_by",
+          "successor_memory_id": "formal:mastery_improvement:07:mastery_matrix_rank_low_v2"
+        }
+      ]
+    }
+  ],
+  "initial_memory": [
+    {
+      "confidence": 0.81,
+      "evidence_count": 5,
+      "lifecycle_state": "active",
+      "memory_id": "formal:mastery_improvement:07:mastery_matrix_rank_low_v1",
+      "provenance": [
+        "formal:mastery_improvement:07:event_rank_096",
+        "formal:mastery_improvement:07:event_rank_097",
+        "formal:mastery_improvement:07:event_rank_098",
+        "formal:mastery_improvement:07:event_rank_099",
+        "formal:mastery_improvement:07:event_rank_100"
+      ],
+      "scope": {
+        "exam_id": "formal:mastery_improvement:07:postgraduate_entrance_exam",
+        "memory_namespace": "mastery",
+        "subject_id": "probability_theory",
+        "user_id": "formal:mastery_improvement:07:user_001"
+      },
+      "slot_key": "mastery:math1.probability.conditional_probability",
+      "superseded_by": null,
+      "valid_from": "2026-08-02T08:00:00Z",
+      "valid_to": null,
+      "value": {
+        "level": "low",
+        "score": 0.32,
+        "type": "mastery"
+      },
+      "version": 1
+    }
+  ],
+  "metadata": {
+    "gold_revision": 3,
+    "policy_parameters": {
+      "formal_dataset_version": "exam_mem_controlled_v1",
+      "padding_policy": "temporary_low_confidence_no_op",
+      "target_knowledge_point_id": "math1.probability.conditional_probability",
+      "template_case_id": "mastery_improvement_single_correct_001"
+    },
+    "seed": 20260806,
+    "split": "test"
+  },
+  "protocol_version": "evaluation_protocol_v1",
+  "queries": [
+    {
+      "after_step_id": "formal:mastery_improvement:07:step_001",
+      "query_id": "formal:mastery_improvement:07:query_001",
+      "scope": {
+        "exam_id": "formal:mastery_improvement:07:postgraduate_entrance_exam",
+        "memory_namespace": "mastery",
+        "subject_id": "probability_theory",
+        "user_id": "formal:mastery_improvement:07:user_001"
+      },
+      "text": "矩阵秩是否仍应作为重点复习知识点？",
+      "top_k": 3
+    }
+  ],
+  "scenario_type": "mastery_improvement"
+}

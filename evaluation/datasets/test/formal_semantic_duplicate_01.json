@@ -1,0 +1,411 @@
+{
+  "case_id": "formal:semantic_duplicate:01",
+  "events": [
+    {
+      "answer_correct": false,
+      "context": {
+        "exam_id": "formal:semantic_duplicate:01:postgraduate_entrance_exam",
+        "subject_id": "linear_algebra",
+        "user_id": "formal:semantic_duplicate:01:user_001"
+      },
+      "correction": null,
+      "difficulty": 0.35,
+      "error_detail": "做矩阵乘法前未检查前一矩阵列数是否等于后一矩阵行数",
+      "error_type": "condition_omission",
+      "event_id": "formal:semantic_duplicate:01:event_dimension_104",
+      "event_type": "answer_attempt",
+      "evidence_quality": {
+        "confidence": 1.0,
+        "is_temporary_exception": false,
+        "reasons": []
+      },
+      "idempotency_key": "formal:semantic_duplicate:01:dimension-error-104",
+      "knowledge_point_ids": [
+        "math1.linear_algebra.matrix_multiplication"
+      ],
+      "occurred_at": "2026-08-07T09:00:00Z",
+      "plan_transition": null,
+      "question_id": "controlled:matrix_multiplication:v1",
+      "session_id": "formal:semantic_duplicate:01:session:1"
+    },
+    {
+      "answer_correct": false,
+      "context": {
+        "exam_id": "formal:semantic_duplicate:01:postgraduate_entrance_exam",
+        "subject_id": "linear_algebra",
+        "user_id": "formal:semantic_duplicate:01:user_001"
+      },
+      "correction": null,
+      "difficulty": 0.35,
+      "error_detail": "本次作答受外部中断影响，不能作为稳定能力证据。",
+      "error_type": "unknown",
+      "event_id": "formal:semantic_duplicate:01:padding_event:2",
+      "event_type": "answer_attempt",
+      "evidence_quality": {
+        "confidence": 0.1,
+        "is_temporary_exception": true,
+        "reasons": [
+          "external_disruption"
+        ]
+      },
+      "idempotency_key": "formal:semantic_duplicate:01:padding_idempotency:2",
+      "knowledge_point_ids": [
+        "math1.linear_algebra.matrix_multiplication"
+      ],
+      "occurred_at": "2026-08-14T09:00:00Z",
+      "plan_transition": null,
+      "question_id": "controlled:matrix_multiplication:v1",
+      "session_id": "formal:semantic_duplicate:01:session:2"
+    },
+    {
+      "answer_correct": false,
+      "context": {
+        "exam_id": "formal:semantic_duplicate:01:postgraduate_entrance_exam",
+        "subject_id": "linear_algebra",
+        "user_id": "formal:semantic_duplicate:01:user_001"
+      },
+      "correction": null,
+      "difficulty": 0.35,
+      "error_detail": "本次作答受外部中断影响，不能作为稳定能力证据。",
+      "error_type": "unknown",
+      "event_id": "formal:semantic_duplicate:01:padding_event:3",
+      "event_type": "answer_attempt",
+      "evidence_quality": {
+        "confidence": 0.1,
+        "is_temporary_exception": true,
+        "reasons": [
+          "external_disruption"
+        ]
+      },
+      "idempotency_key": "formal:semantic_duplicate:01:padding_idempotency:3",
+      "knowledge_point_ids": [
+        "math1.linear_algebra.matrix_multiplication"
+      ],
+      "occurred_at": "2026-08-21T09:00:00Z",
+      "plan_transition": null,
+      "question_id": "controlled:matrix_multiplication:v1",
+      "session_id": "formal:semantic_duplicate:01:session:3"
+    }
+  ],
+  "gold_actions": [
+    {
+      "action_type": "recommend_review",
+      "knowledge_point_ids": [
+        "math1.linear_algebra.matrix_multiplication"
+      ],
+      "reason_code": "stable_condition_omission_pattern_strengthened",
+      "step_id": "formal:semantic_duplicate:01:step_001"
+    },
+    {
+      "action_type": "no_action",
+      "knowledge_point_ids": [],
+      "reason_code": "temporary_low_confidence_evidence_requires_no_action",
+      "step_id": "formal:semantic_duplicate:01:padding_step:2"
+    },
+    {
+      "action_type": "no_action",
+      "knowledge_point_ids": [],
+      "reason_code": "temporary_low_confidence_evidence_requires_no_action",
+      "step_id": "formal:semantic_duplicate:01:padding_step:3"
+    }
+  ],
+  "gold_operations": [
+    {
+      "candidate_memory_ids": [
+        "formal:semantic_duplicate:01:error_dimension_v1"
+      ],
+      "canonical_knowledge_point_ids": [
+        "math1.linear_algebra.matrix_multiplication"
+      ],
+      "event_id": "formal:semantic_duplicate:01:event_dimension_104",
+      "evidence_event_ids": [
+        "formal:semantic_duplicate:01:event_dimension_104"
+      ],
+      "expected_result_value": null,
+      "extracted_fields": {
+        "answer_correct": false,
+        "correction": null,
+        "error_detail": "做矩阵乘法前未检查前一矩阵列数是否等于后一矩阵行数",
+        "error_type": "condition_omission",
+        "event_type": "answer_attempt",
+        "evidence_quality": {
+          "confidence": 1.0,
+          "is_temporary_exception": false,
+          "reasons": []
+        },
+        "knowledge_point_ids": [
+          "math1.linear_algebra.matrix_multiplication"
+        ],
+        "plan_transition": null
+      },
+      "operation": "MERGE",
+      "operation_id": "formal:semantic_duplicate:01:step_001:error_pattern",
+      "reason_code": "independent_semantic_duplicate_strengthens_evidence",
+      "result_memory_id": "formal:semantic_duplicate:01:error_dimension_v2",
+      "slot_key": "error_pattern:math1.linear_algebra.matrix_multiplication:condition_omission",
+      "step_id": "formal:semantic_duplicate:01:step_001",
+      "target_memory_ids": [
+        "formal:semantic_duplicate:01:error_dimension_v1"
+      ]
+    },
+    {
+      "candidate_memory_ids": [],
+      "canonical_knowledge_point_ids": [
+        "math1.linear_algebra.matrix_multiplication"
+      ],
+      "event_id": "formal:semantic_duplicate:01:padding_event:2",
+      "evidence_event_ids": [
+        "formal:semantic_duplicate:01:padding_event:2"
+      ],
+      "expected_result_value": null,
+      "extracted_fields": {
+        "answer_correct": false,
+        "correction": null,
+        "error_detail": "本次作答受外部中断影响，不能作为稳定能力证据。",
+        "error_type": "unknown",
+        "event_type": "answer_attempt",
+        "evidence_quality": {
+          "confidence": 0.1,
+          "is_temporary_exception": true,
+          "reasons": [
+            "external_disruption"
+          ]
+        },
+        "knowledge_point_ids": [
+          "math1.linear_algebra.matrix_multiplication"
+        ],
+        "plan_transition": null
+      },
+      "operation": "NO_OP",
+      "operation_id": "formal:semantic_duplicate:01:padding_operation:2:1",
+      "reason_code": "temporary_low_confidence_evidence_is_not_persisted",
+      "result_memory_id": null,
+      "slot_key": "mastery:math1.linear_algebra.matrix_multiplication",
+      "step_id": "formal:semantic_duplicate:01:padding_step:2",
+      "target_memory_ids": []
+    },
+    {
+      "candidate_memory_ids": [],
+      "canonical_knowledge_point_ids": [
+        "math1.linear_algebra.matrix_multiplication"
+      ],
+      "event_id": "formal:semantic_duplicate:01:padding_event:2",
+      "evidence_event_ids": [
+        "formal:semantic_duplicate:01:padding_event:2"
+      ],
+      "expected_result_value": null,
+      "extracted_fields": {
+        "answer_correct": false,
+        "correction": null,
+        "error_detail": "本次作答受外部中断影响，不能作为稳定能力证据。",
+        "error_type": "unknown",
+        "event_type": "answer_attempt",
+        "evidence_quality": {
+          "confidence": 0.1,
+          "is_temporary_exception": true,
+          "reasons": [
+            "external_disruption"
+          ]
+        },
+        "knowledge_point_ids": [
+          "math1.linear_algebra.matrix_multiplication"
+        ],
+        "plan_transition": null
+      },
+      "operation": "NO_OP",
+      "operation_id": "formal:semantic_duplicate:01:padding_operation:2:2",
+      "reason_code": "temporary_low_confidence_evidence_is_not_persisted",
+      "result_memory_id": null,
+      "slot_key": "error_pattern:math1.linear_algebra.matrix_multiplication:unknown",
+      "step_id": "formal:semantic_duplicate:01:padding_step:2",
+      "target_memory_ids": []
+    },
+    {
+      "candidate_memory_ids": [],
+      "canonical_knowledge_point_ids": [
+        "math1.linear_algebra.matrix_multiplication"
+      ],
+      "event_id": "formal:semantic_duplicate:01:padding_event:3",
+      "evidence_event_ids": [
+        "formal:semantic_duplicate:01:padding_event:3"
+      ],
+      "expected_result_value": null,
+      "extracted_fields": {
+        "answer_correct": false,
+        "correction": null,
+        "error_detail": "本次作答受外部中断影响，不能作为稳定能力证据。",
+        "error_type": "unknown",
+        "event_type": "answer_attempt",
+        "evidence_quality": {
+          "confidence": 0.1,
+          "is_temporary_exception": true,
+          "reasons": [
+            "external_disruption"
+          ]
+        },
+        "knowledge_point_ids": [
+          "math1.linear_algebra.matrix_multiplication"
+        ],
+        "plan_transition": null
+      },
+      "operation": "NO_OP",
+      "operation_id": "formal:semantic_duplicate:01:padding_operation:3:1",
+      "reason_code": "temporary_low_confidence_evidence_is_not_persisted",
+      "result_memory_id": null,
+      "slot_key": "mastery:math1.linear_algebra.matrix_multiplication",
+      "step_id": "formal:semantic_duplicate:01:padding_step:3",
+      "target_memory_ids": []
+    },
+    {
+      "candidate_memory_ids": [],
+      "canonical_knowledge_point_ids": [
+        "math1.linear_algebra.matrix_multiplication"
+      ],
+      "event_id": "formal:semantic_duplicate:01:padding_event:3",
+      "evidence_event_ids": [
+        "formal:semantic_duplicate:01:padding_event:3"
+      ],
+      "expected_result_value": null,
+      "extracted_fields": {
+        "answer_correct": false,
+        "correction": null,
+        "error_detail": "本次作答受外部中断影响，不能作为稳定能力证据。",
+        "error_type": "unknown",
+        "event_type": "answer_attempt",
+        "evidence_quality": {
+          "confidence": 0.1,
+          "is_temporary_exception": true,
+          "reasons": [
+            "external_disruption"
+          ]
+        },
+        "knowledge_point_ids": [
+          "math1.linear_algebra.matrix_multiplication"
+        ],
+        "plan_transition": null
+      },
+      "operation": "NO_OP",
+      "operation_id": "formal:semantic_duplicate:01:padding_operation:3:2",
+      "reason_code": "temporary_low_confidence_evidence_is_not_persisted",
+      "result_memory_id": null,
+      "slot_key": "error_pattern:math1.linear_algebra.matrix_multiplication:unknown",
+      "step_id": "formal:semantic_duplicate:01:padding_step:3",
+      "target_memory_ids": []
+    }
+  ],
+  "gold_states": [
+    {
+      "active_memory_ids": [
+        "formal:semantic_duplicate:01:error_dimension_v2"
+      ],
+      "archived_memory_ids": [
+        "formal:semantic_duplicate:01:error_dimension_v1"
+      ],
+      "contested_memory_ids": [],
+      "invalidated_memory_ids": [],
+      "step_id": "formal:semantic_duplicate:01:step_001",
+      "version_relations": [
+        {
+          "predecessor_memory_id": "formal:semantic_duplicate:01:error_dimension_v1",
+          "relation": "superseded_by",
+          "successor_memory_id": "formal:semantic_duplicate:01:error_dimension_v2"
+        }
+      ]
+    },
+    {
+      "active_memory_ids": [
+        "formal:semantic_duplicate:01:error_dimension_v2"
+      ],
+      "archived_memory_ids": [
+        "formal:semantic_duplicate:01:error_dimension_v1"
+      ],
+      "contested_memory_ids": [],
+      "invalidated_memory_ids": [],
+      "step_id": "formal:semantic_duplicate:01:padding_step:2",
+      "version_relations": [
+        {
+          "predecessor_memory_id": "formal:semantic_duplicate:01:error_dimension_v1",
+          "relation": "superseded_by",
+          "successor_memory_id": "formal:semantic_duplicate:01:error_dimension_v2"
+        }
+      ]
+    },
+    {
+      "active_memory_ids": [
+        "formal:semantic_duplicate:01:error_dimension_v2"
+      ],
+      "archived_memory_ids": [
+        "formal:semantic_duplicate:01:error_dimension_v1"
+      ],
+      "contested_memory_ids": [],
+      "invalidated_memory_ids": [],
+      "step_id": "formal:semantic_duplicate:01:padding_step:3",
+      "version_relations": [
+        {
+          "predecessor_memory_id": "formal:semantic_duplicate:01:error_dimension_v1",
+          "relation": "superseded_by",
+          "successor_memory_id": "formal:semantic_duplicate:01:error_dimension_v2"
+        }
+      ]
+    }
+  ],
+  "initial_memory": [
+    {
+      "confidence": 0.82,
+      "evidence_count": 3,
+      "lifecycle_state": "active",
+      "memory_id": "formal:semantic_duplicate:01:error_dimension_v1",
+      "provenance": [
+        "formal:semantic_duplicate:01:event_dimension_101",
+        "formal:semantic_duplicate:01:event_dimension_102",
+        "formal:semantic_duplicate:01:event_dimension_103"
+      ],
+      "scope": {
+        "exam_id": "formal:semantic_duplicate:01:postgraduate_entrance_exam",
+        "memory_namespace": "error_pattern",
+        "subject_id": "linear_algebra",
+        "user_id": "formal:semantic_duplicate:01:user_001"
+      },
+      "slot_key": "error_pattern:math1.linear_algebra.matrix_multiplication:condition_omission",
+      "superseded_by": null,
+      "valid_from": "2026-08-01T08:00:00Z",
+      "valid_to": null,
+      "value": {
+        "details": [
+          "矩阵乘法轨迹中的可复核错误证据"
+        ],
+        "error_type": "condition_omission",
+        "summary": "矩阵乘法的 condition_omission 型受控错误",
+        "type": "error_pattern"
+      },
+      "version": 1
+    }
+  ],
+  "metadata": {
+    "gold_revision": 3,
+    "policy_parameters": {
+      "formal_dataset_version": "exam_mem_controlled_v1",
+      "padding_policy": "temporary_low_confidence_no_op",
+      "target_knowledge_point_id": "math1.linear_algebra.matrix_multiplication",
+      "template_case_id": "semantic_duplicate_independent_evidence_001"
+    },
+    "seed": 20260806,
+    "split": "test"
+  },
+  "protocol_version": "evaluation_protocol_v1",
+  "queries": [
+    {
+      "after_step_id": "formal:semantic_duplicate:01:step_001",
+      "query_id": "formal:semantic_duplicate:01:query_001",
+      "scope": {
+        "exam_id": "formal:semantic_duplicate:01:postgraduate_entrance_exam",
+        "memory_namespace": "error_pattern",
+        "subject_id": "linear_algebra",
+        "user_id": "formal:semantic_duplicate:01:user_001"
+      },
+      "text": "当前有哪些需要持续复习的稳定错因？",
+      "top_k": 3
+    }
+  ],
+  "scenario_type": "semantic_duplicate"
+}

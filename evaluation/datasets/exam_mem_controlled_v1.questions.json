@@ -1,0 +1,350 @@
+[
+  {
+    "answer_forms": [
+      {
+        "answer_id": "correct",
+        "correct": true,
+        "error_detail": null,
+        "error_type": null,
+        "text_zh": "行列式为 2×4-1×3=5。"
+      },
+      {
+        "answer_id": "wrong",
+        "correct": false,
+        "error_detail": "二阶行列式主对角积与副对角积的符号使用错误。",
+        "error_type": "concept_confusion",
+        "text_zh": "行列式为 2×4+1×3=11。"
+      }
+    ],
+    "difficulty": 0.25,
+    "knowledge_point_id": "math1.linear_algebra.determinant",
+    "prompt_zh": "计算二阶行列式 |2 1; 3 4|。",
+    "question_id": "controlled:determinant:v1",
+    "reference_answer_zh": "行列式为 2×4-1×3=5。",
+    "rubric_items": [
+      "结论正确",
+      "关键公式或判据正确",
+      "理由可复核"
+    ],
+    "subject_area": "linear_algebra"
+  },
+  {
+    "answer_forms": [
+      {
+        "answer_id": "correct",
+        "correct": true,
+        "error_detail": null,
+        "error_type": null,
+        "text_zh": "特征值为 2 和 3，因为对角矩阵的特征值就是对角元。"
+      },
+      {
+        "answer_id": "wrong",
+        "correct": false,
+        "error_detail": "把矩阵的迹误认为唯一特征值。",
+        "error_type": "concept_confusion",
+        "text_zh": "特征值只有 5，因为 2+3=5。"
+      }
+    ],
+    "difficulty": 0.3,
+    "knowledge_point_id": "math1.linear_algebra.eigenvalue",
+    "prompt_zh": "对角矩阵 diag(2,3) 的全部特征值是什么？",
+    "question_id": "controlled:eigenvalue:v1",
+    "reference_answer_zh": "特征值为 2 和 3，因为对角矩阵的特征值就是对角元。",
+    "rubric_items": [
+      "结论正确",
+      "关键公式或判据正确",
+      "理由可复核"
+    ],
+    "subject_area": "linear_algebra"
+  },
+  {
+    "answer_forms": [
+      {
+        "answer_id": "correct",
+        "correct": true,
+        "error_detail": null,
+        "error_type": null,
+        "text_zh": "v 必须非零，并满足 Av=λv。"
+      },
+      {
+        "answer_id": "wrong",
+        "correct": false,
+        "error_detail": "遗漏非零条件并把任意特征值固定为 1。",
+        "error_type": "concept_confusion",
+        "text_zh": "只需满足 Av=v，且允许 v=0。"
+      }
+    ],
+    "difficulty": 0.35,
+    "knowledge_point_id": "math1.linear_algebra.eigenvector",
+    "prompt_zh": "向量 v 成为矩阵 A 对应特征值 λ 的特征向量需要满足什么条件？",
+    "question_id": "controlled:eigenvector:v1",
+    "reference_answer_zh": "v 必须非零，并满足 Av=λv。",
+    "rubric_items": [
+      "结论正确",
+      "关键公式或判据正确",
+      "理由可复核"
+    ],
+    "subject_area": "linear_algebra"
+  },
+  {
+    "answer_forms": [
+      {
+        "answer_id": "correct",
+        "correct": true,
+        "error_detail": null,
+        "error_type": null,
+        "text_zh": "线性组合等于零时，所有系数只能全为零。"
+      },
+      {
+        "answer_id": "wrong",
+        "correct": false,
+        "error_detail": "把线性相关的判据当成线性无关。",
+        "error_type": "concept_confusion",
+        "text_zh": "存在一组不全为零的系数使线性组合等于零。"
+      }
+    ],
+    "difficulty": 0.4,
+    "knowledge_point_id": "math1.linear_algebra.linear_independence",
+    "prompt_zh": "向量组线性无关的等价判据是什么？",
+    "question_id": "controlled:linear_independence:v1",
+    "reference_answer_zh": "线性组合等于零时，所有系数只能全为零。",
+    "rubric_items": [
+      "结论正确",
+      "关键公式或判据正确",
+      "理由可复核"
+    ],
+    "subject_area": "linear_algebra"
+  },
+  {
+    "answer_forms": [
+      {
+        "answer_id": "correct",
+        "correct": true,
+        "error_detail": null,
+        "error_type": null,
+        "text_zh": "AB=[[4,6],[1,3]]，按 A 的行与 B 的列逐项相乘求和。"
+      },
+      {
+        "answer_id": "wrong",
+        "correct": false,
+        "error_detail": "没有按行乘列计算矩阵乘积。",
+        "error_type": "concept_confusion",
+        "text_zh": "AB=[[2,2],[1,3]]。"
+      }
+    ],
+    "difficulty": 0.35,
+    "knowledge_point_id": "math1.linear_algebra.matrix_multiplication",
+    "prompt_zh": "设 A=[[1,2],[0,1]]，B=[[2,0],[1,3]]，计算 AB。",
+    "question_id": "controlled:matrix_multiplication:v1",
+    "reference_answer_zh": "AB=[[4,6],[1,3]]，按 A 的行与 B 的列逐项相乘求和。",
+    "rubric_items": [
+      "结论正确",
+      "关键公式或判据正确",
+      "理由可复核"
+    ],
+    "subject_area": "linear_algebra"
+  },
+  {
+    "answer_forms": [
+      {
+        "answer_id": "correct",
+        "correct": true,
+        "error_detail": null,
+        "error_type": null,
+        "text_zh": "I₃ 有三个线性无关的行（列），因此秩为 3。"
+      },
+      {
+        "answer_id": "wrong",
+        "correct": false,
+        "error_detail": "把主对角线误当成一个线性无关向量。",
+        "error_type": "concept_confusion",
+        "text_zh": "秩为 1，因为它只有一个主对角线。"
+      }
+    ],
+    "difficulty": 0.2,
+    "knowledge_point_id": "math1.linear_algebra.matrix_rank",
+    "prompt_zh": "三阶单位矩阵 I₃ 的秩是多少？",
+    "question_id": "controlled:matrix_rank:v1",
+    "reference_answer_zh": "I₃ 有三个线性无关的行（列），因此秩为 3。",
+    "rubric_items": [
+      "结论正确",
+      "关键公式或判据正确",
+      "理由可复核"
+    ],
+    "subject_area": "linear_algebra"
+  },
+  {
+    "answer_forms": [
+      {
+        "answer_id": "correct",
+        "correct": true,
+        "error_detail": null,
+        "error_type": null,
+        "text_zh": "矩阵为 [[1,1],[1,1]]，因为交叉项系数等于两个对称元之和。"
+      },
+      {
+        "answer_id": "wrong",
+        "correct": false,
+        "error_detail": "没有将交叉项系数平均分配到两个对称位置。",
+        "error_type": "concept_confusion",
+        "text_zh": "矩阵为 [[1,2],[2,1]]。"
+      }
+    ],
+    "difficulty": 0.5,
+    "knowledge_point_id": "math1.linear_algebra.quadratic_form",
+    "prompt_zh": "二次型 x²+2xy+y² 的对称矩阵是什么？",
+    "question_id": "controlled:quadratic_form:v1",
+    "reference_answer_zh": "矩阵为 [[1,1],[1,1]]，因为交叉项系数等于两个对称元之和。",
+    "rubric_items": [
+      "结论正确",
+      "关键公式或判据正确",
+      "理由可复核"
+    ],
+    "subject_area": "linear_algebra"
+  },
+  {
+    "answer_forms": [
+      {
+        "answer_id": "correct",
+        "correct": true,
+        "error_detail": null,
+        "error_type": null,
+        "text_zh": "是；它包含零向量，并对向量加法和数乘封闭。"
+      },
+      {
+        "answer_id": "wrong",
+        "correct": false,
+        "error_detail": "忽略了子空间只需满足封闭性而不必等于整个空间。",
+        "error_type": "concept_confusion",
+        "text_zh": "否；任何真子集都不可能是线性子空间。"
+      }
+    ],
+    "difficulty": 0.35,
+    "knowledge_point_id": "math1.linear_algebra.vector_space",
+    "prompt_zh": "R² 中经过原点的一条直线是否构成 R² 的线性子空间？",
+    "question_id": "controlled:vector_space:v1",
+    "reference_answer_zh": "是；它包含零向量，并对向量加法和数乘封闭。",
+    "rubric_items": [
+      "结论正确",
+      "关键公式或判据正确",
+      "理由可复核"
+    ],
+    "subject_area": "linear_algebra"
+  },
+  {
+    "answer_forms": [
+      {
+        "answer_id": "correct",
+        "correct": true,
+        "error_detail": null,
+        "error_type": null,
+        "text_zh": "P(B|A)=P(A|B)P(B)/P(A)，其中 P(A)>0。"
+      },
+      {
+        "answer_id": "wrong",
+        "correct": false,
+        "error_detail": "贝叶斯公式中的先验概率与证据概率位置颠倒。",
+        "error_type": "concept_confusion",
+        "text_zh": "P(B|A)=P(A|B)P(A)/P(B)。"
+      }
+    ],
+    "difficulty": 0.45,
+    "knowledge_point_id": "math1.probability.bayes",
+    "prompt_zh": "已知 P(A|B)、P(B) 和 P(A)，如何求 P(B|A)？",
+    "question_id": "controlled:bayes:v1",
+    "reference_answer_zh": "P(B|A)=P(A|B)P(B)/P(A)，其中 P(A)>0。",
+    "rubric_items": [
+      "结论正确",
+      "关键公式或判据正确",
+      "理由可复核"
+    ],
+    "subject_area": "probability_theory"
+  },
+  {
+    "answer_forms": [
+      {
+        "answer_id": "correct",
+        "correct": true,
+        "error_detail": null,
+        "error_type": null,
+        "text_zh": "P(A|B)=P(A∩B)/P(B)=0.2/0.5=0.4。"
+      },
+      {
+        "answer_id": "wrong",
+        "correct": false,
+        "error_detail": "条件概率公式中误用了乘法。",
+        "error_type": "concept_confusion",
+        "text_zh": "P(A|B)=0.2×0.5=0.1。"
+      }
+    ],
+    "difficulty": 0.3,
+    "knowledge_point_id": "math1.probability.conditional_probability",
+    "prompt_zh": "若 P(A∩B)=0.2、P(B)=0.5，求 P(A|B)。",
+    "question_id": "controlled:conditional_probability:v1",
+    "reference_answer_zh": "P(A|B)=P(A∩B)/P(B)=0.2/0.5=0.4。",
+    "rubric_items": [
+      "结论正确",
+      "关键公式或判据正确",
+      "理由可复核"
+    ],
+    "subject_area": "probability_theory"
+  },
+  {
+    "answer_forms": [
+      {
+        "answer_id": "correct",
+        "correct": true,
+        "error_detail": null,
+        "error_type": null,
+        "text_zh": "F(x)=P(X≤x)，它单调不减、右连续，且两端极限分别为 0 和 1。"
+      },
+      {
+        "answer_id": "wrong",
+        "correct": false,
+        "error_detail": "把分布函数误写成点概率并遗漏右连续性质。",
+        "error_type": "concept_confusion",
+        "text_zh": "F(x)=P(X=x)，它必须处处连续。"
+      }
+    ],
+    "difficulty": 0.35,
+    "knowledge_point_id": "math1.probability.distribution_function",
+    "prompt_zh": "随机变量 X 的分布函数 F(x) 如何定义？",
+    "question_id": "controlled:distribution_function:v1",
+    "reference_answer_zh": "F(x)=P(X≤x)，它单调不减、右连续，且两端极限分别为 0 和 1。",
+    "rubric_items": [
+      "结论正确",
+      "关键公式或判据正确",
+      "理由可复核"
+    ],
+    "subject_area": "probability_theory"
+  },
+  {
+    "answer_forms": [
+      {
+        "answer_id": "correct",
+        "correct": true,
+        "error_detail": null,
+        "error_type": null,
+        "text_zh": "P(A)=P(A|B₁)P(B₁)+P(A|B₂)P(B₂)。"
+      },
+      {
+        "answer_id": "wrong",
+        "correct": false,
+        "error_detail": "遗漏了各分支的先验概率权重。",
+        "error_type": "concept_confusion",
+        "text_zh": "P(A)=P(A|B₁)+P(A|B₂)。"
+      }
+    ],
+    "difficulty": 0.4,
+    "knowledge_point_id": "math1.probability.total_probability",
+    "prompt_zh": "B₁、B₂ 构成样本空间划分时，如何用它们表示 P(A)？",
+    "question_id": "controlled:total_probability:v1",
+    "reference_answer_zh": "P(A)=P(A|B₁)P(B₁)+P(A|B₂)P(B₂)。",
+    "rubric_items": [
+      "结论正确",
+      "关键公式或判据正确",
+      "理由可复核"
+    ],
+    "subject_area": "probability_theory"
+  }
+]

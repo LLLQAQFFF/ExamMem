@@ -1,0 +1,397 @@
+{
+  "case_id": "formal:plan_transition:05",
+  "events": [
+    {
+      "answer_correct": null,
+      "context": {
+        "exam_id": "formal:plan_transition:05:postgraduate_entrance_exam",
+        "subject_id": "linear_algebra",
+        "user_id": "formal:plan_transition:05:user_001"
+      },
+      "correction": null,
+      "difficulty": null,
+      "error_detail": null,
+      "error_type": null,
+      "event_id": "formal:plan_transition:05:event_plan_conditional_completed_005",
+      "event_type": "plan_transition",
+      "evidence_quality": {
+        "confidence": 1.0,
+        "is_temporary_exception": false,
+        "reasons": []
+      },
+      "idempotency_key": "formal:plan_transition:05:plan-conditional-completed-005",
+      "knowledge_point_ids": [
+        "math1.linear_algebra.matrix_multiplication"
+      ],
+      "occurred_at": "2026-08-10T11:00:00Z",
+      "plan_transition": {
+        "reason": "确定性进度规则确认第 5 道独立复习题已经完成",
+        "source": "practice_progress",
+        "target_memory_id": "formal:plan_transition:05:plan_conditional_probability_review_v1",
+        "to_status": "completed"
+      },
+      "question_id": null,
+      "session_id": "formal:plan_transition:05:session:1"
+    },
+    {
+      "answer_correct": false,
+      "context": {
+        "exam_id": "formal:plan_transition:05:postgraduate_entrance_exam",
+        "subject_id": "linear_algebra",
+        "user_id": "formal:plan_transition:05:user_001"
+      },
+      "correction": null,
+      "difficulty": 0.35,
+      "error_detail": "本次作答受外部中断影响，不能作为稳定能力证据。",
+      "error_type": "unknown",
+      "event_id": "formal:plan_transition:05:padding_event:2",
+      "event_type": "answer_attempt",
+      "evidence_quality": {
+        "confidence": 0.1,
+        "is_temporary_exception": true,
+        "reasons": [
+          "external_disruption"
+        ]
+      },
+      "idempotency_key": "formal:plan_transition:05:padding_idempotency:2",
+      "knowledge_point_ids": [
+        "math1.linear_algebra.matrix_multiplication"
+      ],
+      "occurred_at": "2026-08-17T11:00:00Z",
+      "plan_transition": null,
+      "question_id": "controlled:matrix_multiplication:v1",
+      "session_id": "formal:plan_transition:05:session:2"
+    },
+    {
+      "answer_correct": false,
+      "context": {
+        "exam_id": "formal:plan_transition:05:postgraduate_entrance_exam",
+        "subject_id": "linear_algebra",
+        "user_id": "formal:plan_transition:05:user_001"
+      },
+      "correction": null,
+      "difficulty": 0.35,
+      "error_detail": "本次作答受外部中断影响，不能作为稳定能力证据。",
+      "error_type": "unknown",
+      "event_id": "formal:plan_transition:05:padding_event:3",
+      "event_type": "answer_attempt",
+      "evidence_quality": {
+        "confidence": 0.1,
+        "is_temporary_exception": true,
+        "reasons": [
+          "external_disruption"
+        ]
+      },
+      "idempotency_key": "formal:plan_transition:05:padding_idempotency:3",
+      "knowledge_point_ids": [
+        "math1.linear_algebra.matrix_multiplication"
+      ],
+      "occurred_at": "2026-08-24T11:00:00Z",
+      "plan_transition": null,
+      "question_id": "controlled:matrix_multiplication:v1",
+      "session_id": "formal:plan_transition:05:session:3"
+    }
+  ],
+  "gold_actions": [
+    {
+      "action_type": "no_action",
+      "knowledge_point_ids": [
+        "math1.linear_algebra.matrix_multiplication"
+      ],
+      "reason_code": "completed_plan_no_longer_drives_review",
+      "step_id": "formal:plan_transition:05:step_001"
+    },
+    {
+      "action_type": "no_action",
+      "knowledge_point_ids": [],
+      "reason_code": "temporary_low_confidence_evidence_requires_no_action",
+      "step_id": "formal:plan_transition:05:padding_step:2"
+    },
+    {
+      "action_type": "no_action",
+      "knowledge_point_ids": [],
+      "reason_code": "temporary_low_confidence_evidence_requires_no_action",
+      "step_id": "formal:plan_transition:05:padding_step:3"
+    }
+  ],
+  "gold_operations": [
+    {
+      "candidate_memory_ids": [
+        "formal:plan_transition:05:plan_conditional_probability_review_v1"
+      ],
+      "canonical_knowledge_point_ids": [
+        "math1.linear_algebra.matrix_multiplication"
+      ],
+      "event_id": "formal:plan_transition:05:event_plan_conditional_completed_005",
+      "evidence_event_ids": [
+        "formal:plan_transition:05:event_plan_conditional_completed_005"
+      ],
+      "expected_result_value": null,
+      "extracted_fields": {
+        "answer_correct": null,
+        "correction": null,
+        "error_detail": null,
+        "error_type": null,
+        "event_type": "plan_transition",
+        "evidence_quality": {
+          "confidence": 1.0,
+          "is_temporary_exception": false,
+          "reasons": []
+        },
+        "knowledge_point_ids": [
+          "math1.linear_algebra.matrix_multiplication"
+        ],
+        "plan_transition": {
+          "reason": "确定性进度规则确认第 5 道独立复习题已经完成",
+          "source": "practice_progress",
+          "target_memory_id": "formal:plan_transition:05:plan_conditional_probability_review_v1",
+          "to_status": "completed"
+        }
+      },
+      "operation": "INVALIDATE",
+      "operation_id": "formal:plan_transition:05:step_001:plan",
+      "reason_code": "deterministic_progress_rule_confirms_plan_completed",
+      "result_memory_id": null,
+      "slot_key": "plan:postgraduate_entrance_exam:math_1",
+      "step_id": "formal:plan_transition:05:step_001",
+      "target_memory_ids": [
+        "formal:plan_transition:05:plan_conditional_probability_review_v1"
+      ]
+    },
+    {
+      "candidate_memory_ids": [],
+      "canonical_knowledge_point_ids": [
+        "math1.linear_algebra.matrix_multiplication"
+      ],
+      "event_id": "formal:plan_transition:05:padding_event:2",
+      "evidence_event_ids": [
+        "formal:plan_transition:05:padding_event:2"
+      ],
+      "expected_result_value": null,
+      "extracted_fields": {
+        "answer_correct": false,
+        "correction": null,
+        "error_detail": "本次作答受外部中断影响，不能作为稳定能力证据。",
+        "error_type": "unknown",
+        "event_type": "answer_attempt",
+        "evidence_quality": {
+          "confidence": 0.1,
+          "is_temporary_exception": true,
+          "reasons": [
+            "external_disruption"
+          ]
+        },
+        "knowledge_point_ids": [
+          "math1.linear_algebra.matrix_multiplication"
+        ],
+        "plan_transition": null
+      },
+      "operation": "NO_OP",
+      "operation_id": "formal:plan_transition:05:padding_operation:2:1",
+      "reason_code": "temporary_low_confidence_evidence_is_not_persisted",
+      "result_memory_id": null,
+      "slot_key": "mastery:math1.linear_algebra.matrix_multiplication",
+      "step_id": "formal:plan_transition:05:padding_step:2",
+      "target_memory_ids": []
+    },
+    {
+      "candidate_memory_ids": [],
+      "canonical_knowledge_point_ids": [
+        "math1.linear_algebra.matrix_multiplication"
+      ],
+      "event_id": "formal:plan_transition:05:padding_event:2",
+      "evidence_event_ids": [
+        "formal:plan_transition:05:padding_event:2"
+      ],
+      "expected_result_value": null,
+      "extracted_fields": {
+        "answer_correct": false,
+        "correction": null,
+        "error_detail": "本次作答受外部中断影响，不能作为稳定能力证据。",
+        "error_type": "unknown",
+        "event_type": "answer_attempt",
+        "evidence_quality": {
+          "confidence": 0.1,
+          "is_temporary_exception": true,
+          "reasons": [
+            "external_disruption"
+          ]
+        },
+        "knowledge_point_ids": [
+          "math1.linear_algebra.matrix_multiplication"
+        ],
+        "plan_transition": null
+      },
+      "operation": "NO_OP",
+      "operation_id": "formal:plan_transition:05:padding_operation:2:2",
+      "reason_code": "temporary_low_confidence_evidence_is_not_persisted",
+      "result_memory_id": null,
+      "slot_key": "error_pattern:math1.linear_algebra.matrix_multiplication:unknown",
+      "step_id": "formal:plan_transition:05:padding_step:2",
+      "target_memory_ids": []
+    },
+    {
+      "candidate_memory_ids": [],
+      "canonical_knowledge_point_ids": [
+        "math1.linear_algebra.matrix_multiplication"
+      ],
+      "event_id": "formal:plan_transition:05:padding_event:3",
+      "evidence_event_ids": [
+        "formal:plan_transition:05:padding_event:3"
+      ],
+      "expected_result_value": null,
+      "extracted_fields": {
+        "answer_correct": false,
+        "correction": null,
+        "error_detail": "本次作答受外部中断影响，不能作为稳定能力证据。",
+        "error_type": "unknown",
+        "event_type": "answer_attempt",
+        "evidence_quality": {
+          "confidence": 0.1,
+          "is_temporary_exception": true,
+          "reasons": [
+            "external_disruption"
+          ]
+        },
+        "knowledge_point_ids": [
+          "math1.linear_algebra.matrix_multiplication"
+        ],
+        "plan_transition": null
+      },
+      "operation": "NO_OP",
+      "operation_id": "formal:plan_transition:05:padding_operation:3:1",
+      "reason_code": "temporary_low_confidence_evidence_is_not_persisted",
+      "result_memory_id": null,
+      "slot_key": "mastery:math1.linear_algebra.matrix_multiplication",
+      "step_id": "formal:plan_transition:05:padding_step:3",
+      "target_memory_ids": []
+    },
+    {
+      "candidate_memory_ids": [],
+      "canonical_knowledge_point_ids": [
+        "math1.linear_algebra.matrix_multiplication"
+      ],
+      "event_id": "formal:plan_transition:05:padding_event:3",
+      "evidence_event_ids": [
+        "formal:plan_transition:05:padding_event:3"
+      ],
+      "expected_result_value": null,
+      "extracted_fields": {
+        "answer_correct": false,
+        "correction": null,
+        "error_detail": "本次作答受外部中断影响，不能作为稳定能力证据。",
+        "error_type": "unknown",
+        "event_type": "answer_attempt",
+        "evidence_quality": {
+          "confidence": 0.1,
+          "is_temporary_exception": true,
+          "reasons": [
+            "external_disruption"
+          ]
+        },
+        "knowledge_point_ids": [
+          "math1.linear_algebra.matrix_multiplication"
+        ],
+        "plan_transition": null
+      },
+      "operation": "NO_OP",
+      "operation_id": "formal:plan_transition:05:padding_operation:3:2",
+      "reason_code": "temporary_low_confidence_evidence_is_not_persisted",
+      "result_memory_id": null,
+      "slot_key": "error_pattern:math1.linear_algebra.matrix_multiplication:unknown",
+      "step_id": "formal:plan_transition:05:padding_step:3",
+      "target_memory_ids": []
+    }
+  ],
+  "gold_states": [
+    {
+      "active_memory_ids": [],
+      "archived_memory_ids": [],
+      "contested_memory_ids": [],
+      "invalidated_memory_ids": [
+        "formal:plan_transition:05:plan_conditional_probability_review_v1"
+      ],
+      "step_id": "formal:plan_transition:05:step_001",
+      "version_relations": []
+    },
+    {
+      "active_memory_ids": [],
+      "archived_memory_ids": [],
+      "contested_memory_ids": [],
+      "invalidated_memory_ids": [
+        "formal:plan_transition:05:plan_conditional_probability_review_v1"
+      ],
+      "step_id": "formal:plan_transition:05:padding_step:2",
+      "version_relations": []
+    },
+    {
+      "active_memory_ids": [],
+      "archived_memory_ids": [],
+      "contested_memory_ids": [],
+      "invalidated_memory_ids": [
+        "formal:plan_transition:05:plan_conditional_probability_review_v1"
+      ],
+      "step_id": "formal:plan_transition:05:padding_step:3",
+      "version_relations": []
+    }
+  ],
+  "initial_memory": [
+    {
+      "confidence": 1.0,
+      "evidence_count": 4,
+      "lifecycle_state": "active",
+      "memory_id": "formal:plan_transition:05:plan_conditional_probability_review_v1",
+      "provenance": [
+        "formal:plan_transition:05:event_plan_conditional_created_001",
+        "formal:plan_transition:05:event_plan_conditional_progress_002",
+        "formal:plan_transition:05:event_plan_conditional_progress_003",
+        "formal:plan_transition:05:event_plan_conditional_progress_004"
+      ],
+      "scope": {
+        "exam_id": "formal:plan_transition:05:postgraduate_entrance_exam",
+        "memory_namespace": "plan",
+        "subject_id": "linear_algebra",
+        "user_id": "formal:plan_transition:05:user_001"
+      },
+      "slot_key": "plan:postgraduate_entrance_exam:math_1",
+      "superseded_by": null,
+      "valid_from": "2026-08-05T08:00:00Z",
+      "valid_to": null,
+      "value": {
+        "due_at": "2026-08-12T23:59:59Z",
+        "goal": "完成矩阵乘法专项学习计划",
+        "progress": 0.8,
+        "status": "in_progress",
+        "type": "plan"
+      },
+      "version": 1
+    }
+  ],
+  "metadata": {
+    "gold_revision": 3,
+    "policy_parameters": {
+      "formal_dataset_version": "exam_mem_controlled_v1",
+      "padding_policy": "temporary_low_confidence_no_op",
+      "target_knowledge_point_id": "math1.linear_algebra.matrix_multiplication",
+      "template_case_id": "completed_plan_is_invalidated_after_progress_goal_001"
+    },
+    "seed": 20260806,
+    "split": "dev"
+  },
+  "protocol_version": "evaluation_protocol_v1",
+  "queries": [
+    {
+      "after_step_id": "formal:plan_transition:05:step_001",
+      "query_id": "formal:plan_transition:05:query_001",
+      "scope": {
+        "exam_id": "formal:plan_transition:05:postgraduate_entrance_exam",
+        "memory_namespace": "plan",
+        "subject_id": "linear_algebra",
+        "user_id": "formal:plan_transition:05:user_001"
+      },
+      "text": "已经完成的条件概率周计划是否仍应驱动推荐？",
+      "top_k": 3
+    }
+  ],
+  "scenario_type": "plan_transition"
+}

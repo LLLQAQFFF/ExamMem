@@ -1,0 +1,362 @@
+{
+  "case_id": "formal:mastery_decline:06",
+  "events": [
+    {
+      "answer_correct": false,
+      "context": {
+        "exam_id": "formal:mastery_decline:06:postgraduate_entrance_exam",
+        "subject_id": "probability_theory",
+        "user_id": "formal:mastery_decline:06:user_001"
+      },
+      "correction": null,
+      "difficulty": 0.3,
+      "error_detail": "混淆先验概率与后验概率",
+      "error_type": "concept_confusion",
+      "event_id": "formal:mastery_decline:06:event_bayes_301",
+      "event_type": "answer_attempt",
+      "evidence_quality": {
+        "confidence": 1.0,
+        "is_temporary_exception": false,
+        "reasons": []
+      },
+      "idempotency_key": "formal:mastery_decline:06:bayes-concept-error-301",
+      "knowledge_point_ids": [
+        "math1.probability.conditional_probability"
+      ],
+      "occurred_at": "2026-08-08T11:00:00Z",
+      "plan_transition": null,
+      "question_id": "controlled:conditional_probability:v1",
+      "session_id": "formal:mastery_decline:06:session:1"
+    },
+    {
+      "answer_correct": false,
+      "context": {
+        "exam_id": "formal:mastery_decline:06:postgraduate_entrance_exam",
+        "subject_id": "probability_theory",
+        "user_id": "formal:mastery_decline:06:user_001"
+      },
+      "correction": null,
+      "difficulty": 0.3,
+      "error_detail": "无法区分 P(A|B) 与 P(B|A)",
+      "error_type": "concept_confusion",
+      "event_id": "formal:mastery_decline:06:event_bayes_302",
+      "event_type": "answer_attempt",
+      "evidence_quality": {
+        "confidence": 1.0,
+        "is_temporary_exception": false,
+        "reasons": []
+      },
+      "idempotency_key": "formal:mastery_decline:06:bayes-concept-error-302",
+      "knowledge_point_ids": [
+        "math1.probability.conditional_probability"
+      ],
+      "occurred_at": "2026-08-09T11:00:00Z",
+      "plan_transition": null,
+      "question_id": "controlled:conditional_probability:v1",
+      "session_id": "formal:mastery_decline:06:session:2"
+    },
+    {
+      "answer_correct": false,
+      "context": {
+        "exam_id": "formal:mastery_decline:06:postgraduate_entrance_exam",
+        "subject_id": "probability_theory",
+        "user_id": "formal:mastery_decline:06:user_001"
+      },
+      "correction": null,
+      "difficulty": 0.3,
+      "error_detail": "把后验概率误写为先验概率与证据概率的乘积",
+      "error_type": "concept_confusion",
+      "event_id": "formal:mastery_decline:06:event_bayes_303",
+      "event_type": "answer_attempt",
+      "evidence_quality": {
+        "confidence": 1.0,
+        "is_temporary_exception": false,
+        "reasons": []
+      },
+      "idempotency_key": "formal:mastery_decline:06:bayes-concept-error-303",
+      "knowledge_point_ids": [
+        "math1.probability.conditional_probability"
+      ],
+      "occurred_at": "2026-08-09T11:30:00Z",
+      "plan_transition": null,
+      "question_id": "controlled:conditional_probability:v1",
+      "session_id": "formal:mastery_decline:06:session:3"
+    }
+  ],
+  "gold_actions": [
+    {
+      "action_type": "no_action",
+      "knowledge_point_ids": [
+        "math1.probability.conditional_probability"
+      ],
+      "reason_code": "first_contested_error_does_not_change_teaching_action",
+      "step_id": "formal:mastery_decline:06:step_001"
+    },
+    {
+      "action_type": "no_action",
+      "knowledge_point_ids": [
+        "math1.probability.conditional_probability"
+      ],
+      "reason_code": "second_contested_error_still_below_decline_threshold",
+      "step_id": "formal:mastery_decline:06:step_002"
+    },
+    {
+      "action_type": "recommend_review",
+      "knowledge_point_ids": [
+        "math1.probability.conditional_probability"
+      ],
+      "reason_code": "sustained_concept_errors_reduce_mastery_to_improving",
+      "step_id": "formal:mastery_decline:06:step_003"
+    }
+  ],
+  "gold_operations": [
+    {
+      "candidate_memory_ids": [
+        "formal:mastery_decline:06:mastery_bayes_high_v1"
+      ],
+      "canonical_knowledge_point_ids": [
+        "math1.probability.conditional_probability"
+      ],
+      "event_id": "formal:mastery_decline:06:event_bayes_301",
+      "evidence_event_ids": [
+        "formal:mastery_decline:06:event_bayes_301"
+      ],
+      "expected_result_value": null,
+      "extracted_fields": {
+        "answer_correct": false,
+        "correction": null,
+        "error_detail": "混淆先验概率与后验概率",
+        "error_type": "concept_confusion",
+        "event_type": "answer_attempt",
+        "evidence_quality": {
+          "confidence": 1.0,
+          "is_temporary_exception": false,
+          "reasons": []
+        },
+        "knowledge_point_ids": [
+          "math1.probability.conditional_probability"
+        ],
+        "plan_transition": null
+      },
+      "operation": "CONTESTED",
+      "operation_id": "formal:mastery_decline:06:step_001:mastery",
+      "reason_code": "first_qualifying_error_creates_contested_decline_evidence",
+      "result_memory_id": "formal:mastery_decline:06:mastery_bayes_decline_contested_v2",
+      "slot_key": "mastery:math1.probability.conditional_probability",
+      "step_id": "formal:mastery_decline:06:step_001",
+      "target_memory_ids": [
+        "formal:mastery_decline:06:mastery_bayes_high_v1"
+      ]
+    },
+    {
+      "candidate_memory_ids": [
+        "formal:mastery_decline:06:mastery_bayes_high_v1",
+        "formal:mastery_decline:06:mastery_bayes_decline_contested_v2"
+      ],
+      "canonical_knowledge_point_ids": [
+        "math1.probability.conditional_probability"
+      ],
+      "event_id": "formal:mastery_decline:06:event_bayes_302",
+      "evidence_event_ids": [
+        "formal:mastery_decline:06:event_bayes_302"
+      ],
+      "expected_result_value": null,
+      "extracted_fields": {
+        "answer_correct": false,
+        "correction": null,
+        "error_detail": "无法区分 P(A|B) 与 P(B|A)",
+        "error_type": "concept_confusion",
+        "event_type": "answer_attempt",
+        "evidence_quality": {
+          "confidence": 1.0,
+          "is_temporary_exception": false,
+          "reasons": []
+        },
+        "knowledge_point_ids": [
+          "math1.probability.conditional_probability"
+        ],
+        "plan_transition": null
+      },
+      "operation": "MERGE",
+      "operation_id": "formal:mastery_decline:06:step_002:mastery",
+      "reason_code": "second_qualifying_error_merges_contested_evidence",
+      "result_memory_id": "formal:mastery_decline:06:mastery_bayes_decline_contested_v3",
+      "slot_key": "mastery:math1.probability.conditional_probability",
+      "step_id": "formal:mastery_decline:06:step_002",
+      "target_memory_ids": [
+        "formal:mastery_decline:06:mastery_bayes_decline_contested_v2"
+      ]
+    },
+    {
+      "candidate_memory_ids": [
+        "formal:mastery_decline:06:mastery_bayes_high_v1",
+        "formal:mastery_decline:06:mastery_bayes_decline_contested_v3"
+      ],
+      "canonical_knowledge_point_ids": [
+        "math1.probability.conditional_probability"
+      ],
+      "event_id": "formal:mastery_decline:06:event_bayes_303",
+      "evidence_event_ids": [
+        "formal:mastery_decline:06:event_bayes_301",
+        "formal:mastery_decline:06:event_bayes_302",
+        "formal:mastery_decline:06:event_bayes_303"
+      ],
+      "expected_result_value": null,
+      "extracted_fields": {
+        "answer_correct": false,
+        "correction": null,
+        "error_detail": "把后验概率误写为先验概率与证据概率的乘积",
+        "error_type": "concept_confusion",
+        "event_type": "answer_attempt",
+        "evidence_quality": {
+          "confidence": 1.0,
+          "is_temporary_exception": false,
+          "reasons": []
+        },
+        "knowledge_point_ids": [
+          "math1.probability.conditional_probability"
+        ],
+        "plan_transition": null
+      },
+      "operation": "SUPERSEDE",
+      "operation_id": "formal:mastery_decline:06:step_003:mastery",
+      "reason_code": "three_cross_session_concept_errors_downgrade_to_improving",
+      "result_memory_id": "formal:mastery_decline:06:mastery_bayes_improving_v4",
+      "slot_key": "mastery:math1.probability.conditional_probability",
+      "step_id": "formal:mastery_decline:06:step_003",
+      "target_memory_ids": [
+        "formal:mastery_decline:06:mastery_bayes_high_v1",
+        "formal:mastery_decline:06:mastery_bayes_decline_contested_v3"
+      ]
+    }
+  ],
+  "gold_states": [
+    {
+      "active_memory_ids": [
+        "formal:mastery_decline:06:mastery_bayes_high_v1"
+      ],
+      "archived_memory_ids": [],
+      "contested_memory_ids": [
+        "formal:mastery_decline:06:mastery_bayes_decline_contested_v2"
+      ],
+      "invalidated_memory_ids": [],
+      "step_id": "formal:mastery_decline:06:step_001",
+      "version_relations": []
+    },
+    {
+      "active_memory_ids": [
+        "formal:mastery_decline:06:mastery_bayes_high_v1"
+      ],
+      "archived_memory_ids": [
+        "formal:mastery_decline:06:mastery_bayes_decline_contested_v2"
+      ],
+      "contested_memory_ids": [
+        "formal:mastery_decline:06:mastery_bayes_decline_contested_v3"
+      ],
+      "invalidated_memory_ids": [],
+      "step_id": "formal:mastery_decline:06:step_002",
+      "version_relations": [
+        {
+          "predecessor_memory_id": "formal:mastery_decline:06:mastery_bayes_decline_contested_v2",
+          "relation": "superseded_by",
+          "successor_memory_id": "formal:mastery_decline:06:mastery_bayes_decline_contested_v3"
+        }
+      ]
+    },
+    {
+      "active_memory_ids": [
+        "formal:mastery_decline:06:mastery_bayes_improving_v4"
+      ],
+      "archived_memory_ids": [
+        "formal:mastery_decline:06:mastery_bayes_high_v1",
+        "formal:mastery_decline:06:mastery_bayes_decline_contested_v2",
+        "formal:mastery_decline:06:mastery_bayes_decline_contested_v3"
+      ],
+      "contested_memory_ids": [],
+      "invalidated_memory_ids": [],
+      "step_id": "formal:mastery_decline:06:step_003",
+      "version_relations": [
+        {
+          "predecessor_memory_id": "formal:mastery_decline:06:mastery_bayes_decline_contested_v2",
+          "relation": "superseded_by",
+          "successor_memory_id": "formal:mastery_decline:06:mastery_bayes_decline_contested_v3"
+        },
+        {
+          "predecessor_memory_id": "formal:mastery_decline:06:mastery_bayes_high_v1",
+          "relation": "superseded_by",
+          "successor_memory_id": "formal:mastery_decline:06:mastery_bayes_improving_v4"
+        },
+        {
+          "predecessor_memory_id": "formal:mastery_decline:06:mastery_bayes_decline_contested_v3",
+          "relation": "superseded_by",
+          "successor_memory_id": "formal:mastery_decline:06:mastery_bayes_improving_v4"
+        }
+      ]
+    }
+  ],
+  "initial_memory": [
+    {
+      "confidence": 0.9,
+      "evidence_count": 12,
+      "lifecycle_state": "active",
+      "memory_id": "formal:mastery_decline:06:mastery_bayes_high_v1",
+      "provenance": [
+        "formal:mastery_decline:06:event_bayes_289",
+        "formal:mastery_decline:06:event_bayes_290",
+        "formal:mastery_decline:06:event_bayes_291",
+        "formal:mastery_decline:06:event_bayes_292",
+        "formal:mastery_decline:06:event_bayes_293",
+        "formal:mastery_decline:06:event_bayes_294",
+        "formal:mastery_decline:06:event_bayes_295",
+        "formal:mastery_decline:06:event_bayes_296",
+        "formal:mastery_decline:06:event_bayes_297",
+        "formal:mastery_decline:06:event_bayes_298",
+        "formal:mastery_decline:06:event_bayes_299",
+        "formal:mastery_decline:06:event_bayes_300"
+      ],
+      "scope": {
+        "exam_id": "formal:mastery_decline:06:postgraduate_entrance_exam",
+        "memory_namespace": "mastery",
+        "subject_id": "probability_theory",
+        "user_id": "formal:mastery_decline:06:user_001"
+      },
+      "slot_key": "mastery:math1.probability.conditional_probability",
+      "superseded_by": null,
+      "valid_from": "2026-08-01T08:30:00Z",
+      "valid_to": null,
+      "value": {
+        "level": "high",
+        "score": 0.86,
+        "type": "mastery"
+      },
+      "version": 1
+    }
+  ],
+  "metadata": {
+    "gold_revision": 3,
+    "policy_parameters": {
+      "formal_dataset_version": "exam_mem_controlled_v1",
+      "padding_policy": "temporary_low_confidence_no_op",
+      "target_knowledge_point_id": "math1.probability.conditional_probability",
+      "template_case_id": "mastery_decline_sustained_concept_errors_002"
+    },
+    "seed": 20260806,
+    "split": "test"
+  },
+  "protocol_version": "evaluation_protocol_v1",
+  "queries": [
+    {
+      "after_step_id": "formal:mastery_decline:06:step_003",
+      "query_id": "formal:mastery_decline:06:query_001",
+      "scope": {
+        "exam_id": "formal:mastery_decline:06:postgraduate_entrance_exam",
+        "memory_namespace": "mastery",
+        "subject_id": "probability_theory",
+        "user_id": "formal:mastery_decline:06:user_001"
+      },
+      "text": "贝叶斯公式是否需要重新进入重点复习列表？",
+      "top_k": 3
+    }
+  ],
+  "scenario_type": "mastery_decline"
+}

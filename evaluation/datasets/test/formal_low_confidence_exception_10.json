@@ -1,0 +1,399 @@
+{
+  "case_id": "formal:low_confidence_exception:10",
+  "events": [
+    {
+      "answer_correct": true,
+      "context": {
+        "exam_id": "formal:low_confidence_exception:10:postgraduate_entrance_exam",
+        "subject_id": "linear_algebra",
+        "user_id": "formal:low_confidence_exception:10:user_001"
+      },
+      "correction": null,
+      "difficulty": 0.35,
+      "error_detail": null,
+      "error_type": null,
+      "event_id": "formal:low_confidence_exception:10:event_conditional_probability_101",
+      "event_type": "answer_attempt",
+      "evidence_quality": {
+        "confidence": 1.0,
+        "is_temporary_exception": true,
+        "reasons": [
+          "user_reported_exception"
+        ]
+      },
+      "idempotency_key": "formal:low_confidence_exception:10:conditional-probability-guided-101",
+      "knowledge_point_ids": [
+        "math1.linear_algebra.eigenvector"
+      ],
+      "occurred_at": "2026-08-10T10:30:00Z",
+      "plan_transition": null,
+      "question_id": "controlled:eigenvector:v1",
+      "session_id": "formal:low_confidence_exception:10:session:1"
+    },
+    {
+      "answer_correct": false,
+      "context": {
+        "exam_id": "formal:low_confidence_exception:10:postgraduate_entrance_exam",
+        "subject_id": "linear_algebra",
+        "user_id": "formal:low_confidence_exception:10:user_001"
+      },
+      "correction": null,
+      "difficulty": 0.35,
+      "error_detail": "本次作答受外部中断影响，不能作为稳定能力证据。",
+      "error_type": "unknown",
+      "event_id": "formal:low_confidence_exception:10:padding_event:2",
+      "event_type": "answer_attempt",
+      "evidence_quality": {
+        "confidence": 0.1,
+        "is_temporary_exception": true,
+        "reasons": [
+          "external_disruption"
+        ]
+      },
+      "idempotency_key": "formal:low_confidence_exception:10:padding_idempotency:2",
+      "knowledge_point_ids": [
+        "math1.linear_algebra.eigenvector"
+      ],
+      "occurred_at": "2026-08-17T10:30:00Z",
+      "plan_transition": null,
+      "question_id": "controlled:eigenvector:v1",
+      "session_id": "formal:low_confidence_exception:10:session:2"
+    },
+    {
+      "answer_correct": false,
+      "context": {
+        "exam_id": "formal:low_confidence_exception:10:postgraduate_entrance_exam",
+        "subject_id": "linear_algebra",
+        "user_id": "formal:low_confidence_exception:10:user_001"
+      },
+      "correction": null,
+      "difficulty": 0.35,
+      "error_detail": "本次作答受外部中断影响，不能作为稳定能力证据。",
+      "error_type": "unknown",
+      "event_id": "formal:low_confidence_exception:10:padding_event:3",
+      "event_type": "answer_attempt",
+      "evidence_quality": {
+        "confidence": 0.1,
+        "is_temporary_exception": true,
+        "reasons": [
+          "external_disruption"
+        ]
+      },
+      "idempotency_key": "formal:low_confidence_exception:10:padding_idempotency:3",
+      "knowledge_point_ids": [
+        "math1.linear_algebra.eigenvector"
+      ],
+      "occurred_at": "2026-08-24T10:30:00Z",
+      "plan_transition": null,
+      "question_id": "controlled:eigenvector:v1",
+      "session_id": "formal:low_confidence_exception:10:session:3"
+    }
+  ],
+  "gold_actions": [
+    {
+      "action_type": "recommend_review",
+      "knowledge_point_ids": [
+        "math1.linear_algebra.eigenvector"
+      ],
+      "reason_code": "temporary_guided_success_does_not_remove_existing_review_need",
+      "step_id": "formal:low_confidence_exception:10:step_001"
+    },
+    {
+      "action_type": "no_action",
+      "knowledge_point_ids": [],
+      "reason_code": "temporary_low_confidence_evidence_requires_no_action",
+      "step_id": "formal:low_confidence_exception:10:padding_step:2"
+    },
+    {
+      "action_type": "no_action",
+      "knowledge_point_ids": [],
+      "reason_code": "temporary_low_confidence_evidence_requires_no_action",
+      "step_id": "formal:low_confidence_exception:10:padding_step:3"
+    }
+  ],
+  "gold_operations": [
+    {
+      "candidate_memory_ids": [
+        "formal:low_confidence_exception:10:mastery_conditional_probability_low_v1"
+      ],
+      "canonical_knowledge_point_ids": [
+        "math1.linear_algebra.eigenvector"
+      ],
+      "event_id": "formal:low_confidence_exception:10:event_conditional_probability_101",
+      "evidence_event_ids": [
+        "formal:low_confidence_exception:10:event_conditional_probability_101"
+      ],
+      "expected_result_value": null,
+      "extracted_fields": {
+        "answer_correct": true,
+        "correction": null,
+        "error_detail": null,
+        "error_type": null,
+        "event_type": "answer_attempt",
+        "evidence_quality": {
+          "confidence": 1.0,
+          "is_temporary_exception": true,
+          "reasons": [
+            "user_reported_exception"
+          ]
+        },
+        "knowledge_point_ids": [
+          "math1.linear_algebra.eigenvector"
+        ],
+        "plan_transition": null
+      },
+      "operation": "NO_OP",
+      "operation_id": "formal:low_confidence_exception:10:step_001:mastery",
+      "reason_code": "guided_temporary_success_is_not_independent_mastery_evidence",
+      "result_memory_id": null,
+      "slot_key": "mastery:math1.linear_algebra.eigenvector",
+      "step_id": "formal:low_confidence_exception:10:step_001",
+      "target_memory_ids": [
+        "formal:low_confidence_exception:10:mastery_conditional_probability_low_v1"
+      ]
+    },
+    {
+      "candidate_memory_ids": [
+        "formal:low_confidence_exception:10:mastery_conditional_probability_low_v1"
+      ],
+      "canonical_knowledge_point_ids": [
+        "math1.linear_algebra.eigenvector"
+      ],
+      "event_id": "formal:low_confidence_exception:10:padding_event:2",
+      "evidence_event_ids": [
+        "formal:low_confidence_exception:10:padding_event:2"
+      ],
+      "expected_result_value": null,
+      "extracted_fields": {
+        "answer_correct": false,
+        "correction": null,
+        "error_detail": "本次作答受外部中断影响，不能作为稳定能力证据。",
+        "error_type": "unknown",
+        "event_type": "answer_attempt",
+        "evidence_quality": {
+          "confidence": 0.1,
+          "is_temporary_exception": true,
+          "reasons": [
+            "external_disruption"
+          ]
+        },
+        "knowledge_point_ids": [
+          "math1.linear_algebra.eigenvector"
+        ],
+        "plan_transition": null
+      },
+      "operation": "NO_OP",
+      "operation_id": "formal:low_confidence_exception:10:padding_operation:2:1",
+      "reason_code": "temporary_low_confidence_evidence_is_not_persisted",
+      "result_memory_id": null,
+      "slot_key": "mastery:math1.linear_algebra.eigenvector",
+      "step_id": "formal:low_confidence_exception:10:padding_step:2",
+      "target_memory_ids": [
+        "formal:low_confidence_exception:10:mastery_conditional_probability_low_v1"
+      ]
+    },
+    {
+      "candidate_memory_ids": [],
+      "canonical_knowledge_point_ids": [
+        "math1.linear_algebra.eigenvector"
+      ],
+      "event_id": "formal:low_confidence_exception:10:padding_event:2",
+      "evidence_event_ids": [
+        "formal:low_confidence_exception:10:padding_event:2"
+      ],
+      "expected_result_value": null,
+      "extracted_fields": {
+        "answer_correct": false,
+        "correction": null,
+        "error_detail": "本次作答受外部中断影响，不能作为稳定能力证据。",
+        "error_type": "unknown",
+        "event_type": "answer_attempt",
+        "evidence_quality": {
+          "confidence": 0.1,
+          "is_temporary_exception": true,
+          "reasons": [
+            "external_disruption"
+          ]
+        },
+        "knowledge_point_ids": [
+          "math1.linear_algebra.eigenvector"
+        ],
+        "plan_transition": null
+      },
+      "operation": "NO_OP",
+      "operation_id": "formal:low_confidence_exception:10:padding_operation:2:2",
+      "reason_code": "temporary_low_confidence_evidence_is_not_persisted",
+      "result_memory_id": null,
+      "slot_key": "error_pattern:math1.linear_algebra.eigenvector:unknown",
+      "step_id": "formal:low_confidence_exception:10:padding_step:2",
+      "target_memory_ids": []
+    },
+    {
+      "candidate_memory_ids": [
+        "formal:low_confidence_exception:10:mastery_conditional_probability_low_v1"
+      ],
+      "canonical_knowledge_point_ids": [
+        "math1.linear_algebra.eigenvector"
+      ],
+      "event_id": "formal:low_confidence_exception:10:padding_event:3",
+      "evidence_event_ids": [
+        "formal:low_confidence_exception:10:padding_event:3"
+      ],
+      "expected_result_value": null,
+      "extracted_fields": {
+        "answer_correct": false,
+        "correction": null,
+        "error_detail": "本次作答受外部中断影响，不能作为稳定能力证据。",
+        "error_type": "unknown",
+        "event_type": "answer_attempt",
+        "evidence_quality": {
+          "confidence": 0.1,
+          "is_temporary_exception": true,
+          "reasons": [
+            "external_disruption"
+          ]
+        },
+        "knowledge_point_ids": [
+          "math1.linear_algebra.eigenvector"
+        ],
+        "plan_transition": null
+      },
+      "operation": "NO_OP",
+      "operation_id": "formal:low_confidence_exception:10:padding_operation:3:1",
+      "reason_code": "temporary_low_confidence_evidence_is_not_persisted",
+      "result_memory_id": null,
+      "slot_key": "mastery:math1.linear_algebra.eigenvector",
+      "step_id": "formal:low_confidence_exception:10:padding_step:3",
+      "target_memory_ids": [
+        "formal:low_confidence_exception:10:mastery_conditional_probability_low_v1"
+      ]
+    },
+    {
+      "candidate_memory_ids": [],
+      "canonical_knowledge_point_ids": [
+        "math1.linear_algebra.eigenvector"
+      ],
+      "event_id": "formal:low_confidence_exception:10:padding_event:3",
+      "evidence_event_ids": [
+        "formal:low_confidence_exception:10:padding_event:3"
+      ],
+      "expected_result_value": null,
+      "extracted_fields": {
+        "answer_correct": false,
+        "correction": null,
+        "error_detail": "本次作答受外部中断影响，不能作为稳定能力证据。",
+        "error_type": "unknown",
+        "event_type": "answer_attempt",
+        "evidence_quality": {
+          "confidence": 0.1,
+          "is_temporary_exception": true,
+          "reasons": [
+            "external_disruption"
+          ]
+        },
+        "knowledge_point_ids": [
+          "math1.linear_algebra.eigenvector"
+        ],
+        "plan_transition": null
+      },
+      "operation": "NO_OP",
+      "operation_id": "formal:low_confidence_exception:10:padding_operation:3:2",
+      "reason_code": "temporary_low_confidence_evidence_is_not_persisted",
+      "result_memory_id": null,
+      "slot_key": "error_pattern:math1.linear_algebra.eigenvector:unknown",
+      "step_id": "formal:low_confidence_exception:10:padding_step:3",
+      "target_memory_ids": []
+    }
+  ],
+  "gold_states": [
+    {
+      "active_memory_ids": [
+        "formal:low_confidence_exception:10:mastery_conditional_probability_low_v1"
+      ],
+      "archived_memory_ids": [],
+      "contested_memory_ids": [],
+      "invalidated_memory_ids": [],
+      "step_id": "formal:low_confidence_exception:10:step_001",
+      "version_relations": []
+    },
+    {
+      "active_memory_ids": [
+        "formal:low_confidence_exception:10:mastery_conditional_probability_low_v1"
+      ],
+      "archived_memory_ids": [],
+      "contested_memory_ids": [],
+      "invalidated_memory_ids": [],
+      "step_id": "formal:low_confidence_exception:10:padding_step:2",
+      "version_relations": []
+    },
+    {
+      "active_memory_ids": [
+        "formal:low_confidence_exception:10:mastery_conditional_probability_low_v1"
+      ],
+      "archived_memory_ids": [],
+      "contested_memory_ids": [],
+      "invalidated_memory_ids": [],
+      "step_id": "formal:low_confidence_exception:10:padding_step:3",
+      "version_relations": []
+    }
+  ],
+  "initial_memory": [
+    {
+      "confidence": 0.84,
+      "evidence_count": 6,
+      "lifecycle_state": "active",
+      "memory_id": "formal:low_confidence_exception:10:mastery_conditional_probability_low_v1",
+      "provenance": [
+        "formal:low_confidence_exception:10:event_conditional_probability_095",
+        "formal:low_confidence_exception:10:event_conditional_probability_096",
+        "formal:low_confidence_exception:10:event_conditional_probability_097",
+        "formal:low_confidence_exception:10:event_conditional_probability_098",
+        "formal:low_confidence_exception:10:event_conditional_probability_099",
+        "formal:low_confidence_exception:10:event_conditional_probability_100"
+      ],
+      "scope": {
+        "exam_id": "formal:low_confidence_exception:10:postgraduate_entrance_exam",
+        "memory_namespace": "mastery",
+        "subject_id": "linear_algebra",
+        "user_id": "formal:low_confidence_exception:10:user_001"
+      },
+      "slot_key": "mastery:math1.linear_algebra.eigenvector",
+      "superseded_by": null,
+      "valid_from": "2026-08-02T08:00:00Z",
+      "valid_to": null,
+      "value": {
+        "level": "low",
+        "score": 0.35,
+        "type": "mastery"
+      },
+      "version": 1
+    }
+  ],
+  "metadata": {
+    "gold_revision": 3,
+    "policy_parameters": {
+      "formal_dataset_version": "exam_mem_controlled_v1",
+      "padding_policy": "temporary_low_confidence_no_op",
+      "target_knowledge_point_id": "math1.linear_algebra.eigenvector",
+      "template_case_id": "temporary_guided_success_does_not_upgrade_mastery_002"
+    },
+    "seed": 20260806,
+    "split": "test"
+  },
+  "protocol_version": "evaluation_protocol_v1",
+  "queries": [
+    {
+      "after_step_id": "formal:low_confidence_exception:10:step_001",
+      "query_id": "formal:low_confidence_exception:10:query_001",
+      "scope": {
+        "exam_id": "formal:low_confidence_exception:10:postgraduate_entrance_exam",
+        "memory_namespace": "mastery",
+        "subject_id": "linear_algebra",
+        "user_id": "formal:low_confidence_exception:10:user_001"
+      },
+      "text": "在完整提示下答对是否足以提升条件概率掌握度？",
+      "top_k": 3
+    }
+  ],
+  "scenario_type": "low_confidence_exception"
+}
