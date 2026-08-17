@@ -81,7 +81,7 @@ def evaluate_slot(
         for operation in case.gold_operations:
             gold_slot_keys.append(operation.slot_key)
             predicted_slot_keys.append(
-                _predict_slot_key(
+                predict_slot_key(
                     operation=operation,
                     taxonomy=taxonomy,
                     normalizer=normalizer,
@@ -112,7 +112,7 @@ def evaluate_slot(
     }
 
 
-def _predict_slot_key(
+def predict_slot_key(
     *,
     operation: GoldOperation,
     taxonomy: Taxonomy,
@@ -146,4 +146,4 @@ def _predict_slot_key(
     raise ValueError(f"unsupported protocol_check slot namespace: {namespace.value}")
 
 
-__all__ = ["compute_slot_metrics", "evaluate_slot"]
+__all__ = ["compute_slot_metrics", "evaluate_slot", "predict_slot_key"]

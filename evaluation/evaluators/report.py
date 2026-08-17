@@ -20,8 +20,10 @@ from evaluation.contracts.report import (
 )
 from evaluation.contracts.rollout import RolloutResult, RolloutStatus
 from evaluation.contracts.trace import TokenUsage
+from evaluation.evaluators.slot import predict_slot_key
 from exam_mem.backends import BackendMode
 from exam_mem.contracts import LifecycleOperation, MemoryNamespace, MemoryScope
+from exam_mem.domain import RuleBasedKnowledgePointNormalizer, load_taxonomy
 
 
 def _measured(
@@ -174,6 +176,8 @@ def compute_backend_metrics(
     predicted_slots: list[str | None] = []
     gold_operations: list[str] = []
     predicted_operations: list[str | None] = []
+    taxonomy = load_taxonomy("math1_v1")
+    normalizer = RuleBasedKnowledgePointNormalizer(taxonomy)
     state_exact = stale = active_total = duplicate = 0
     state_steps = 0
     retrieval_total = retrieval_leaks = archived_hits = 0
@@ -191,7 +195,11 @@ def compute_backend_metrics(
             trace = traces.get(operation.operation_id)
             gold_slots.append(operation.slot_key)
             predicted_slots.append(
-                None if trace is None else getattr(trace, "normalized_slot_key", None)
+                predict_slot_key(
+                    operation=operation,
+                    taxonomy=taxonomy,
+                    normalizer=normalizer,
+                )
             )
             gold_operations.append(operation.operation.value)
             decision = None if trace is None else getattr(trace, "lifecycle_decision", None)
