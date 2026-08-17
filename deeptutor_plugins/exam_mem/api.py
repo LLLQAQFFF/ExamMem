@@ -537,10 +537,42 @@ def build_router(
         return {"plans": plans}
 
     @router.get("/assessments")
-    async def list_assessments() -> dict[str, Any]:
+    async def list_assessments(
+        archival: Literal["active", "archived", "all"] = "active",
+    ) -> dict[str, Any]:
+        archived = {"active": False, "archived": True, "all": None}[archival]
         async with runtime_provider.open_product() as runtime:
-            items = await runtime.assessments.list(user_id=current_user_id())
+            items = await runtime.assessments.list(
+                user_id=current_user_id(),
+                archived=archived,
+            )
         return {"assessments": items}
+
+    @router.post("/assessments/{assessment_id}/archive")
+    async def archive_assessment(assessment_id: NonEmptyString) -> dict[str, Any]:
+        try:
+            async with runtime_provider.open_product() as runtime:
+                assessment = await runtime.assessments.archive(
+                    user_id=current_user_id(),
+                    assessment_id=assessment_id,
+                )
+                await runtime.connection.commit()
+        except AssessmentNotFound as exc:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+        return {"assessment": assessment}
+
+    @router.post("/assessments/{assessment_id}/restore")
+    async def restore_assessment(assessment_id: NonEmptyString) -> dict[str, Any]:
+        try:
+            async with runtime_provider.open_product() as runtime:
+                assessment = await runtime.assessments.restore(
+                    user_id=current_user_id(),
+                    assessment_id=assessment_id,
+                )
+                await runtime.connection.commit()
+        except AssessmentNotFound as exc:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+        return {"assessment": assessment}
 
     @router.post("/assessments/{assessment_id}/versions/{version}/attempts")
     async def repeat_assessment(
@@ -568,6 +600,8 @@ def build_router(
                 await runtime.connection.commit()
         except AssessmentNotFound as exc:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+        except AssessmentConflict as exc:
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
         context = _practice_context_payload(
             practice_session_id=body.practice_session_id,
             trace_id=body.trace_id,
@@ -1026,6 +1060,17 @@ def build_router(
                 learning_context,
                 body.practice_session_id,
             )
+            if replay is None:
+                try:
+                    await runtime.assessments.require_practice_active(
+                        user_id=learning_context.user_id,
+                        practice_session_id=body.practice_session_id,
+                    )
+                except AssessmentConflict as exc:
+                    raise HTTPException(
+                        status_code=status.HTTP_409_CONFLICT,
+                        detail=str(exc),
+                    ) from exc
         if latest is None:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -1111,6 +1156,16 @@ def build_router(
     ) -> dict[str, Any]:
         context = _authenticated_context(exam_id=exam_id, subject_id=subject_id)
         async with runtime_provider.open_product() as runtime:
+            try:
+                await runtime.assessments.require_practice_active(
+                    user_id=context.user_id,
+                    practice_session_id=practice_session_id,
+                )
+            except AssessmentConflict as exc:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail=str(exc),
+                ) from exc
             latest = await runtime.checkpoints.get_latest(context, practice_session_id)
         if latest is None:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Exam not found")

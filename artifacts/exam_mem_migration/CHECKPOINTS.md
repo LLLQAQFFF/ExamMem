@@ -382,3 +382,25 @@ the source design remains deferred.
   passed; ESLint had zero errors; i18n parity passed with no new ExamMem audit
   candidate; the 63-route production build compiled and type-checked. The
   generated-Practice PostgreSQL entry test passed and left no random schema.
+
+### Reversible assessment-archive follow-up
+
+- Added one archive marker to the assessment aggregate in migration
+  `0011_assessment_archival`; immutable assessment versions, attempts,
+  checkpoints, Review evidence and Learning Memory remain intact.
+- Review loads active and archived identities so archived attempts never fall
+  through as “Legacy practice”. The default filter shows current exams, while
+  an archived filter exposes history and a restore action.
+- Archive and restore are user-scoped and idempotent. Archiving atomically ends
+  in-progress attempts as failed; the server rejects new catalog versions,
+  repeated attempts, resume and non-replay answer submissions until restore.
+- Hard deletion and retroactive compensation of existing Learning Memory are
+  intentionally not bundled into archive because both require separate
+  lifecycle and audit semantics.
+- Final verification on 2026-08-17: full Python `4313 passed, 9 skipped`;
+  Host-without-ExamMem `3856 passed, 9 skipped`; migration/schema/frozen-hash
+  gate `23/23`; Node `65/65`; Ruff and format passed; ESLint had zero errors;
+  i18n parity passed; and the 63-route production build compiled and
+  type-checked. A fresh temporary database upgraded through 0011, rejected a
+  lossy downgrade while archive state existed, completed a clean downgrade /
+  re-upgrade after test-data removal, and was deleted.

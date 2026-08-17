@@ -72,7 +72,7 @@ DEMO_HEAD="$(
     psql -U "${DEMO_DB_USER}" -d "${DEMO_DB_NAME}" -Atc \
     'SELECT version_num FROM alembic_version'
 )"
-[[ "${DEMO_HEAD}" == "0010_learning_observations" ]] || \
+[[ "${DEMO_HEAD}" == "0011_assessment_archival" ]] || \
   demo_fail "数据库 head 异常：${DEMO_HEAD:-<empty>}"
 demo_log "Migration head：${DEMO_HEAD}。"
 

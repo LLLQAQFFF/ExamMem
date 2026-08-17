@@ -18,7 +18,42 @@ import {
   groupExamReviewHistory,
   listExamReviewHistory,
 } from "../lib/exam-mem-product";
-import type { Assessment } from "../lib/exam-mem-study-plans";
+import {
+  archiveAssessment,
+  listAssessments,
+  restoreAssessment,
+  type Assessment,
+} from "../lib/exam-mem-study-plans";
+
+test("assessment archive client uses explicit list, archive, and restore endpoints", async () => {
+  const originalFetch = globalThis.fetch;
+  const requested: Array<{ url: string; method: string }> = [];
+  globalThis.fetch = async (input, init) => {
+    const url = String(input);
+    requested.push({ url, method: init?.method ?? "GET" });
+    return Response.json(
+      url.includes("?archival=")
+        ? { assessments: [] }
+        : { assessment: { assessment_id: "assessment:test", archived_at: null } },
+    );
+  };
+
+  try {
+    await listAssessments("archived");
+    await archiveAssessment("assessment:test");
+    await restoreAssessment("assessment:test");
+    assert.match(requested[0].url, /\/assessments\?archival=archived$/);
+    assert.deepEqual(
+      requested.slice(1).map(({ url, method }) => [url.split("/api/v1")[1], method]),
+      [
+        ["/exam-mem/assessments/assessment%3Atest/archive", "POST"],
+        ["/exam-mem/assessments/assessment%3Atest/restore", "POST"],
+      ],
+    );
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
 
 test("exam review history includes completed attempts from imported scopes", async () => {
   const originalFetch = globalThis.fetch;
@@ -91,6 +126,7 @@ test("exam review history includes completed attempts from imported scopes", asy
       taxonomy_version: "ptest_s001_v1",
       knowledge_point_ids: ["ptest.s001.m001.k001"],
       latest_version: 2,
+      archived_at: "2026-08-14T08:00:00Z",
       attempts: [
         {
           attempt_id: "attempt:dynamic:v2",
@@ -125,6 +161,7 @@ test("exam review history includes completed attempts from imported scopes", asy
     assert.equal(latest.subject_id, "math");
     assert.equal(latest.score, 1);
     assert.deepEqual(group.versions, [2, 1]);
+    assert.equal(group.archived_at, "2026-08-14T08:00:00Z");
     assert.deepEqual(
       group.attempts.map((attempt) => attempt.assessment_attempt_number),
       [2, 1],

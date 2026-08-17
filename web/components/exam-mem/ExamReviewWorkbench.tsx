@@ -1,6 +1,8 @@
 "use client";
 
 import {
+  Archive,
+  ArchiveRestore,
   ChevronRight,
   CircleAlert,
   FileCheck2,
@@ -24,9 +26,15 @@ import {
   type ExamReviewHistoryItem,
   upholdGrade,
 } from "@/lib/exam-mem-product";
-import { listAssessments, listStudyPlans } from "@/lib/exam-mem-study-plans";
+import {
+  archiveAssessment,
+  listAssessments,
+  listStudyPlans,
+  restoreAssessment,
+} from "@/lib/exam-mem-study-plans";
 
 type StatusFilter = "all" | "completed" | "in_progress" | "failed";
+type ArchiveFilter = "active" | "archived";
 
 export default function ExamReviewWorkbench() {
   const searchParams = useSearchParams();
@@ -37,6 +45,7 @@ export default function ExamReviewWorkbench() {
   const [scopeFilter, setScopeFilter] = useState("");
   const [scopeLabels, setScopeLabels] = useState<Record<string, string>>({});
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+  const [archiveFilter, setArchiveFilter] = useState<ArchiveFilter>("active");
   const [query, setQuery] = useState("");
   const [reason, setReason] = useState("");
   const [pendingKey, setPendingKey] = useState<string | null>(null);
@@ -66,9 +75,13 @@ export default function ExamReviewWorkbench() {
         `${group.title} ${group.exam_id} ${group.subject_id}`
           .toLocaleLowerCase(i18n.language)
           .includes(normalizedQuery);
-      return matchesScope && matchesStatus && matchesQuery;
+      const matchesArchive =
+        archiveFilter === "archived"
+          ? group.archived_at !== null
+          : group.archived_at === null;
+      return matchesScope && matchesStatus && matchesQuery && matchesArchive;
     });
-  }, [groups, i18n.language, query, scopeFilter, statusFilter]);
+  }, [archiveFilter, groups, i18n.language, query, scopeFilter, statusFilter]);
   const selectedGroup = groups.find((group) => group.key === selectedExamKey) ?? null;
 
   const openAttempt = useCallback(
@@ -107,7 +120,7 @@ export default function ExamReviewWorkbench() {
     setError(null);
     try {
       const [assessments, plans] = await Promise.all([
-        listAssessments(),
+        listAssessments("all"),
         listStudyPlans(),
       ]);
       const sessions = await listExamReviewHistory(assessments);
@@ -134,8 +147,12 @@ export default function ExamReviewWorkbench() {
                 `legacy:${requestedAttempt.exam_id}:${requestedAttempt.subject_id}`),
           )
         : null;
-      const first = requestedGroup ?? loadedGroups[0];
+      const first =
+        requestedGroup ??
+        loadedGroups.find((group) => group.archived_at === null) ??
+        loadedGroups[0];
       if (first) {
+        setArchiveFilter(first.archived_at === null ? "active" : "archived");
         setScopeFilter(scopeKey(first));
         setSelectedExamKey(first.key);
         const firstAttempt =
@@ -179,6 +196,41 @@ export default function ExamReviewWorkbench() {
 
   const graded =
     review?.checkpoints.find((item) => item.grade_result !== null) ?? null;
+  const toggleArchive = async () => {
+    if (!selectedGroup?.assessment_id) return;
+    const isArchived = selectedGroup.archived_at !== null;
+    if (
+      !isArchived &&
+      !window.confirm(
+        t(
+          "Archive this exam? Its versions, answers, review evidence, and Learning Memory remain available. Any in-progress attempt will end.",
+        ),
+      )
+    ) {
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    try {
+      if (isArchived) {
+        await restoreAssessment(selectedGroup.assessment_id);
+      } else {
+        await archiveAssessment(selectedGroup.assessment_id);
+      }
+      setArchiveFilter("active");
+      setSelectedExamKey(null);
+      setReview(null);
+      await load();
+    } catch (cause) {
+      setError(
+        cause instanceof Error
+          ? cause.message
+          : t(isArchived ? "Exam restore failed." : "Exam archive failed."),
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
   const submitDispute = async () => {
     if (!review || !graded || (!pendingKey && !reason.trim())) return;
     const idempotencyKey = pendingKey ?? `grade-review:web:${crypto.randomUUID()}`;
@@ -282,7 +334,7 @@ export default function ExamReviewWorkbench() {
           <Filter className="h-4 w-4 text-[var(--primary)]" />
           {t("Exam categories and filters")}
         </div>
-        <div className="grid gap-3 md:grid-cols-3">
+        <div className="grid gap-3 md:grid-cols-4">
           <input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
@@ -316,6 +368,18 @@ export default function ExamReviewWorkbench() {
             <option value="completed">{t("Completed")}</option>
             <option value="in_progress">{t("In progress")}</option>
             <option value="failed">{t("Failed")}</option>
+          </select>
+          <select
+            value={archiveFilter}
+            onChange={(event) => {
+              setArchiveFilter(event.target.value as ArchiveFilter);
+              setSelectedExamKey(null);
+              setReview(null);
+            }}
+            className="rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-sm"
+          >
+            <option value="active">{t("Current exams")}</option>
+            <option value="archived">{t("Archived exams")}</option>
           </select>
         </div>
       </section>
@@ -360,6 +424,8 @@ export default function ExamReviewWorkbench() {
               locale={i18n.language}
               scopeLabel={scopeLabels[scopeKey(selectedGroup)]}
               onOpen={openAttempt}
+              onToggleArchive={() => void toggleArchive()}
+              archivePending={loading}
             />
           ) : null}
 
@@ -616,27 +682,50 @@ function VersionScores({
   locale,
   scopeLabel,
   onOpen,
+  onToggleArchive,
+  archivePending,
 }: {
   group: ExamReviewGroup;
   selectedSessionId: string | null;
   locale: string;
   scopeLabel?: string;
   onOpen: (attempt: ExamReviewHistoryItem) => Promise<void>;
+  onToggleArchive: () => void;
+  archivePending: boolean;
 }) {
   const { t } = useTranslation();
   const versions = group.versions.length ? group.versions : [null];
   return (
     <section className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-5">
-      <div className="flex items-start gap-3">
-        <Layers3 className="mt-0.5 h-5 w-5 text-[var(--primary)]" />
-        <div className="min-w-0">
-          <h2 className="truncate font-semibold">
-            {group.title === "Legacy practice" ? t("Legacy practice") : group.title}
-          </h2>
-          <p className="mt-1 break-all text-xs text-[var(--muted-foreground)]">
-            {scopeLabel ?? group.subject_id}
-          </p>
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex min-w-0 items-start gap-3">
+          <Layers3 className="mt-0.5 h-5 w-5 text-[var(--primary)]" />
+          <div className="min-w-0">
+            <h2 className="truncate font-semibold">
+              {group.title === "Legacy practice"
+                ? t("Legacy practice")
+                : group.title}
+            </h2>
+            <p className="mt-1 break-all text-xs text-[var(--muted-foreground)]">
+              {scopeLabel ?? group.subject_id}
+            </p>
+          </div>
         </div>
+        {group.assessment_id ? (
+          <button
+            type="button"
+            onClick={onToggleArchive}
+            disabled={archivePending}
+            className="inline-flex shrink-0 items-center gap-2 rounded-lg border border-[var(--border)] px-3 py-2 text-xs disabled:opacity-50"
+          >
+            {group.archived_at ? (
+              <ArchiveRestore className="h-4 w-4" />
+            ) : (
+              <Archive className="h-4 w-4" />
+            )}
+            {group.archived_at ? t("Restore exam") : t("Archive exam")}
+          </button>
+        ) : null}
       </div>
       <div className="mt-4 space-y-4">
         {versions.map((version) => {

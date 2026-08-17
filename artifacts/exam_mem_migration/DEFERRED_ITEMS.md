@@ -59,9 +59,11 @@ is a product boundary, not an unfinished fallback path.
 - Free-form learner reflections after an assessment are not yet persisted.
   Adding them requires an append-only, idempotent and explicitly confirmed
   contract before any reflection may influence L2.
-- Migrations `0007`～`0010` have no automatic destructive downgrade when review,
+- Migrations `0007`～`0011` have no automatic destructive downgrade when review,
   study-plan/session-link, assessment/attempt or Agent observation rows exist.
-  Retention/archival requires an explicit operational decision.
+  Assessment archive is now reversible and preserves evidence; hard deletion and
+  compensating removal of an assessment's prior Learning Memory impact remain
+  separate, explicitly governed operations.
 
 None of these limitations authorizes direct writes to DeepTutor internal stores,
 compatibility fallbacks, `if exam_mem` branches in Core, or changes to frozen

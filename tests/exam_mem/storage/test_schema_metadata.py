@@ -34,6 +34,19 @@ EXPECTED_TABLES = {
 }
 
 EXPECTED_COLUMNS = {
+    "assessments": {
+        "assessment_id",
+        "user_id",
+        "exam_id",
+        "subject_id",
+        "taxonomy_version",
+        "title",
+        "knowledge_point_ids",
+        "latest_version",
+        "archived_at",
+        "created_at",
+        "updated_at",
+    },
     "learning_observations": {
         "observation_id",
         "user_id",

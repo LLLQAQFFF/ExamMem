@@ -53,6 +53,7 @@ export interface ExamReviewHistoryItem extends PracticeHistoryItem {
   completed_at: string | null;
   assessment_attempt_number: number | null;
   taxonomy_version: string | null;
+  assessment_archived_at: string | null;
 }
 
 export interface ExamReviewGroup {
@@ -62,6 +63,7 @@ export interface ExamReviewGroup {
   exam_id: string;
   subject_id: string;
   versions: number[];
+  archived_at: string | null;
   attempts: ExamReviewHistoryItem[];
 }
 
@@ -207,6 +209,7 @@ export async function listExamReviewHistory(
         completed_at: matched?.attempt.completed_at ?? null,
         assessment_attempt_number: matched?.assessmentAttemptNumber ?? null,
         taxonomy_version: matched?.assessment.taxonomy_version ?? null,
+        assessment_archived_at: matched?.assessment.archived_at ?? null,
       };
     })
     .sort((left, right) => right.updated_at.localeCompare(left.updated_at));
@@ -225,6 +228,7 @@ export function groupExamReviewHistory(
       exam_id: item.exam_id,
       subject_id: item.subject_id,
       versions: [],
+      archived_at: item.assessment_archived_at,
       attempts: [],
     };
     group.attempts.push(item);

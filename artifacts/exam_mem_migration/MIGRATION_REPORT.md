@@ -106,8 +106,8 @@ model quality or provider availability.
 - `EXAM_MEM_DATABASE_URL` is required at the engine boundary and accepts only a
   complete `postgresql+asyncpg` URL. It is never persisted by this repository.
 - Frozen migrations `0001`–`0006` match the source baseline byte-for-byte.
-- The single target head is `0010_learning_observations`.
-- A new empty PostgreSQL database upgrades linearly from base through all ten
+- The single target head is `0011_assessment_archival`.
+- A new empty PostgreSQL database upgrades linearly from base through all eleven
   revisions and produces 22 public tables including `alembic_version` and ten
   distinct append-only triggers.
 - `0008_study_plans` adds mutable drafts, immutable published plan versions and
@@ -116,10 +116,14 @@ model quality or provider availability.
 - `0010_learning_observations` adds an isolated, append-only Agent observation
   side channel and append-only confirm/dismiss actions. These rows are not L1,
   L2 or L3 and cannot update formal mastery or grading.
+- `0011_assessment_archival` adds a nullable archive marker to the mutable
+  assessment aggregate. It preserves immutable catalogs, attempts, checkpoints,
+  Review evidence and Learning Memory, while blocking new versions, retries,
+  recovery and new answers until the assessment is restored.
 - Integration tests use random schemas and transactions. Final audit found no
-  random schema. The reused local demo database retained its pre-existing two
-  Practice checkpoints and seven Trace spans; the acceptance suite did not
-  clear or repurpose those public rows.
+  random schema or temporary acceptance database. The reused local demo database
+  remained the development target; the archival migration only added one nullable
+  column and did not rewrite existing business rows.
 - No DeepTutor SQLite, PocketBase or Native Memory store is read or written by
   an ExamMem repository. Host entry tests use isolated temporary Host storage.
 
@@ -128,11 +132,11 @@ model quality or provider availability.
 | Category | Result |
 | --- | --- |
 | Host suite excluding ExamMem, with DSN absent | latest dedicated baseline `3856 passed, 9 skipped`; disabled-plugin contract passed |
-| Full repository with ExamMem and local isolated PostgreSQL | `4312 passed, 9 skipped` on 2026-08-17 |
-| ExamMem focused suite | `456 passed` |
+| Full repository with ExamMem and local isolated PostgreSQL | `4313 passed, 9 skipped` on 2026-08-17 |
+| ExamMem focused suite | `457 passed` |
 | Five Backend matrix | `33 passed` |
 | Browser HTTP / Python SDK / unified WebSocket real entry suite | `3 passed` |
-| Frozen migration and schema metadata gate | `21 passed` |
+| Frozen migration and schema metadata gate | `23 passed` |
 | Python static gate | Ruff passed |
 | Web tests | Node `65/65`; ESLint 0 errors and 58 pre-existing warnings |
 | Web production build | Turbopack compiled and type-checked; 63 routes, including six ExamMem routes |
@@ -181,7 +185,7 @@ The 2026-08-14 product increment adds migrations `0008` and `0009`, imported
 and reviewed study-plan scopes, deterministic one-objective Host learning paths,
 durable Chat-session restoration, exact published-Taxonomy Practice selection,
 and stable assessment IDs with immutable versions and repeated attempts. The
-local demo database was upgraded to `0010_learning_observations`; final read-only audit
+local demo database was upgraded to `0011_assessment_archival`; final read-only audit
 found 22 public tables, ten append-only triggers, zero rows in both new Agent
 observation tables, and zero leftover test schemas. Existing Study Plan,
 assessment and Practice rows were retained.

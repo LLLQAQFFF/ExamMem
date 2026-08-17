@@ -49,6 +49,8 @@ class PostgresAssessmentRepository:
         existing = (await self._connection.execute(statement)).mappings().one_or_none()
         if existing is not None and existing["user_id"] != user_id:
             raise AssessmentConflict("assessment identity is unavailable")
+        if existing is not None and existing["archived_at"] is not None:
+            raise AssessmentConflict("archived assessment cannot receive new versions")
         normalized_kps = list(dict.fromkeys(knowledge_point_ids))
         if not normalized_kps:
             raise ValueError("assessment requires at least one knowledge point")
@@ -172,6 +174,8 @@ class PostgresAssessmentRepository:
         self, *, user_id: str, assessment_id: str, version: int
     ) -> dict[str, Any]:
         assessment = await self._assessment(user_id=user_id, assessment_id=assessment_id)
+        if assessment["archived_at"] is not None:
+            raise AssessmentConflict("archived assessment cannot be attempted")
         row = (
             (
                 await self._connection.execute(
@@ -194,15 +198,14 @@ class PostgresAssessmentRepository:
             "content_hash": row["content_hash"],
         }
 
-    async def list(self, *, user_id: str) -> list[dict[str, Any]]:
+    async def list(self, *, user_id: str, archived: bool | None = False) -> list[dict[str, Any]]:
+        statement = select(assessments).where(assessments.c.user_id == user_id)
+        if archived is True:
+            statement = statement.where(assessments.c.archived_at.is_not(None))
+        elif archived is False:
+            statement = statement.where(assessments.c.archived_at.is_(None))
         rows = (
-            (
-                await self._connection.execute(
-                    select(assessments)
-                    .where(assessments.c.user_id == user_id)
-                    .order_by(assessments.c.updated_at.desc())
-                )
-            )
+            (await self._connection.execute(statement.order_by(assessments.c.updated_at.desc())))
             .mappings()
             .all()
         )
@@ -231,10 +234,70 @@ class PostgresAssessmentRepository:
                     "taxonomy_version": row["taxonomy_version"],
                     "knowledge_point_ids": list(row["knowledge_point_ids"]),
                     "latest_version": row["latest_version"],
+                    "archived_at": (
+                        None if row["archived_at"] is None else row["archived_at"].isoformat()
+                    ),
                     "attempts": [_public_attempt(item) for item in attempts],
                 }
             )
         return output
+
+    async def archive(self, *, user_id: str, assessment_id: str) -> dict[str, Any]:
+        assessment = await self._assessment(
+            user_id=user_id,
+            assessment_id=assessment_id,
+            for_update=True,
+        )
+        archived_at = assessment["archived_at"]
+        if archived_at is None:
+            archived_at = datetime.now(timezone.utc)
+            await self._connection.execute(
+                update(assessments)
+                .where(assessments.c.assessment_id == assessment_id)
+                .values(archived_at=archived_at, updated_at=archived_at)
+            )
+        await self._connection.execute(
+            update(assessment_attempts)
+            .where(
+                assessment_attempts.c.user_id == user_id,
+                assessment_attempts.c.assessment_id == assessment_id,
+                assessment_attempts.c.status == "in_progress",
+            )
+            .values(status="failed", completed_at=None)
+        )
+        return {
+            "assessment_id": assessment_id,
+            "archived_at": archived_at.isoformat(),
+        }
+
+    async def restore(self, *, user_id: str, assessment_id: str) -> dict[str, Any]:
+        assessment = await self._assessment(
+            user_id=user_id,
+            assessment_id=assessment_id,
+            for_update=True,
+        )
+        if assessment["archived_at"] is not None:
+            await self._connection.execute(
+                update(assessments)
+                .where(assessments.c.assessment_id == assessment_id)
+                .values(archived_at=None, updated_at=datetime.now(timezone.utc))
+            )
+        return {"assessment_id": assessment_id, "archived_at": None}
+
+    async def require_practice_active(self, *, user_id: str, practice_session_id: str) -> None:
+        archived_at = await self._connection.scalar(
+            select(assessments.c.archived_at)
+            .join(
+                assessment_attempts,
+                assessment_attempts.c.assessment_id == assessments.c.assessment_id,
+            )
+            .where(
+                assessment_attempts.c.user_id == user_id,
+                assessment_attempts.c.practice_session_id == practice_session_id,
+            )
+        )
+        if archived_at is not None:
+            raise AssessmentConflict("archived assessment cannot be continued")
 
     async def attempt_for_practice(
         self, *, user_id: str, practice_session_id: str

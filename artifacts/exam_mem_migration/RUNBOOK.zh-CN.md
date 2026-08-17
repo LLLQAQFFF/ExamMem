@@ -112,8 +112,8 @@ python -m alembic -c alembic.ini history
 预期唯一 head：
 
 ```text
-0010_learning_observations (head)
-└── 0009_assessments
+0011_assessment_archival (head)
+└── 0010_learning_observations
 ```
 
 通过 PyPI wheel 安装、没有仓库根目录 `alembic.ini` 时，使用随包发布的等价入口：
@@ -138,7 +138,7 @@ python -m exam_mem.storage.migrations current
 ```
 
 `upgrade head` 会在 ExamMem PostgreSQL 中创建或升级表、索引、约束和 trigger。预期
-current 为 `0010_learning_observations`。
+current 为 `0011_assessment_archival`。
 
 全新数据库最终包含 22 张 public 表（包括 `alembic_version`）和 10 个不同的
 append-only trigger：
@@ -238,7 +238,7 @@ GET /api/v1/exam-mem/configuration
 
 - 插件 `exam_mem`；
 - Capability `exam_practice`；
-- migration head `0010_learning_observations`；
+- migration head `0011_assessment_archival`；
 - 单一的「智能备考」导航入口；学习路径、练习、学习记忆、考试复盘和配置作为其内部工作区。
 
 注意：`/api/v1/plugins/health` 只表示插件生命周期装配成功。当前 ExamMem 没有主动连接
@@ -360,6 +360,17 @@ grader contract/version mismatch 会 fail closed，不能通过换 Backend 绕�
 
 用户取消必须显式确认，并作为 Lifecycle transition 记录，不能直接修改数据库行。
 
+### 误点考试归档
+
+在“考试复盘”打开目标考试，点击“归档考试”。归档以整个 assessment ID 为单位，包含其
+全部试卷版本和历次作答；正在进行的 attempt 会结束为 failed，且在恢复前不能继续答题、
+Resume、重考或生成新版本。默认列表只显示当前考试；切换为“已归档考试”后仍可查看完整
+复盘，并可点击“恢复考试”。
+
+归档不是删除：题目、作答、题解、checkpoint、Trace、审计记录和 Learning Memory 都会
+保留。若业务要求撤销历史学习记忆影响，需要另行设计显式补偿流程，不能直接删除 L1 或
+修改历史 L2。
+
 所有产品读写中的 `user_id` 均来自 DeepTutor 鉴权上下文，浏览器不能伪造或跨用户访问
 Scope。
 
@@ -392,7 +403,7 @@ npm run build
 2026-08-17 依赖升级后的本地验收基线为：
 
 - 无 ExamMem DSN、排除 `tests/exam_mem` 的 DeepTutor 原生回归：`3856 passed, 9 skipped`；
-- 启用 ExamMem 和隔离 PostgreSQL 的全仓测试：`4312 passed, 9 skipped`；
+- 启用 ExamMem 和隔离 PostgreSQL 的全仓测试：`4313 passed, 9 skipped`；
 - 五 Backend 专项：`33 passed`；
 - Web Node：`65/65`；
 - TypeScript、Ruff lint/format、i18n parity：通过；
@@ -454,7 +465,7 @@ alembic downgrade base
 ```
 
 `down -v` 会删除持久化数据库 volume；`downgrade base` 会破坏业务 schema。`0007`～
-`0010` 中存在 Review、学习计划、会话链接、考试版本、attempt 或 Agent 观察数据时均拒绝
+`0011` 中存在 Review、学习计划、会话链接、考试版本、attempt、归档状态或 Agent 观察数据时均拒绝
 自动降级。
 
 ## 8. 必须暂停并找管理员处理的情况
@@ -464,7 +475,7 @@ alembic downgrade base
 - 无法确认 `EXAM_MEM_DATABASE_URL` 指向哪个数据库；
 - 目标是共享库或生产库，但没有明确变更窗口和备份；
 - 需要获取、更换或迁移凭据；
-- migration head 不是 `0010_learning_observations`，或出现多 head/分叉；
+- migration head 不是 `0011_assessment_archival`，或出现多 head/分叉；
 - 需要执行 destructive downgrade、删除 schema、删除 Docker volume 或覆盖历史数据；
 - 需要发布、部署或推送远端；
 - 需要通过切换 Backend、绕过 Scope、直接写 Native Memory、编辑 append-only 数据或更换
@@ -492,6 +503,8 @@ alembic downgrade base
    历史列表和答题响应不会返回参考答案。
 8. Agent 摘要依赖已配置的 LLM；查看现有 L1/L2/L3、版本链、来源、考试总结和图谱不需要
    再次调用模型。
+9. 考试归档只改变考试的可见性和可继续性，不删除或重算已形成的 Learning Memory；硬删除
+   与记忆补偿均不属于当前归档操作。
 
 - 自动化验收固定了外部 LLM/Embedding 结果，验证的是调用链、事务和数据库语义，不代表
   线上模型质量、延迟或成本。

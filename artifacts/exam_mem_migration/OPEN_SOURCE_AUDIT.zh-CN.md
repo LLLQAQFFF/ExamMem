@@ -127,7 +127,7 @@
 container: exammem-demo-postgres
 host:      127.0.0.1:55434
 database:  exammem_demo
-head:      0010_learning_observations
+head:      0011_assessment_archival
 ```
 
 这只是本机演示库，不是生产或共享数据库。集成测试使用随机隔离 schema 并清理；不得
@@ -136,7 +136,7 @@ head:      0010_learning_observations
 不变量：
 
 - migrations `0001`～`0006` 内容、revision、顺序和语义不可修改；
-- 当前唯一 head 为 `0010_learning_observations`；
+- 当前唯一 head 为 `0011_assessment_archival`；
 - L1、Lifecycle Decision、Change Log、Trace、Review、Observation/Action 等审计流
   受 append-only trigger 保护；
 - L2 保留 CAS、provenance 和事务语义；
@@ -189,7 +189,7 @@ Python import、`deeptutor --help` 和包内 migration 资源。结果如下：
 | 门禁 | 最近证据 |
 | --- | --- |
 | DeepTutor 原生（无 ExamMem DSN） | `3856 passed, 9 skipped, 4 warnings`；排除 `tests/exam_mem` |
-| 全仓 Python + 隔离 PostgreSQL | `4312 passed, 9 skipped, 9 warnings`；无 TestClient 排除 |
+| 全仓 Python + 隔离 PostgreSQL | `4313 passed, 9 skipped, 9 warnings`；无 TestClient 排除 |
 | TestClient 代表性入口 | `104 passed`；FastAPI/Starlette/httpx2 组合通过 |
 | Learning Archive 修复聚焦套件 | `26 passed`（含真实 PostgreSQL、HTTP/SDK/WebSocket） |
 | 知识库删除权限/清理回归 | `3 passed`（`PytestWarning` 提升为错误） |
@@ -202,7 +202,7 @@ Python import、`deeptutor --help` 和包内 migration 资源。结果如下：
 | Web production build | 通过；63 个路由 |
 | wheel/sdist 内容与隔离安装 | 通过；无 bytecode 污染 |
 | Docker production build/smoke | 通过；容器 `healthy`，前后端 200 |
-| migration head | `0010_learning_observations` |
+| migration head | `0011_assessment_archival` |
 | frozen migrations | `13 passed`；`0001`～`0006` hash/chain 不变 |
 | Bandit | 0 issues（仅精确排除不可修改的 `0004`～`0006`） |
 | detect-secrets | 通过 |
@@ -210,9 +210,11 @@ Python import、`deeptutor --help` 和包内 migration 资源。结果如下：
 | npm audit high gate | 通过；保留 2 个已审计 moderate |
 
 全量 Python 回归使用空白隔离数据库 `exammem_acceptance_20260817_01`：先从 `0001` 升到
-唯一 head `0010_learning_observations`，测试后所有业务表为 0 行、仅保留 Alembic version，
-随后精确删除该临时数据库。现有 `exammem_demo` 保持 head `0010` 和原有 4 条
-`learning_events`，未被测试修改。
+唯一 head `0011_assessment_archival`，测试后所有业务表为 0 行、仅保留 Alembic version，
+随后精确删除该临时数据库。现有 `exammem_demo` 已非破坏性升级到
+`0011_assessment_archival`；最终只读审计看到 6 个 assessment、6 个不可变试卷版本、
+9 次 attempt、22 个 checkpoint、184 个 Trace span、12 条 learning event 和 12 条
+Learning Memory，且没有随机测试 schema 或临时验收数据库残留。
 
 ## 7. 静态安全和敏感内容
 

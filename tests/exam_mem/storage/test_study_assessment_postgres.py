@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import create_async_engine
 from exam_mem.practice import Question
 from exam_mem.storage import (
     AssessmentConflict,
+    AssessmentNotFound,
     PostgresAssessmentRepository,
     PostgresStudyPlanRepository,
     load_database_settings,
@@ -186,18 +187,76 @@ async def test_assessment_versions_and_repeated_attempts_keep_one_blueprint() ->
                 )
                 assert (first["version"], second["version"]) == (1, 2)
 
+                practice_session_ids = []
                 for number, version in enumerate((1, 1, 2), start=1):
+                    practice_session_id = f"practice-{number}-{uuid.uuid4().hex}"
+                    practice_session_ids.append(practice_session_id)
                     await repository.start_attempt(
                         attempt_id=f"attempt-{number}-{uuid.uuid4().hex}",
                         user_id=user_id,
                         assessment_id=assessment_id,
                         version=version,
-                        practice_session_id=f"practice-{number}-{uuid.uuid4().hex}",
+                        practice_session_id=practice_session_id,
                         trace_id=f"trace-{number}-{uuid.uuid4().hex}",
                     )
                 listed = await repository.list(user_id=user_id)
                 assert listed[0]["latest_version"] == 2
+                assert listed[0]["archived_at"] is None
                 assert len(listed[0]["attempts"]) == 3
+
+                archived = await repository.archive(
+                    user_id=user_id,
+                    assessment_id=assessment_id,
+                )
+                replayed_archive = await repository.archive(
+                    user_id=user_id,
+                    assessment_id=assessment_id,
+                )
+                assert replayed_archive == archived
+                assert await repository.list(user_id=user_id) == []
+                [archived_item] = await repository.list(user_id=user_id, archived=True)
+                assert archived_item["archived_at"] == archived["archived_at"]
+                assert {attempt["status"] for attempt in archived_item["attempts"]} == {"failed"}
+                with pytest.raises(AssessmentConflict, match="cannot receive new versions"):
+                    await repository.create_version(
+                        assessment_id=assessment_id,
+                        user_id=user_id,
+                        exam_id="plan:test",
+                        subject_id="ptest.s001",
+                        taxonomy_version="ptest_s001_v1",
+                        title="archived",
+                        knowledge_point_ids=[knowledge_point_id],
+                        questions=_questions(knowledge_point_id),
+                        generation={},
+                    )
+                with pytest.raises(AssessmentConflict, match="cannot be attempted"):
+                    await repository.get_version(
+                        user_id=user_id,
+                        assessment_id=assessment_id,
+                        version=1,
+                    )
+                with pytest.raises(AssessmentConflict, match="cannot be continued"):
+                    await repository.require_practice_active(
+                        user_id=user_id,
+                        practice_session_id=practice_session_ids[0],
+                    )
+                with pytest.raises(AssessmentNotFound):
+                    await repository.restore(
+                        user_id="another-user",
+                        assessment_id=assessment_id,
+                    )
+
+                restored = await repository.restore(
+                    user_id=user_id,
+                    assessment_id=assessment_id,
+                )
+                assert restored["archived_at"] is None
+                [restored_item] = await repository.list(user_id=user_id)
+                assert restored_item["archived_at"] is None
+                await repository.require_practice_active(
+                    user_id=user_id,
+                    practice_session_id=practice_session_ids[0],
+                )
 
                 with pytest.raises(AssessmentConflict):
                     await repository.create_version(

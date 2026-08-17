@@ -80,7 +80,7 @@ python -m exam_mem.storage.migrations heads
 python -m exam_mem.storage.migrations history
 ```
 
-Expected single code head: `0010_learning_observations`.
+Expected single code head: `0011_assessment_archival`.
 
 Apply to the already-confirmed ExamMem database:
 
@@ -96,7 +96,7 @@ python -m exam_mem.storage.migrations upgrade head
 python -m exam_mem.storage.migrations current
 ```
 
-Expected current head: `0010_learning_observations`. A fresh database has 22 public
+Expected current head: `0011_assessment_archival`. A fresh database has 22 public
 tables including `alembic_version` and ten append-only triggers:
 
 ```text
@@ -112,10 +112,9 @@ tr_learning_observations_append_only
 tr_learning_observation_actions_append_only
 ```
 
-There is no automated downgrade of `0007` through `0010` while protected product
-rows exist. Disable
-the plugin/API and retain audit data until an explicit archival decision is
-approved.
+There is no automated downgrade of `0007` through `0011` while protected product
+rows exist. Disable the plugin/API and retain audit data until an explicit
+destructive-retention decision is approved.
 
 ## 4. Start and inspect
 
@@ -131,7 +130,7 @@ GET /api/v1/exam-mem/configuration
 ```
 
 `/api/v1/plugins/list` must report plugin `exam_mem`, capability
-`exam_practice`, migration head `0010_learning_observations`, and the single
+`exam_practice`, migration head `0011_assessment_archival`, and the single
 `Smart Exam Prep` navigation entry. Learning Paths, Practice, Learning Memory,
 Review and Configuration remain available as internal workspaces under that
 entry; the old Issues deep link remains compatible while its UI is embedded in
@@ -180,6 +179,12 @@ it is not a mutable database counter.
 - Grade disagreement: submit a Grade Review dispute. An administrator may
   Uphold, or call the disposition API with a complete structured replacement
   Grade to Overturn. A Grade Review never mutates Learning Memory by itself.
+- Accidental exam: open it in Review and choose Archive. The operation covers
+  every version and attempt under that assessment ID, ends in-progress attempts,
+  and blocks new answers, Resume, repeats and new versions until Restore. Use
+  the Archived exams filter to inspect or restore it. Archive preserves all
+  questions, answers, checkpoints, audit evidence and Learning Memory; hard
+  deletion or retroactive memory compensation is a separate governed action.
 - Plan cancellation requires explicit confirmation and remains a lifecycle
   transition, not a direct row edit.
 

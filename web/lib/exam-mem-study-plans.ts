@@ -88,6 +88,7 @@ export interface Assessment {
   taxonomy_version: string;
   knowledge_point_ids: string[];
   latest_version: number;
+  archived_at: string | null;
   attempts: AssessmentAttempt[];
 }
 
@@ -167,7 +168,30 @@ export async function openStudyObjective(
   return jsonOrError<ObjectiveSession>(response);
 }
 
-export async function listAssessments(): Promise<Assessment[]> {
-  const response = await apiFetch(apiUrl("/api/v1/exam-mem/assessments"));
+export async function listAssessments(
+  archival: "active" | "archived" | "all" = "active",
+): Promise<Assessment[]> {
+  const query = new URLSearchParams({ archival });
+  const response = await apiFetch(apiUrl(`/api/v1/exam-mem/assessments?${query}`));
   return (await jsonOrError<{ assessments: Assessment[] }>(response)).assessments;
+}
+
+export async function archiveAssessment(assessmentId: string): Promise<void> {
+  const response = await apiFetch(
+    apiUrl(`/api/v1/exam-mem/assessments/${encodeURIComponent(assessmentId)}/archive`),
+    { method: "POST" },
+  );
+  await jsonOrError<{ assessment: Pick<Assessment, "assessment_id" | "archived_at"> }>(
+    response,
+  );
+}
+
+export async function restoreAssessment(assessmentId: string): Promise<void> {
+  const response = await apiFetch(
+    apiUrl(`/api/v1/exam-mem/assessments/${encodeURIComponent(assessmentId)}/restore`),
+    { method: "POST" },
+  );
+  await jsonOrError<{ assessment: Pick<Assessment, "assessment_id" | "archived_at"> }>(
+    response,
+  );
 }

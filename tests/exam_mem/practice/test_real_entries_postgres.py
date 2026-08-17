@@ -547,6 +547,83 @@ async def test_generated_questions_are_checkpointed_and_attempts_share_exam_scop
                         item["practice_session_id"].startswith("practice:generated:")
                         for item in history
                     )
+                    assessment_id = generated["assessment"]["assessment_id"]
+                    all_assessments_response = await client.get(
+                        "/api/v1/exam-mem/assessments",
+                        params={"archival": "all"},
+                    )
+                    assert all_assessments_response.status_code == 200
+                    [active_assessment] = all_assessments_response.json()["assessments"]
+                    assert active_assessment["assessment_id"] == assessment_id
+                    assert active_assessment["archived_at"] is None
+
+                    archived_response = await client.post(
+                        f"/api/v1/exam-mem/assessments/{assessment_id}/archive"
+                    )
+                    assert archived_response.status_code == 200, archived_response.text
+                    assert archived_response.json()["assessment"]["archived_at"]
+                    assert (await client.get("/api/v1/exam-mem/assessments")).json()[
+                        "assessments"
+                    ] == []
+                    archived_list_response = await client.get(
+                        "/api/v1/exam-mem/assessments",
+                        params={"archival": "archived"},
+                    )
+                    [archived_assessment] = archived_list_response.json()["assessments"]
+                    assert archived_assessment["attempts"][0]["status"] == "failed"
+
+                    blocked_resume = await client.post(
+                        "/api/v1/exam-mem/practice/sessions/practice:generated:001/resume"
+                    )
+                    assert blocked_resume.status_code == 409
+                    blocked_answer = await client.post(
+                        "/api/v1/exam-mem/practice/answer",
+                        json={
+                            "practice_session_id": "practice:generated:001",
+                            "trace_id": "trace:generated:001",
+                            "session_id": resumed_first.json()["session_id"],
+                            "question_id": resumed_first.json()["practice"]["question"][
+                                "question_id"
+                            ],
+                            "answer": "answer after archive",
+                            "submitted_at": NOW.isoformat(),
+                            "idempotency_key": "answer:generated:archived",
+                        },
+                    )
+                    assert blocked_answer.status_code == 409
+                    blocked_repeat = await client.post(
+                        f"/api/v1/exam-mem/assessments/{assessment_id}/versions/1/attempts",
+                        json={
+                            "practice_session_id": "practice:generated:archived-repeat",
+                            "trace_id": "trace:generated:archived-repeat",
+                        },
+                    )
+                    assert blocked_repeat.status_code == 409
+                    archived_review = await client.get(
+                        "/api/v1/exam-mem/practice/sessions/practice:generated:001"
+                    )
+                    assert archived_review.status_code == 200
+                    preserved_archive = await client.get(
+                        "/api/v1/exam-mem/learning-archive",
+                        params={
+                            "exam_id": "postgraduate_entrance_exam",
+                            "subject_id": "math_1",
+                            "taxonomy_version": "math1_v1",
+                        },
+                    )
+                    assert any(
+                        item["event"]["event_id"] == generated_checkpoint["learning_event_id"]
+                        for item in preserved_archive.json()["l1"]
+                    )
+
+                    restored_response = await client.post(
+                        f"/api/v1/exam-mem/assessments/{assessment_id}/restore"
+                    )
+                    assert restored_response.status_code == 200, restored_response.text
+                    [restored_assessment] = (
+                        await client.get("/api/v1/exam-mem/assessments")
+                    ).json()["assessments"]
+                    assert restored_assessment["archived_at"] is None
         finally:
             reset_current_user(user_token)
 

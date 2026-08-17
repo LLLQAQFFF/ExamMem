@@ -161,6 +161,7 @@ assessments = Table(
     Column("title", Text, nullable=False),
     Column("knowledge_point_ids", JSONB, nullable=False),
     Column("latest_version", Integer, nullable=False),
+    Column("archived_at", DateTime(timezone=True), nullable=True),
     Column("created_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
     Column("updated_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
     PrimaryKeyConstraint("assessment_id", name="pk_assessments"),
