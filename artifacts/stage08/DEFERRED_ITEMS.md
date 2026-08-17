@@ -4,7 +4,7 @@ The following are intentionally outside the current baseline and must not be inf
 
 - raw chat/text-to-`LearningEvent` extraction evaluation;
 - production embedding model quality (the vector arm uses frozen local feature hashing);
-- recommendation-policy rollout and its three registered recommendation metrics;
+- question-bank retrieval quality and recommendation difficulty matching, because frozen GoldAction has no accepted difficulty band;
 - LLM explanation judge; deterministic Gold judges remain authoritative;
 - real-user learning outcomes, retention over weeks, A/B tests or causal claims;
 - file/video/image/note/PPT ingestion, Learning Journey Memory and source-driven question generation;

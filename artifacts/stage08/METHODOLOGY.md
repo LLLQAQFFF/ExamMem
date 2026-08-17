@@ -14,6 +14,7 @@ TutorBench informed the use of fixed learner profiles, multi-turn tasks and mult
 - Slot metrics call the production rule-based taxonomy normalizer independently.
 - Backend candidates use a Gold-normalized registered slot; candidate values are derived from event facts, never from Gold lifecycle result values.
 - Lifecycle, state, isolation and retrieval judges consume only observed Trace/snapshot data.
+- Recommendation targets reuse the production `RecommendationPolicyV1`; only Lifecycle supplies typed StudentModel/L2 evidence, matching the current product path.
 - Native typed lifecycle/state metrics are N/A because DeepTutor Native Memory exposes L1 JSONL and L2/L3 Markdown, not ExamMem lifecycle identities.
 
 ## Baselines
@@ -35,4 +36,3 @@ TutorBench informed the use of fixed learner profiles, multi-turn tasks and mult
 ## Known comparability limits
 
 Native consolidation owns its internal prompt and temperature settings. The common fairness hash freezes dataset, configured model identity, top-k, timeout and retry policy, but cannot make Native Markdown consolidation and Lifecycle relation classification the same task. This is a structural baseline difference and must remain in report warnings.
-

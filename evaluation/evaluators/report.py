@@ -22,7 +22,13 @@ from evaluation.contracts.rollout import RolloutResult, RolloutStatus
 from evaluation.contracts.trace import TokenUsage
 from evaluation.evaluators.slot import predict_slot_key
 from exam_mem.backends import BackendMode
-from exam_mem.contracts import LifecycleOperation, MemoryNamespace, MemoryScope
+from exam_mem.contracts import (
+    LifecycleOperation,
+    MasteryLevel,
+    MasteryValue,
+    MemoryNamespace,
+    MemoryScope,
+)
 from exam_mem.domain import RuleBasedKnowledgePointNormalizer, load_taxonomy
 
 
@@ -183,12 +189,22 @@ def compute_backend_metrics(
     retrieval_total = retrieval_leaks = archived_hits = 0
     weak_gold = weak_hits = 0
     scope_cases = scope_passes = 0
+    recommendation_count = recommendation_correct = over_review = 0
 
     for case in cases:
         result = ordered_results[case.case_id]
         traces = _trace_by_operation(result)
         gold_state_by_step = {state.step_id: state for state in case.gold_states}
         slot_by_id, scope_by_id = _id_metadata(case)
+        value_by_id = {memory.memory_id: memory.value for memory in case.initial_memory}
+        value_by_id.update(
+            {
+                operation.result_memory_id: operation.expected_result_value
+                for operation in case.gold_operations
+                if operation.result_memory_id is not None
+                and operation.expected_result_value is not None
+            }
+        )
         operations_by_step: dict[str, list] = {}
         for operation in case.gold_operations:
             operations_by_step.setdefault(operation.step_id, []).append(operation)
@@ -246,6 +262,26 @@ def compute_backend_metrics(
             if case.scenario_type.value == "cross_scope_interference" and ids:
                 scope_cases += 1
                 scope_passes += all(scope_by_id.get(memory_id) == query.scope for memory_id in ids)
+
+        for step_id, operations in operations_by_step.items():
+            trace = traces.get(operations[0].operation_id)
+            recommendation = None if trace is None else trace.recommendation
+            if recommendation is None:
+                continue
+            recommendation_count += 1
+            action = next(action for action in case.gold_actions if action.step_id == step_id)
+            recommendation_correct += set(recommendation.knowledge_point_ids) == set(
+                action.knowledge_point_ids
+            )
+            state = gold_state_by_step[step_id]
+            mastered_points = {
+                slot_by_id[memory_id].split(":", maxsplit=1)[1]
+                for memory_id in state.active_memory_ids
+                if slot_by_id.get(memory_id, "").startswith("mastery:")
+                and isinstance(value_by_id.get(memory_id), MasteryValue)
+                and value_by_id[memory_id].level in {MasteryLevel.HIGH, MasteryLevel.MASTERED}
+            }
+            over_review += bool(set(recommendation.knowledge_point_ids) & mastered_points)
 
     tp = sum(gold == predicted for gold, predicted in zip(gold_slots, predicted_slots, strict=True))
     fp = sum(
@@ -335,16 +371,20 @@ def compute_backend_metrics(
         "retrieval.archived_hit_at_k", archived_hits, retrieval_total
     )
 
-    recommendation_reason = (
-        "the frozen rollout currently evaluates memory backends only and does not invoke the "
-        "question-bank recommendation policy"
-    )
-    for metric_id in (
+    observations["recommendation.knowledge_point_accuracy"] = _ratio(
         "recommendation.knowledge_point_accuracy",
+        recommendation_correct,
+        recommendation_count,
+    )
+    observations["recommendation.difficulty_match_rate"] = _missing(
         "recommendation.difficulty_match_rate",
+        "frozen GoldAction does not define a target difficulty or accepted difficulty band",
+    )
+    observations["recommendation.over_review_rate"] = _ratio(
         "recommendation.over_review_rate",
-    ):
-        observations[metric_id] = _missing(metric_id, recommendation_reason)
+        over_review,
+        recommendation_count,
+    )
 
     latencies = [result.latency_ms for result in results]
     call_count = sum(result.llm_call_count for result in results)

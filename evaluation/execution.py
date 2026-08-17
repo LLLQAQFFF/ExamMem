@@ -266,7 +266,7 @@ def _markdown(report: EvaluationReport, scenario_metrics: dict[str, Any]) -> str
             "",
             "- 输入从结构化 LearningEvent 开始，因此原始文本抽取指标为 N/A。",
             "- Native Memory 不暴露 ExamMem typed lifecycle，相关指标为 N/A。",
-            "- 当前 rollout 未调用题库推荐策略，三个 recommendation 指标为 N/A。",
+            "- RecommendationPolicyV1 的知识点与过度复习指标已测量；Gold 未定义难度区间，因此难度匹配为 N/A。",
             "- Vector 使用冻结的本地 1024 维 feature-hash，仅是可复现基线，不代表生产 embedding。",
             "- Host LLM 未返回 token usage 时，token 与美元成本为 N/A，不做静默估算。",
             "",
@@ -427,7 +427,7 @@ async def execute_evaluation(
             warnings=[
                 "Layer-isolated rollout uses Gold-normalized slots after extraction.",
                 "Native consolidator internal temperature is owned by DeepTutor Native Memory.",
-                "Recommendation policy is not invoked by this memory-backend rollout.",
+                "GoldAction has no target difficulty band; difficulty-match remains N/A.",
             ],
         )
         (output / "report.json").write_bytes(_json_bytes(report.model_dump(mode="json")))

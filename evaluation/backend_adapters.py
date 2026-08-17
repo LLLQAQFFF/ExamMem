@@ -22,7 +22,7 @@ from deeptutor.services.memory import MemoryStore, memory_path_service_override
 from deeptutor.services.memory.paths import L3_SLOTS
 from deeptutor.services.memory.trace import TraceEvent, iter_by_ids, iter_since
 from deeptutor.services.path_service import PathService
-from evaluation.contracts.case import EvaluationCase, EvaluationQuery, VersionRelation
+from evaluation.contracts.case import ActionType, EvaluationCase, EvaluationQuery, VersionRelation
 from evaluation.contracts.trace import (
     LLMCallTrace,
     MemoryStateTrace,
@@ -54,7 +54,9 @@ from exam_mem.contracts import (
     MemoryNamespace,
     MemoryScope,
     MemoryUpdateCandidate,
+    StudentModel,
 )
+from exam_mem.domain import KnowledgePointStatus, load_taxonomy
 from exam_mem.lifecycle import (
     DeepTutorRelationClassifierAdapter,
     LifecycleApplier,
@@ -65,6 +67,11 @@ from exam_mem.lifecycle import (
     resolve_validated_relation_output,
 )
 from exam_mem.practice.corrections import ConfirmedCorrectionRelationClassifier
+from exam_mem.practice.provider import (
+    _plan_sources_by_knowledge_point,
+    _recommendation_candidate,
+)
+from exam_mem.practice.recommendation import RecommendationPolicyV1
 from exam_mem.storage import (
     PostgresBaselineFactRepository,
     PostgresLearningEventRepository,
@@ -82,6 +89,61 @@ _PRODUCING_OPERATIONS = {
     LifecycleOperation.SUPERSEDE,
     LifecycleOperation.CONTESTED,
 }
+
+
+class EvaluationRecommendationPolicy:
+    """Observe the production recommendation policy without question retrieval."""
+
+    def __init__(self) -> None:
+        taxonomy = load_taxonomy("math1_v1")
+        self._policy = RecommendationPolicyV1(taxonomy=taxonomy)
+        self._knowledge_point_ids = tuple(
+            node.id
+            for node in taxonomy.nodes
+            if node.status is KnowledgePointStatus.ACTIVE and not taxonomy.children_of(node.id)
+        )
+
+    def recommend(
+        self,
+        *,
+        context: LearningContext,
+        model: StudentModel | None = None,
+        memories: Sequence[LearningMemory] = (),
+        plan_memories: Sequence[LearningMemory] = (),
+        plan_events: Sequence[LearningEvent] = (),
+    ) -> RecommendationTrace:
+        plan_sources = _plan_sources_by_knowledge_point(plan_memories, plan_events)
+        candidates = tuple(
+            _recommendation_candidate(
+                knowledge_point_id=knowledge_point_id,
+                model=model,
+                memories=memories,
+                plan_memories=plan_sources.get(knowledge_point_id, ()),
+            )
+            for knowledge_point_id in self._knowledge_point_ids
+        )
+        score = self._policy.rank(context=context, candidates=candidates)[0]
+        features = score.candidate.features
+        review_signal = max(
+            features.weakness,
+            features.stable_error,
+            features.forgetting_risk,
+            features.active_plan_priority,
+        )
+        if review_signal > 0:
+            action_type = ActionType.RECOMMEND_REVIEW
+        elif (
+            model is not None and score.candidate.target_knowledge_point_id in model.mastered_points
+        ):
+            action_type = ActionType.AVOID_OVER_REVIEW
+        else:
+            action_type = ActionType.RECOMMEND_KNOWLEDGE_POINT
+        return RecommendationTrace(
+            action_type=action_type,
+            knowledge_point_ids=[score.candidate.target_knowledge_point_id],
+            difficulty=score.candidate.target_difficulty,
+            reason_code=",".join(score.reason_codes),
+        )
 
 
 class EvaluationBackendError(RuntimeError):
@@ -203,6 +265,7 @@ class NativeEvaluationSession:
             self._client,
             trace_id=f"{run_id}:native:{case.case_id}",
         )
+        self._recommendation = EvaluationRecommendationPolicy()
 
     async def seed(self, case: EvaluationCase) -> dict[str, JsonValue]:
         if case.case_id != self.case.case_id:
@@ -235,7 +298,7 @@ class NativeEvaluationSession:
         return await self._backend.retrieve(query.scope, query.text, query.top_k)
 
     async def recommend(self, step: MaterializedStep) -> RecommendationTrace | None:
-        return None
+        return self._recommendation.recommend(context=step.event.context)
 
     def state_trace(self, snapshot: dict[str, JsonValue]) -> MemoryStateTrace:
         return MemoryStateTrace(
@@ -432,6 +495,7 @@ class PostgresEvaluationSession:
         elif mode is BackendMode.LIFECYCLE:
             self._relation_mode = "injected_smoke_only"
         self._contexts = self._runtime_contexts(case)
+        self._recommendation = EvaluationRecommendationPolicy()
 
     def _runtime_scalar_id(self, value: str) -> str:
         return f"{self._prefix}{value}"
@@ -850,7 +914,52 @@ class PostgresEvaluationSession:
         ]
 
     async def recommend(self, step: MaterializedStep) -> RecommendationTrace | None:
-        return None
+        runtime_context = self._runtime_context(step.event.context)
+        model = None
+        usable_evidence: tuple[LearningMemory, ...] = ()
+        usable_plans: tuple[LearningMemory, ...] = ()
+        plan_events: Sequence[LearningEvent] = ()
+        if self.mode is BackendMode.LIFECYCLE:
+            async with self.engine.connect() as connection:
+                students = PostgresStudentModelRepository(connection)
+                student_snapshot = await students.get_latest(runtime_context)
+                model = None if student_snapshot is None else student_snapshot.model
+                repository = PostgresLearningMemoryRepository(connection)
+                by_namespace: dict[MemoryNamespace, list[LearningMemory]] = {}
+                for namespace in MemoryNamespace:
+                    by_namespace[namespace] = await repository.snapshot(
+                        MemoryScope(
+                            **runtime_context.model_dump(),
+                            memory_namespace=namespace,
+                        )
+                    )
+                usable_evidence = tuple(
+                    memory
+                    for namespace in (MemoryNamespace.MASTERY, MemoryNamespace.ERROR_PATTERN)
+                    for memory in by_namespace[namespace]
+                    if memory.lifecycle_state
+                    not in {LifecycleState.ARCHIVED, LifecycleState.INVALIDATED}
+                )
+                usable_plans = tuple(
+                    memory
+                    for memory in by_namespace[MemoryNamespace.PLAN]
+                    if memory.lifecycle_state
+                    not in {LifecycleState.ARCHIVED, LifecycleState.INVALIDATED}
+                )
+                plan_event_ids = sorted(
+                    {event_id for memory in usable_plans for event_id in memory.provenance}
+                )
+                plan_events = await PostgresLearningEventRepository(connection).get_by_ids(
+                    runtime_context,
+                    plan_event_ids,
+                )
+        return self._recommendation.recommend(
+            context=runtime_context,
+            model=model,
+            memories=usable_evidence,
+            plan_memories=usable_plans,
+            plan_events=plan_events,
+        )
 
     def take_llm_calls(self) -> list[LLMCallTrace]:
         return [] if self._completion is None else self._completion.take_calls()
@@ -864,6 +973,7 @@ class NoMemoryEvaluationSession:
 
     def __init__(self) -> None:
         self._backend = NoMemoryBackend()
+        self._recommendation = EvaluationRecommendationPolicy()
 
     async def seed(self, case: EvaluationCase) -> dict[str, JsonValue]:
         return {"backend_mode": "none", "discarded_initial_memory_count": len(case.initial_memory)}
@@ -880,7 +990,7 @@ class NoMemoryEvaluationSession:
         return await self._backend.retrieve(query.scope, query.text, query.top_k)
 
     async def recommend(self, step: MaterializedStep) -> RecommendationTrace | None:
-        return None
+        return self._recommendation.recommend(context=step.event.context)
 
     def state_trace(self, snapshot: dict[str, JsonValue]) -> MemoryStateTrace:
         return MemoryStateTrace(

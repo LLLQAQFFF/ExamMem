@@ -59,6 +59,8 @@ async def test_metric_evaluator_emits_all_metrics_and_explicit_na() -> None:
     assert by_id["extraction.knowledge_point_accuracy"].status.value == "not_applicable"
     assert by_id["lifecycle.operation_accuracy"].status.value == "not_applicable"
     assert by_id["isolation.cross_scope_leakage_rate"].status.value == "undefined"
+    assert by_id["recommendation.knowledge_point_accuracy"].status.value == "measured"
+    assert by_id["recommendation.difficulty_match_rate"].status.value == "not_applicable"
     assert by_id["engineering.llm_call_count"].value == 0.0
 
 
