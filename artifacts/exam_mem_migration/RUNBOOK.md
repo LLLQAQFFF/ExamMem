@@ -187,6 +187,14 @@ All product reads and writes bind `user_id` from Host authentication. Clients
 may select only exam/subject parameters exposed by the endpoint; cross-user
 Scope access is not accepted.
 
+Generated Practice uses the complete native Deep Question exploration,
+planning, sequential generation and validation flow. The browser consumes the
+plugin-owned NDJSON endpoint and displays real server stages. A numeric progress
+bar is shown only for validated emitted questions, where a truthful denominator
+exists; exploration and planning remain indeterminate and show elapsed time.
+Blank keepalives preserve long-running connections. Progress events never carry
+raw model content, reference answers or grading rubrics.
+
 ## 6. Verification commands
 
 Use the existing project environment; do not install or upgrade dependencies as

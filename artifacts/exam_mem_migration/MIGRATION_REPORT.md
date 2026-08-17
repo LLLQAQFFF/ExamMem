@@ -169,7 +169,8 @@ Checkpoint 8 follow-up product commits are `7228d7bb` (published Study Plans
 and versioned assessments), `93df09ed` (published Taxonomy runtime),
 `504fed85` (pinned grader contract), `b0452b23` (long-running Agent proxy),
 `8a33d450` (Review discovery), `d2081c83` (categorized Review and response
-language), and `366779ab` (scoped Learning Archive and study Agents).
+language), `366779ab` (scoped Learning Archive and study Agents), and
+`cf847f96` (single learning entry plus real Practice generation progress).
 `4e19927b` records the earlier Smart Exam Prep acceptance snapshot.
 
 No commit was pushed, released or deployed.
@@ -242,3 +243,24 @@ its checkpoint detail and linked L2 provenance. Review and Archive use stable
 session/event/memory identifiers for bidirectional navigation. L2 corrections
 still use the existing confirmed append-only lifecycle workflow. No migration,
 frozen-contract change or DeepTutor Core dependency was added.
+
+## Real Practice generation progress follow-up
+
+Practice generation still invokes the complete DeepTutor native Deep Question
+pipeline. ExamMem does not skip exploration, reduce Agent iterations, generate
+questions concurrently or select a reduced generation profile. The plugin now
+adapts native `stage_start` and `quiz_question_emitted` events into a bounded
+NDJSON progress contract: Scope validation, exploration, planning, validated
+question emission, immutable assessment persistence and attempt startup.
+
+The browser displays exact `completed_questions / total_questions` only during
+question emission. Other stages have no truthful finite denominator and remain
+animated but indeterminate. Blank keepalive lines preserve a long-running HTTP
+stream without claiming progress. The adapter deliberately omits raw model
+messages, question payloads, reference answers and grading rubrics; the final
+public Practice response retains the existing server-side secrecy contract.
+
+The invalid Learning Path observation shortcut was removed rather than wrapped
+in a compatibility branch. Objective cards now keep the single authoritative
+action: start or resume their bound native tutoring conversation. Ordinary Chat
+observation remains an explicit, separately scoped Learning Archive workflow.

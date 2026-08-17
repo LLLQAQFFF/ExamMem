@@ -357,3 +357,28 @@ the source design remains deferred.
   migration/schema gates passed `21/21`; Ruff, i18n, changed-file ESLint,
   diff/security checks and the 63-route production build passed. PostgreSQL
   tests used random schemas and left none behind.
+
+### Learning entry and real generation-progress follow-up
+
+- Removed the learning-objective observation shortcut from Learning Paths. A
+  learner starts or resumes the objective-bound native tutoring conversation;
+  the separate Chat observation flow remains available in Learning Archive and
+  cannot be confused with formal Practice evidence.
+- Preserved the complete native Deep Question pipeline: exploration, planning,
+  sequential question generation, validation and result assembly remain
+  unchanged. No fast profile, skipped exploration, parallel generation or
+  reduced model-call path exists.
+- Added an ExamMem-owned NDJSON endpoint alongside the compatible synchronous
+  generation endpoint. It exposes only stable real stages and emitted-question
+  counts, sends blank keepalives during long model waits, then returns the same
+  versioned Practice result. Raw model content, reference answers and grading
+  rubrics never enter the progress stream.
+- The Practice page renders the six real stages and shows an exact numeric bar
+  only while validated questions are emitted. Exploration and planning remain
+  indeterminate because the native Agent has no truthful denominator; the UI
+  therefore shows elapsed time without inventing an ETA or overall percentage.
+- Final verification on 2026-08-17: full Python `4312 passed, 9 skipped`;
+  Host-without-ExamMem `3856 passed, 9 skipped`; Node `65/65`; Ruff and format
+  passed; ESLint had zero errors; i18n parity passed with no new ExamMem audit
+  candidate; the 63-route production build compiled and type-checked. The
+  generated-Practice PostgreSQL entry test passed and left no random schema.

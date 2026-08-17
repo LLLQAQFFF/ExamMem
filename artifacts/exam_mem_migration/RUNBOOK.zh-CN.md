@@ -263,8 +263,11 @@ python -m alembic -c alembic.ini current
    Scope 来自同一个发布版 Taxonomy，不再出现跨 Taxonomy 文本猜测映射。
 5. 可选添加 PDF、TXT 或 Markdown。来源只服务本次生成；DOCX、PPT/PPTX、图片、视频和
    音频不在当前范围。
-6. 点击「生成并开始检测」，确认页面显示第一题。提交到最后一题后，attempt 应为
-   `completed`，Practice 的冻结七状态仍停在 `MEMORY_UPDATED`，不会新增状态。
+6. 点击「生成并开始检测」。页面应依次显示考试范围校验、探索、规划、逐题生成、试卷
+   固定和作答启动；只有逐题生成阶段显示真实的“已生成/总题数”，探索与规划不显示虚假
+   百分比或 ETA。长时间等待期间连接会发送空白心跳，但不会缩减 Deep Question 的探索、
+   规划或校验流程。完成后应显示第一题。提交到最后一题后，attempt 应为 `completed`，
+   Practice 的冻结七状态仍停在 `MEMORY_UPDATED`，不会新增状态。
 7. 在“考试版本与多次作答”中点击「重考当前版本」，应使用相同 assessment ID 和题集
    version、新的 attempt；点击「生成新版」应在相同 assessment ID 下创建下一 version。
 8. 打开 Review，确认能看到 Grade、Diagnosis、Trace 和 Lifecycle 信息。

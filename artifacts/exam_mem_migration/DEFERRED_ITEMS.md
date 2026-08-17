@@ -33,6 +33,10 @@ is a product boundary, not an unfinished fallback path.
 - Automated tests fix external LLM/embedding results. They prove real transport,
   registry, workflow and database behavior, not live provider accuracy, latency
   or cost.
+- Practice generation reports real pipeline stages and validated-question
+  counts, but it does not predict an ETA or fabricate an overall percentage for
+  open-ended exploration and planning. Token-level model progress is not part of
+  the public ExamMem contract.
 - Browser pending-request recovery is tab-local. Durable recovery is the
   server-side Practice history/Resume path, which creates a new Host transport
   session rather than restoring a closed WebSocket.
