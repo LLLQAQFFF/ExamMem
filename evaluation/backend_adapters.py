@@ -915,7 +915,12 @@ class PostgresEvaluationSession:
             backend = await self._backend(connection)
             memories = await backend.retrieve(scope, layer_query, query.top_k)
         return [
-            memory.model_copy(update={"memory_id": self._logical_id(memory.memory_id)})
+            memory.model_copy(
+                update={
+                    "memory_id": self._logical_id(memory.memory_id),
+                    "scope": query.scope,
+                }
+            )
             for memory in memories
         ]
 

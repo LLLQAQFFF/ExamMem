@@ -18,6 +18,8 @@ from exam_mem.backends import BackendMode
 from exam_mem.contracts import (
     LearningEvent,
     LifecycleDecision,
+    LifecycleState,
+    MemoryScope,
 )
 
 
@@ -112,6 +114,13 @@ class RecommendationTrace(StrictTraceModel):
     reason_code: NonEmptyString | None = None
 
 
+class RetrievedMemoryTrace(StrictTraceModel):
+    memory_id: NonEmptyString
+    scope: MemoryScope
+    slot_key: NonEmptyString
+    lifecycle_state: LifecycleState
+
+
 class RolloutTrace(StrictTraceModel):
     """One JSONL-safe observation for one event step in one case rollout."""
 
@@ -133,6 +142,7 @@ class RolloutTrace(StrictTraceModel):
     state_before: MemoryStateTrace | None
     state_after: MemoryStateTrace | None
     retrieval_ids: list[NonEmptyString]
+    retrieved_memories: list[RetrievedMemoryTrace] = Field(default_factory=list)
     recommendation: RecommendationTrace | None
     llm_calls: list[LLMCallTrace]
     tokens: TokenUsage
@@ -160,6 +170,10 @@ class RolloutTrace(StrictTraceModel):
             or self.tokens.completion_tokens != completion_tokens
         ):
             raise ValueError("trace token totals must equal the sum of LLM call usage")
+        if self.retrieved_memories and self.retrieval_ids != [
+            memory.memory_id for memory in self.retrieved_memories
+        ]:
+            raise ValueError("retrieval_ids must match retrieved_memories order")
         return self
 
 
@@ -167,6 +181,7 @@ __all__ = [
     "LLMCallTrace",
     "MemoryStateTrace",
     "RecommendationTrace",
+    "RetrievedMemoryTrace",
     "RolloutTrace",
     "TokenUsage",
     "TraceError",

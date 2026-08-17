@@ -24,6 +24,7 @@ from evaluation.evaluators.slot import predict_slot_key
 from exam_mem.backends import BackendMode
 from exam_mem.contracts import (
     LifecycleOperation,
+    LifecycleState,
     MasteryLevel,
     MasteryValue,
     MemoryNamespace,
@@ -243,25 +244,40 @@ def compute_backend_metrics(
             operation = operations_by_step[query.after_step_id][0]
             trace = traces.get(operation.operation_id)
             ids = [] if trace is None else trace.retrieval_ids
+            retrieved = [] if trace is None else trace.retrieved_memories
             expected_state: GoldState = gold_state_by_step[query.after_step_id]
             retrieval_total += len(ids)
-            archived_hits += sum(
-                memory_id in expected_state.archived_memory_ids for memory_id in ids
+            archived_hits += (
+                sum(memory.lifecycle_state is LifecycleState.ARCHIVED for memory in retrieved)
+                if retrieved
+                else sum(memory_id in expected_state.archived_memory_ids for memory_id in ids)
             )
-            retrieval_leaks += sum(scope_by_id.get(memory_id) != query.scope for memory_id in ids)
+            retrieval_leaks += (
+                sum(memory.scope != query.scope for memory in retrieved)
+                if retrieved
+                else sum(scope_by_id.get(memory_id) != query.scope for memory_id in ids)
+            )
             action = next(
                 action for action in case.gold_actions if action.step_id == query.after_step_id
             )
-            retrieved_kps = {
-                slot_by_id[memory_id].split(":")[1]
-                for memory_id in ids
-                if memory_id in slot_by_id and ":" in slot_by_id[memory_id]
-            }
+            retrieved_kps = (
+                {memory.slot_key.split(":")[1] for memory in retrieved if ":" in memory.slot_key}
+                if retrieved
+                else {
+                    slot_by_id[memory_id].split(":")[1]
+                    for memory_id in ids
+                    if memory_id in slot_by_id and ":" in slot_by_id[memory_id]
+                }
+            )
             weak_gold += len(action.knowledge_point_ids)
             weak_hits += len(set(action.knowledge_point_ids) & retrieved_kps)
             if case.scenario_type.value == "cross_scope_interference" and ids:
                 scope_cases += 1
-                scope_passes += all(scope_by_id.get(memory_id) == query.scope for memory_id in ids)
+                scope_passes += (
+                    all(memory.scope == query.scope for memory in retrieved)
+                    if retrieved
+                    else all(scope_by_id.get(memory_id) == query.scope for memory_id in ids)
+                )
 
         for step_id, operations in operations_by_step.items():
             trace = traces.get(operations[0].operation_id)

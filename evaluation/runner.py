@@ -16,6 +16,7 @@ from evaluation.contracts.trace import (
     LLMCallTrace,
     MemoryStateTrace,
     RecommendationTrace,
+    RetrievedMemoryTrace,
     RolloutTrace,
     TokenUsage,
     TraceError,
@@ -120,10 +121,19 @@ async def _run_case(
                 after_state = session.state_trace(final_snapshot)
 
                 retrieval_ids: list[str] = []
+                retrieved_memories: list[RetrievedMemoryTrace] = []
                 current_stage = TraceStage.RETRIEVE
                 for query in _queries_after(case, current_step.step_id):
-                    retrieval_ids.extend(
-                        memory.memory_id for memory in await session.retrieve(query)
+                    retrieved = await session.retrieve(query)
+                    retrieval_ids.extend(memory.memory_id for memory in retrieved)
+                    retrieved_memories.extend(
+                        RetrievedMemoryTrace(
+                            memory_id=memory.memory_id,
+                            scope=memory.scope,
+                            slot_key=memory.slot_key,
+                            lifecycle_state=memory.lifecycle_state,
+                        )
+                        for memory in retrieved
                     )
                 current_stage = TraceStage.RECOMMEND
                 recommendation = await session.recommend(current_step)
@@ -161,6 +171,7 @@ async def _run_case(
                             state_before=before_state,
                             state_after=after_state,
                             retrieval_ids=(retrieval_ids if candidate_index == 0 else []),
+                            retrieved_memories=(retrieved_memories if candidate_index == 0 else []),
                             recommendation=(recommendation if candidate_index == 0 else None),
                             llm_calls=trace_calls,
                             tokens=_sum_tokens(trace_calls),
