@@ -1,0 +1,47 @@
+{
+  "protocol_version": "evaluation_protocol_v1",
+  "scenario_type": "cross_scope_interference",
+  "case_ids": [
+    "same_slot_across_users_updates_only_event_owner_001",
+    "similar_independence_terms_remain_subject_isolated_002"
+  ],
+  "primary_label_source": "project_owner_multiple_choice_annotation",
+  "selected_options": {
+    "case_u_scope_policy": "A_MERGE_ONLY_EVENT_OWNER_MEMORY",
+    "case_v_scope_policy": "A_MERGE_ONLY_LINEAR_ALGEBRA_MEMORY",
+    "vector_retrieval_order": "A_EXACT_SCOPE_FILTER_BEFORE_SIMILARITY"
+  },
+  "deferred_product_idea": {
+    "name": "deidentified_cohort_learning_analytics",
+    "status": "deferred_outside_current_roadmap",
+    "boundary": "Cohort aggregates may become explicit priors or premium reports but never personal-memory candidates."
+  },
+  "ai_review": {
+    "status": "accepted_without_revision",
+    "reviewed_at": "2026-08-10",
+    "notes": [
+      "Exact four-dimensional Scope filtering occurs before semantic or vector similarity and before candidate content reaches an LLM.",
+      "Identical slots across users remain independent version chains.",
+      "Similar terminology across probability and linear algebra cannot bypass canonical knowledge-point, slot, or user isolation after the stage-four identity migration.",
+      "Future cohort analytics requires a separately governed deidentified aggregation path rather than relaxed personal-memory isolation."
+    ]
+  },
+  "blind_self_review": {
+    "minimum_interval_days": 1,
+    "completed": false,
+    "status": "waived_independent_human_review_completed"
+  },
+  "independent_human_review": {
+    "reviewer_id": "independent_reviewer_001",
+    "reviewed_at": "2026-08-10",
+    "asserted_no_access_to_primary_labels": true,
+    "reviewed_case_ids": [
+      "same_slot_across_users_updates_only_event_owner_001",
+      "similar_independence_terms_remain_subject_isolated_002"
+    ],
+    "answers": ["B", "C"],
+    "agreement_with_primary": true,
+    "conflicts": [],
+    "status": "completed_without_revision"
+  }
+}

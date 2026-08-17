@@ -1,0 +1,111 @@
+{
+  "protocol_version": "evaluation_protocol_v1",
+  "case_id": "complementary_evidence_different_slot_002",
+  "scenario_type": "complementary_evidence",
+  "initial_memory": [
+    {
+      "memory_id": "error_eigen_concept_v1",
+      "scope": {
+        "user_id": "user_001",
+        "exam_id": "postgraduate_entrance_exam",
+        "subject_id": "math_1",
+        "memory_namespace": "error_pattern"
+      },
+      "slot_key": "error_pattern:math1.linear_algebra.eigenvalue:concept_confusion",
+      "value": {
+        "type": "error_pattern",
+        "error_type": "concept_confusion",
+        "summary": "混淆特征值的代数重数与几何重数",
+        "details": ["认为两个重数在所有情况下都相等"]
+      },
+      "confidence": 0.79,
+      "evidence_count": 3,
+      "lifecycle_state": "active",
+      "version": 1,
+      "valid_from": "2026-08-02T08:30:00Z",
+      "valid_to": null,
+      "superseded_by": null,
+      "provenance": ["event_eigen_101", "event_eigen_102", "event_eigen_103"]
+    }
+  ],
+  "events": [
+    {
+      "event_id": "event_eigen_104",
+      "idempotency_key": "eigen-calculation-error-104",
+      "context": {
+        "user_id": "user_001",
+        "exam_id": "postgraduate_entrance_exam",
+        "subject_id": "math_1"
+      },
+      "session_id": "session_006",
+      "question_id": "eigenvalue_104",
+      "knowledge_point_ids": ["math1.linear_algebra.eigenvalue"],
+      "difficulty": 0.7,
+      "answer_correct": false,
+      "error_type": "calculation_error",
+      "error_detail": "展开特征多项式时出现符号计算错误，但概念和解题步骤正确",
+      "occurred_at": "2026-08-07T10:30:00Z"
+    }
+  ],
+  "gold_operations": [
+    {
+      "operation_id": "step_001:error_pattern",
+      "step_id": "step_001",
+      "event_id": "event_eigen_104",
+      "extracted_fields": {
+        "knowledge_point_ids": ["math1.linear_algebra.eigenvalue"],
+        "answer_correct": false,
+        "error_type": "calculation_error",
+        "error_detail": "展开特征多项式时出现符号计算错误，但概念和解题步骤正确"
+      },
+      "canonical_knowledge_point_ids": ["math1.linear_algebra.eigenvalue"],
+      "slot_key": "error_pattern:math1.linear_algebra.eigenvalue:calculation_error",
+      "candidate_memory_ids": [],
+      "operation": "ADD",
+      "target_memory_ids": [],
+      "result_memory_id": "error_eigen_calculation_v1",
+      "reason_code": "different_error_slot_requires_independent_memory",
+      "evidence_event_ids": ["event_eigen_104"]
+    }
+  ],
+  "gold_states": [
+    {
+      "step_id": "step_001",
+      "active_memory_ids": [
+        "error_eigen_concept_v1",
+        "error_eigen_calculation_v1"
+      ],
+      "archived_memory_ids": [],
+      "invalidated_memory_ids": [],
+      "contested_memory_ids": [],
+      "version_relations": []
+    }
+  ],
+  "queries": [
+    {
+      "query_id": "query_001",
+      "after_step_id": "step_001",
+      "scope": {
+        "user_id": "user_001",
+        "exam_id": "postgraduate_entrance_exam",
+        "subject_id": "math_1",
+        "memory_namespace": "error_pattern"
+      },
+      "text": "特征值知识点有哪些需要分别处理的错误模式？",
+      "top_k": 3
+    }
+  ],
+  "gold_actions": [
+    {
+      "step_id": "step_001",
+      "action_type": "recommend_review",
+      "knowledge_point_ids": ["math1.linear_algebra.eigenvalue"],
+      "reason_code": "review_concept_and_calculation_patterns_separately"
+    }
+  ],
+  "metadata": {
+    "split": "protocol_check",
+    "seed": 20260806,
+    "gold_revision": 2
+  }
+}

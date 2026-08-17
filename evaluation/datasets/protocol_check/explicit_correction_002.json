@@ -1,0 +1,127 @@
+{
+  "protocol_version": "evaluation_protocol_v1",
+  "case_id": "explicit_correction_supersedes_overbroad_pattern_002",
+  "scenario_type": "explicit_correction",
+  "initial_memory": [
+    {
+      "memory_id": "error_conditional_probability_broad_v1",
+      "scope": {
+        "user_id": "user_001",
+        "exam_id": "postgraduate_entrance_exam",
+        "subject_id": "math_1",
+        "memory_namespace": "error_pattern"
+      },
+      "slot_key": "error_pattern:math1.probability.conditional_probability:concept_confusion",
+      "value": {
+        "type": "error_pattern",
+        "error_type": "concept_confusion",
+        "summary": "学生总是混淆条件概率",
+        "details": ["未区分离散与连续条件概率的计算形式"]
+      },
+      "confidence": 0.8,
+      "evidence_count": 4,
+      "lifecycle_state": "active",
+      "version": 1,
+      "valid_from": "2026-08-03T08:30:00Z",
+      "valid_to": null,
+      "superseded_by": null,
+      "provenance": [
+        "event_conditional_broad_101",
+        "event_conditional_broad_102",
+        "event_conditional_broad_103",
+        "event_conditional_broad_104"
+      ]
+    }
+  ],
+  "events": [
+    {
+      "event_id": "correction_conditional_teacher_105",
+      "idempotency_key": "correction-conditional-teacher-105",
+      "event_type": "explicit_correction",
+      "context": {
+        "user_id": "user_001",
+        "exam_id": "postgraduate_entrance_exam",
+        "subject_id": "math_1"
+      },
+      "session_id": "session_041",
+      "knowledge_point_ids": ["math1.probability.conditional_probability"],
+      "correction": {
+        "target_memory_ids": ["error_conditional_probability_broad_v1"],
+        "source": "teacher",
+        "statement": "学生理解离散条件概率；问题只出现在连续型条件密度的归一化步骤"
+      },
+      "occurred_at": "2026-08-10T09:30:00Z"
+    }
+  ],
+  "gold_operations": [
+    {
+      "operation_id": "step_001:error_pattern",
+      "step_id": "step_001",
+      "event_id": "correction_conditional_teacher_105",
+      "extracted_fields": {
+        "event_type": "explicit_correction",
+        "knowledge_point_ids": ["math1.probability.conditional_probability"],
+        "correction": {
+          "target_memory_ids": ["error_conditional_probability_broad_v1"],
+          "source": "teacher",
+          "statement": "学生理解离散条件概率；问题只出现在连续型条件密度的归一化步骤"
+        }
+      },
+      "canonical_knowledge_point_ids": ["math1.probability.conditional_probability"],
+      "slot_key": "error_pattern:math1.probability.conditional_probability:concept_confusion",
+      "candidate_memory_ids": ["error_conditional_probability_broad_v1"],
+      "operation": "SUPERSEDE",
+      "target_memory_ids": ["error_conditional_probability_broad_v1"],
+      "result_memory_id": "error_conditional_density_normalization_v2",
+      "reason_code": "teacher_correction_narrows_overbroad_pattern",
+      "evidence_event_ids": ["correction_conditional_teacher_105"]
+    }
+  ],
+  "gold_states": [
+    {
+      "step_id": "step_001",
+      "active_memory_ids": ["error_conditional_density_normalization_v2"],
+      "archived_memory_ids": ["error_conditional_probability_broad_v1"],
+      "invalidated_memory_ids": [],
+      "contested_memory_ids": [],
+      "version_relations": [
+        {
+          "predecessor_memory_id": "error_conditional_probability_broad_v1",
+          "successor_memory_id": "error_conditional_density_normalization_v2",
+          "relation": "superseded_by"
+        }
+      ]
+    }
+  ],
+  "queries": [
+    {
+      "query_id": "query_001",
+      "after_step_id": "step_001",
+      "scope": {
+        "user_id": "user_001",
+        "exam_id": "postgraduate_entrance_exam",
+        "subject_id": "math_1",
+        "memory_namespace": "error_pattern"
+      },
+      "text": "条件概率方面应针对哪个具体问题复习？",
+      "top_k": 3
+    }
+  ],
+  "gold_actions": [
+    {
+      "step_id": "step_001",
+      "action_type": "recommend_review",
+      "knowledge_point_ids": ["math1.probability.conditional_probability"],
+      "reason_code": "review_only_continuous_density_normalization"
+    }
+  ],
+  "metadata": {
+    "split": "protocol_check",
+    "seed": 20260806,
+    "gold_revision": 2,
+    "policy_parameters": {
+      "teacher_correction_is_authoritative": true,
+      "same_canonical_slot_required_for_single_supersede": true
+    }
+  }
+}

@@ -1,0 +1,175 @@
+{
+  "protocol_version": "evaluation_protocol_v1",
+  "case_id": "accidental_error_with_stable_pattern_002",
+  "scenario_type": "accidental_error",
+  "initial_memory": [
+    {
+      "memory_id": "mastery_matrix_operation_high_v1",
+      "scope": {
+        "user_id": "user_001",
+        "exam_id": "postgraduate_entrance_exam",
+        "subject_id": "math_1",
+        "memory_namespace": "mastery"
+      },
+      "slot_key": "mastery:math1.linear_algebra.matrix_multiplication",
+      "value": {"type": "mastery", "level": "high", "score": 0.83},
+      "confidence": 0.88,
+      "evidence_count": 11,
+      "lifecycle_state": "active",
+      "version": 1,
+      "valid_from": "2026-08-01T08:30:00Z",
+      "valid_to": null,
+      "superseded_by": null,
+      "provenance": [
+        "event_matrix_operation_090",
+        "event_matrix_operation_091",
+        "event_matrix_operation_092",
+        "event_matrix_operation_093",
+        "event_matrix_operation_094",
+        "event_matrix_operation_095",
+        "event_matrix_operation_096",
+        "event_matrix_operation_097",
+        "event_matrix_operation_098",
+        "event_matrix_operation_099",
+        "event_matrix_operation_100"
+      ]
+    },
+    {
+      "memory_id": "error_matrix_sign_careless_v1",
+      "scope": {
+        "user_id": "user_001",
+        "exam_id": "postgraduate_entrance_exam",
+        "subject_id": "math_1",
+        "memory_namespace": "error_pattern"
+      },
+      "slot_key": "error_pattern:math1.linear_algebra.matrix_multiplication:careless_error",
+      "value": {
+        "type": "error_pattern",
+        "error_type": "careless_error",
+        "summary": "矩阵乘法中容易出现符号粗心",
+        "details": ["抄写中间结果时容易遗漏负号"]
+      },
+      "confidence": 0.78,
+      "evidence_count": 3,
+      "lifecycle_state": "active",
+      "version": 1,
+      "valid_from": "2026-08-02T08:30:00Z",
+      "valid_to": null,
+      "superseded_by": null,
+      "provenance": [
+        "event_matrix_sign_101",
+        "event_matrix_sign_102",
+        "event_matrix_sign_103"
+      ]
+    }
+  ],
+  "events": [
+    {
+      "event_id": "event_matrix_sign_104",
+      "idempotency_key": "matrix-sign-careless-104",
+      "context": {
+        "user_id": "user_001",
+        "exam_id": "postgraduate_entrance_exam",
+        "subject_id": "math_1"
+      },
+      "session_id": "session_023",
+      "question_id": "matrix_operation_104",
+      "knowledge_point_ids": ["math1.linear_algebra.matrix_multiplication"],
+      "difficulty": 0.72,
+      "answer_correct": false,
+      "error_type": "careless_error",
+      "error_detail": "概念、公式和步骤正确，但抄写中间结果时漏掉负号",
+      "occurred_at": "2026-08-09T13:30:00Z"
+    }
+  ],
+  "gold_operations": [
+    {
+      "operation_id": "step_001:mastery",
+      "step_id": "step_001",
+      "event_id": "event_matrix_sign_104",
+      "extracted_fields": {
+        "knowledge_point_ids": ["math1.linear_algebra.matrix_multiplication"],
+        "answer_correct": false,
+        "error_type": "careless_error",
+        "error_detail": "概念、公式和步骤正确，但抄写中间结果时漏掉负号"
+      },
+      "canonical_knowledge_point_ids": ["math1.linear_algebra.matrix_multiplication"],
+      "slot_key": "mastery:math1.linear_algebra.matrix_multiplication",
+      "candidate_memory_ids": ["mastery_matrix_operation_high_v1"],
+      "operation": "NO_OP",
+      "target_memory_ids": ["mastery_matrix_operation_high_v1"],
+      "result_memory_id": null,
+      "reason_code": "careless_error_does_not_change_concept_mastery",
+      "evidence_event_ids": ["event_matrix_sign_104"]
+    },
+    {
+      "operation_id": "step_001:error_pattern",
+      "step_id": "step_001",
+      "event_id": "event_matrix_sign_104",
+      "extracted_fields": {
+        "knowledge_point_ids": ["math1.linear_algebra.matrix_multiplication"],
+        "answer_correct": false,
+        "error_type": "careless_error",
+        "error_detail": "概念、公式和步骤正确，但抄写中间结果时漏掉负号"
+      },
+      "canonical_knowledge_point_ids": ["math1.linear_algebra.matrix_multiplication"],
+      "slot_key": "error_pattern:math1.linear_algebra.matrix_multiplication:careless_error",
+      "candidate_memory_ids": ["error_matrix_sign_careless_v1"],
+      "operation": "MERGE",
+      "target_memory_ids": ["error_matrix_sign_careless_v1"],
+      "result_memory_id": "error_matrix_sign_careless_v2",
+      "reason_code": "independent_careless_event_strengthens_existing_pattern",
+      "evidence_event_ids": ["event_matrix_sign_104"]
+    }
+  ],
+  "gold_states": [
+    {
+      "step_id": "step_001",
+      "active_memory_ids": [
+        "mastery_matrix_operation_high_v1",
+        "error_matrix_sign_careless_v2"
+      ],
+      "archived_memory_ids": ["error_matrix_sign_careless_v1"],
+      "invalidated_memory_ids": [],
+      "contested_memory_ids": [],
+      "version_relations": [
+        {
+          "predecessor_memory_id": "error_matrix_sign_careless_v1",
+          "successor_memory_id": "error_matrix_sign_careless_v2",
+          "relation": "superseded_by"
+        }
+      ]
+    }
+  ],
+  "queries": [
+    {
+      "query_id": "query_001",
+      "after_step_id": "step_001",
+      "scope": {
+        "user_id": "user_001",
+        "exam_id": "postgraduate_entrance_exam",
+        "subject_id": "math_1",
+        "memory_namespace": "error_pattern"
+      },
+      "text": "是否需要针对矩阵乘法中的符号粗心进行复习？",
+      "top_k": 3
+    }
+  ],
+  "gold_actions": [
+    {
+      "step_id": "step_001",
+      "action_type": "recommend_review",
+      "knowledge_point_ids": ["math1.linear_algebra.matrix_multiplication"],
+      "reason_code": "review_error_checking_without_reteaching_concept"
+    }
+  ],
+  "metadata": {
+    "split": "protocol_check",
+    "seed": 20260806,
+    "gold_revision": 2,
+    "policy_parameters": {
+      "stable_error_pattern_minimum_independent_events": 3,
+      "careless_error_changes_concept_mastery": false
+    }
+  }
+}

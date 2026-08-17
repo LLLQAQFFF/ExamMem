@@ -1,0 +1,36 @@
+{
+  "protocol_version": "evaluation_protocol_v1",
+  "scenario_type": "mastery_improvement",
+  "case_ids": [
+    "mastery_improvement_single_correct_001",
+    "mastery_improvement_sustained_correct_002"
+  ],
+  "primary_label_source": "project_owner_interactive_annotation",
+  "ai_review": {
+    "status": "accepted_after_operation_revision",
+    "reviewed_at": "2026-08-10",
+    "notes": [
+      "A new independent correct answer is MERGE while the mastery level remains low.",
+      "Evidence accumulation within improving is MERGE; the improving-to-high transition is SUPERSEDE.",
+      "The sustained-correct case materializes all three events in order so the runner never relies on prose or future evidence."
+    ]
+  },
+  "blind_self_review": {
+    "minimum_interval_days": 1,
+    "completed": false,
+    "status": "waived_independent_human_review_completed"
+  },
+  "independent_human_review": {
+    "reviewer_id": "independent_reviewer_001",
+    "reviewed_at": "2026-08-10",
+    "asserted_no_access_to_primary_labels": true,
+    "reviewed_case_ids": [
+      "mastery_improvement_single_correct_001",
+      "mastery_improvement_sustained_correct_002"
+    ],
+    "answers": ["C", "B"],
+    "agreement_with_primary": true,
+    "conflicts": [],
+    "status": "completed_without_revision"
+  }
+}

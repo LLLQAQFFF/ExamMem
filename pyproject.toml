@@ -451,6 +451,7 @@ markers = [
     "fault_injection: ExamMem transactional failure rollback tests",
     "lifecycle: ExamMem deterministic Learning Memory lifecycle tests",
     "migration: ExamMem database migration tests",
+    "protocol: ExamMem evaluation protocol contract tests",
     "repository: ExamMem Learning Memory repository and transaction tests",
     "schema: ExamMem Pydantic and JSON Schema contract tests",
     "slot_key: ExamMem stable slot-key grammar and construction tests",

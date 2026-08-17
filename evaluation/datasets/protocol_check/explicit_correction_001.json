@@ -1,0 +1,115 @@
+{
+  "protocol_version": "evaluation_protocol_v1",
+  "case_id": "explicit_correction_invalidates_false_diagnosis_001",
+  "scenario_type": "explicit_correction",
+  "initial_memory": [
+    {
+      "memory_id": "error_bayes_formula_v1",
+      "scope": {
+        "user_id": "user_001",
+        "exam_id": "postgraduate_entrance_exam",
+        "subject_id": "math_1",
+        "memory_namespace": "error_pattern"
+      },
+      "slot_key": "error_pattern:math1.probability.bayes:formula_misuse",
+      "value": {
+        "type": "error_pattern",
+        "error_type": "formula_misuse",
+        "summary": "学生不会使用贝叶斯公式",
+        "details": ["公式解析器曾将等价写法误判为错误"]
+      },
+      "confidence": 0.62,
+      "evidence_count": 1,
+      "lifecycle_state": "active",
+      "version": 1,
+      "valid_from": "2026-08-03T08:00:00Z",
+      "valid_to": null,
+      "superseded_by": null,
+      "provenance": ["event_bayes_misgraded_101"]
+    }
+  ],
+  "events": [
+    {
+      "event_id": "correction_bayes_audit_102",
+      "idempotency_key": "correction-bayes-audit-102",
+      "event_type": "explicit_correction",
+      "context": {
+        "user_id": "user_001",
+        "exam_id": "postgraduate_entrance_exam",
+        "subject_id": "math_1"
+      },
+      "session_id": "session_040",
+      "knowledge_point_ids": ["math1.probability.bayes"],
+      "correction": {
+        "target_memory_ids": ["error_bayes_formula_v1"],
+        "source": "grader_audit",
+        "statement": "原答案实际正确；此前错误来自公式解析器漏识别等价写法，该错误诊断整体不成立"
+      },
+      "occurred_at": "2026-08-10T09:00:00Z"
+    }
+  ],
+  "gold_operations": [
+    {
+      "operation_id": "step_001:error_pattern",
+      "step_id": "step_001",
+      "event_id": "correction_bayes_audit_102",
+      "extracted_fields": {
+        "event_type": "explicit_correction",
+        "knowledge_point_ids": ["math1.probability.bayes"],
+        "correction": {
+          "target_memory_ids": ["error_bayes_formula_v1"],
+          "source": "grader_audit",
+          "statement": "原答案实际正确；此前错误来自公式解析器漏识别等价写法，该错误诊断整体不成立"
+        }
+      },
+      "canonical_knowledge_point_ids": ["math1.probability.bayes"],
+      "slot_key": "error_pattern:math1.probability.bayes:formula_misuse",
+      "candidate_memory_ids": ["error_bayes_formula_v1"],
+      "operation": "INVALIDATE",
+      "target_memory_ids": ["error_bayes_formula_v1"],
+      "result_memory_id": null,
+      "reason_code": "grader_audit_proves_original_diagnosis_false",
+      "evidence_event_ids": ["correction_bayes_audit_102"]
+    }
+  ],
+  "gold_states": [
+    {
+      "step_id": "step_001",
+      "active_memory_ids": [],
+      "archived_memory_ids": [],
+      "invalidated_memory_ids": ["error_bayes_formula_v1"],
+      "contested_memory_ids": [],
+      "version_relations": []
+    }
+  ],
+  "queries": [
+    {
+      "query_id": "query_001",
+      "after_step_id": "step_001",
+      "scope": {
+        "user_id": "user_001",
+        "exam_id": "postgraduate_entrance_exam",
+        "subject_id": "math_1",
+        "memory_namespace": "error_pattern"
+      },
+      "text": "贝叶斯公式是否仍存在有效错误模式？",
+      "top_k": 3
+    }
+  ],
+  "gold_actions": [
+    {
+      "step_id": "step_001",
+      "action_type": "no_action",
+      "knowledge_point_ids": ["math1.probability.bayes"],
+      "reason_code": "invalidated_false_diagnosis_must_not_drive_review"
+    }
+  ],
+  "metadata": {
+    "split": "protocol_check",
+    "seed": 20260806,
+    "gold_revision": 2,
+    "policy_parameters": {
+      "grader_audit_is_authoritative": true
+    }
+  }
+}

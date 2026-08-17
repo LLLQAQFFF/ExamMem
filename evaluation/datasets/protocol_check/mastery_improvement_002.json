@@ -1,0 +1,262 @@
+{
+  "protocol_version": "evaluation_protocol_v1",
+  "case_id": "mastery_improvement_sustained_correct_002",
+  "scenario_type": "mastery_improvement",
+  "initial_memory": [
+    {
+      "memory_id": "mastery_total_probability_improving_v1",
+      "scope": {
+        "user_id": "user_001",
+        "exam_id": "postgraduate_entrance_exam",
+        "subject_id": "math_1",
+        "memory_namespace": "mastery"
+      },
+      "slot_key": "mastery:math1.probability.total_probability",
+      "value": {"type": "mastery", "level": "improving", "score": 0.6},
+      "confidence": 0.76,
+      "evidence_count": 6,
+      "lifecycle_state": "active",
+      "version": 1,
+      "valid_from": "2026-08-02T08:30:00Z",
+      "valid_to": null,
+      "superseded_by": null,
+      "provenance": [
+        "event_total_probability_195",
+        "event_total_probability_196",
+        "event_total_probability_197",
+        "event_total_probability_198",
+        "event_total_probability_199",
+        "event_total_probability_200"
+      ]
+    }
+  ],
+  "events": [
+    {
+      "event_id": "event_total_probability_201",
+      "idempotency_key": "total-probability-correct-201",
+      "context": {
+        "user_id": "user_001",
+        "exam_id": "postgraduate_entrance_exam",
+        "subject_id": "math_1"
+      },
+      "session_id": "session_010",
+      "question_id": "total_probability_201",
+      "knowledge_point_ids": ["math1.probability.total_probability"],
+      "difficulty": 0.68,
+      "answer_correct": true,
+      "error_type": null,
+      "error_detail": null,
+      "occurred_at": "2026-08-08T09:00:00Z"
+    },
+    {
+      "event_id": "event_total_probability_202",
+      "idempotency_key": "total-probability-correct-202",
+      "context": {
+        "user_id": "user_001",
+        "exam_id": "postgraduate_entrance_exam",
+        "subject_id": "math_1"
+      },
+      "session_id": "session_011",
+      "question_id": "total_probability_202",
+      "knowledge_point_ids": ["math1.probability.total_probability"],
+      "difficulty": 0.72,
+      "answer_correct": true,
+      "error_type": null,
+      "error_detail": null,
+      "occurred_at": "2026-08-09T09:00:00Z"
+    },
+    {
+      "event_id": "event_total_probability_203",
+      "idempotency_key": "total-probability-correct-203",
+      "context": {
+        "user_id": "user_001",
+        "exam_id": "postgraduate_entrance_exam",
+        "subject_id": "math_1"
+      },
+      "session_id": "session_011",
+      "question_id": "total_probability_203",
+      "knowledge_point_ids": ["math1.probability.total_probability"],
+      "difficulty": 0.75,
+      "answer_correct": true,
+      "error_type": null,
+      "error_detail": null,
+      "occurred_at": "2026-08-09T09:30:00Z"
+    }
+  ],
+  "gold_operations": [
+    {
+      "operation_id": "step_001:mastery",
+      "step_id": "step_001",
+      "event_id": "event_total_probability_201",
+      "extracted_fields": {
+        "knowledge_point_ids": ["math1.probability.total_probability"],
+        "answer_correct": true,
+        "error_type": null,
+        "error_detail": null
+      },
+      "canonical_knowledge_point_ids": ["math1.probability.total_probability"],
+      "slot_key": "mastery:math1.probability.total_probability",
+      "candidate_memory_ids": ["mastery_total_probability_improving_v1"],
+      "operation": "MERGE",
+      "target_memory_ids": ["mastery_total_probability_improving_v1"],
+      "result_memory_id": "mastery_total_probability_improving_v2",
+      "reason_code": "first_qualifying_correct_keeps_improving_level",
+      "evidence_event_ids": ["event_total_probability_201"]
+    },
+    {
+      "operation_id": "step_002:mastery",
+      "step_id": "step_002",
+      "event_id": "event_total_probability_202",
+      "extracted_fields": {
+        "knowledge_point_ids": ["math1.probability.total_probability"],
+        "answer_correct": true,
+        "error_type": null,
+        "error_detail": null
+      },
+      "canonical_knowledge_point_ids": ["math1.probability.total_probability"],
+      "slot_key": "mastery:math1.probability.total_probability",
+      "candidate_memory_ids": ["mastery_total_probability_improving_v2"],
+      "operation": "MERGE",
+      "target_memory_ids": ["mastery_total_probability_improving_v2"],
+      "result_memory_id": "mastery_total_probability_improving_v3",
+      "reason_code": "second_qualifying_correct_keeps_improving_level",
+      "evidence_event_ids": ["event_total_probability_202"]
+    },
+    {
+      "operation_id": "step_003:mastery",
+      "step_id": "step_003",
+      "event_id": "event_total_probability_203",
+      "extracted_fields": {
+        "knowledge_point_ids": ["math1.probability.total_probability"],
+        "answer_correct": true,
+        "error_type": null,
+        "error_detail": null
+      },
+      "canonical_knowledge_point_ids": ["math1.probability.total_probability"],
+      "slot_key": "mastery:math1.probability.total_probability",
+      "candidate_memory_ids": ["mastery_total_probability_improving_v3"],
+      "operation": "SUPERSEDE",
+      "target_memory_ids": ["mastery_total_probability_improving_v3"],
+      "result_memory_id": "mastery_total_probability_high_v4",
+      "reason_code": "three_cross_session_qualifying_correct_promote_to_high",
+      "evidence_event_ids": [
+        "event_total_probability_201",
+        "event_total_probability_202",
+        "event_total_probability_203"
+      ]
+    }
+  ],
+  "gold_states": [
+    {
+      "step_id": "step_001",
+      "active_memory_ids": ["mastery_total_probability_improving_v2"],
+      "archived_memory_ids": ["mastery_total_probability_improving_v1"],
+      "invalidated_memory_ids": [],
+      "contested_memory_ids": [],
+      "version_relations": [
+        {
+          "predecessor_memory_id": "mastery_total_probability_improving_v1",
+          "successor_memory_id": "mastery_total_probability_improving_v2",
+          "relation": "superseded_by"
+        }
+      ]
+    },
+    {
+      "step_id": "step_002",
+      "active_memory_ids": ["mastery_total_probability_improving_v3"],
+      "archived_memory_ids": [
+        "mastery_total_probability_improving_v1",
+        "mastery_total_probability_improving_v2"
+      ],
+      "invalidated_memory_ids": [],
+      "contested_memory_ids": [],
+      "version_relations": [
+        {
+          "predecessor_memory_id": "mastery_total_probability_improving_v1",
+          "successor_memory_id": "mastery_total_probability_improving_v2",
+          "relation": "superseded_by"
+        },
+        {
+          "predecessor_memory_id": "mastery_total_probability_improving_v2",
+          "successor_memory_id": "mastery_total_probability_improving_v3",
+          "relation": "superseded_by"
+        }
+      ]
+    },
+    {
+      "step_id": "step_003",
+      "active_memory_ids": ["mastery_total_probability_high_v4"],
+      "archived_memory_ids": [
+        "mastery_total_probability_improving_v1",
+        "mastery_total_probability_improving_v2",
+        "mastery_total_probability_improving_v3"
+      ],
+      "invalidated_memory_ids": [],
+      "contested_memory_ids": [],
+      "version_relations": [
+        {
+          "predecessor_memory_id": "mastery_total_probability_improving_v1",
+          "successor_memory_id": "mastery_total_probability_improving_v2",
+          "relation": "superseded_by"
+        },
+        {
+          "predecessor_memory_id": "mastery_total_probability_improving_v2",
+          "successor_memory_id": "mastery_total_probability_improving_v3",
+          "relation": "superseded_by"
+        },
+        {
+          "predecessor_memory_id": "mastery_total_probability_improving_v3",
+          "successor_memory_id": "mastery_total_probability_high_v4",
+          "relation": "superseded_by"
+        }
+      ]
+    }
+  ],
+  "queries": [
+    {
+      "query_id": "query_001",
+      "after_step_id": "step_003",
+      "scope": {
+        "user_id": "user_001",
+        "exam_id": "postgraduate_entrance_exam",
+        "subject_id": "math_1",
+        "memory_namespace": "mastery"
+      },
+      "text": "全概率公式是否仍应作为主要薄弱点重复练习？",
+      "top_k": 3
+    }
+  ],
+  "gold_actions": [
+    {
+      "step_id": "step_001",
+      "action_type": "recommend_review",
+      "knowledge_point_ids": ["math1.probability.total_probability"],
+      "reason_code": "first_correct_not_yet_sustained"
+    },
+    {
+      "step_id": "step_002",
+      "action_type": "recommend_review",
+      "knowledge_point_ids": ["math1.probability.total_probability"],
+      "reason_code": "second_correct_not_yet_at_promotion_threshold"
+    },
+    {
+      "step_id": "step_003",
+      "action_type": "avoid_over_review",
+      "knowledge_point_ids": ["math1.probability.total_probability"],
+      "reason_code": "high_mastery_after_sustained_qualifying_correct"
+    }
+  ],
+  "metadata": {
+    "split": "protocol_check",
+    "seed": 20260806,
+    "gold_revision": 2,
+    "policy_parameters": {
+      "promotion_from": "improving",
+      "promotion_to": "high",
+      "minimum_consecutive_correct": 3,
+      "minimum_difficulty": 0.65,
+      "minimum_distinct_questions": 3,
+      "minimum_distinct_sessions": 2
+    }
+  }
+}

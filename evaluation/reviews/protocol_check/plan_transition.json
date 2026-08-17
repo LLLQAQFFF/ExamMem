@@ -1,0 +1,41 @@
+{
+  "protocol_version": "evaluation_protocol_v1",
+  "scenario_type": "plan_transition",
+  "case_ids": [
+    "completed_plan_is_invalidated_after_progress_goal_001",
+    "ambiguous_plan_cancellation_creates_contested_branch_002"
+  ],
+  "primary_label_source": "project_owner_multiple_choice_annotation",
+  "selected_options": {
+    "event_model": "A_TYPED_PLAN_TRANSITION_L1_EVENT",
+    "case_q_operation_and_action": "A_INVALIDATE_AND_STOP_PLAN_REVIEW",
+    "case_r_operation_and_action": "A_CONTESTED_KEEP_ACTIVE_WITH_UNCERTAINTY"
+  },
+  "ai_review": {
+    "status": "accepted_without_revision",
+    "reviewed_at": "2026-08-10",
+    "notes": [
+      "Plan changes require an append-only typed L1 event so that L2 transitions remain replayable and auditable.",
+      "A deterministically completed plan becomes inactive through INVALIDATE but remains available in history and audit.",
+      "An ambiguous cancellation creates a contested branch while the current active plan continues to drive recommendations with an uncertainty marker."
+    ]
+  },
+  "blind_self_review": {
+    "minimum_interval_days": 1,
+    "completed": false,
+    "status": "waived_independent_human_review_completed"
+  },
+  "independent_human_review": {
+    "reviewer_id": "independent_reviewer_001",
+    "reviewed_at": "2026-08-10",
+    "asserted_no_access_to_primary_labels": true,
+    "reviewed_case_ids": [
+      "completed_plan_is_invalidated_after_progress_goal_001",
+      "ambiguous_plan_cancellation_creates_contested_branch_002"
+    ],
+    "answers": ["A", "B"],
+    "agreement_with_primary": true,
+    "conflicts": [],
+    "status": "completed_without_revision"
+  }
+}

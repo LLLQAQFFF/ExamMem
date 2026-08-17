@@ -1,0 +1,43 @@
+{
+  "protocol_version": "evaluation_protocol_v1",
+  "scenario_type": "explicit_correction",
+  "case_ids": [
+    "explicit_correction_invalidates_false_diagnosis_001",
+    "explicit_correction_supersedes_overbroad_pattern_002"
+  ],
+  "primary_label_source": "project_owner_multiple_choice_annotation",
+  "selected_options": {
+    "case_m_operation": "A_INVALIDATE",
+    "case_m_action": "A_NO_ACTION",
+    "case_n_operation": "B_SUPERSEDE",
+    "case_n_action": "A_RECOMMEND_REVIEW",
+    "invalidate_vs_supersede": "A_FALSE_WITHOUT_SUCCESSOR_VS_CORRECTED_SUCCESSOR"
+  },
+  "ai_review": {
+    "status": "accepted_without_revision",
+    "reviewed_at": "2026-08-10",
+    "notes": [
+      "A grader audit proving the diagnosis wholly false invalidates it and removes it from recommendation context.",
+      "A teacher correction that narrows an overbroad claim supersedes it with a precise successor in the same canonical slot.",
+      "If correction changes the canonical slot, the protocol should use INVALIDATE plus ADD rather than a single SUPERSEDE."
+    ]
+  },
+  "blind_self_review": {
+    "minimum_interval_days": 1,
+    "completed": false,
+    "status": "waived_independent_human_review_completed"
+  },
+  "independent_human_review": {
+    "reviewer_id": "independent_reviewer_001",
+    "reviewed_at": "2026-08-10",
+    "asserted_no_access_to_primary_labels": true,
+    "reviewed_case_ids": [
+      "explicit_correction_invalidates_false_diagnosis_001",
+      "explicit_correction_supersedes_overbroad_pattern_002"
+    ],
+    "answers": ["C", "B"],
+    "agreement_with_primary": true,
+    "conflicts": [],
+    "status": "completed_without_revision"
+  }
+}

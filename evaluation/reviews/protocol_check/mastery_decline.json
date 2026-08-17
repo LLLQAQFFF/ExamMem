@@ -1,0 +1,44 @@
+{
+  "protocol_version": "evaluation_protocol_v1",
+  "scenario_type": "mastery_decline",
+  "case_ids": [
+    "mastery_decline_single_concept_error_001",
+    "mastery_decline_sustained_concept_errors_002"
+  ],
+  "primary_label_source": "project_owner_multiple_choice_annotation",
+  "selected_options": {
+    "case_g_operation": "B_CONTESTED",
+    "case_g_action": "C_NO_ACTION",
+    "case_h_sequence": "A_CONTESTED_MERGE_SUPERSEDE",
+    "case_h_final_level": "B_IMPROVING",
+    "case_h_final_action": "A_RECOMMEND_REVIEW",
+    "contested_vs_supersede": "A_KEEP_STABLE_UNTIL_EVIDENCE_SUFFICIENT"
+  },
+  "ai_review": {
+    "status": "accepted_without_revision",
+    "reviewed_at": "2026-08-10",
+    "notes": [
+      "A single credible concept error is retained as contested evidence without changing the active high state.",
+      "Additional conflicting evidence merges into the contested branch until the decline threshold is met.",
+      "After three qualifying errors, SUPERSEDE resolves the contested branch and activates improving."
+    ]
+  },
+  "blind_self_review": {
+    "minimum_interval_days": 1,
+    "completed": false,
+    "status": "waived_independent_human_review_completed"
+  },
+  "independent_human_review": {
+    "reviewer_id": "independent_reviewer_001",
+    "reviewed_at": "2026-08-10",
+    "asserted_no_access_to_primary_labels": true,
+    "reviewed_case_ids": [
+      "mastery_decline_single_concept_error_001",
+      "mastery_decline_sustained_concept_errors_002"
+    ],
+    "answers": ["A", "C"],
+    "agreement_with_primary": true,
+    "conflicts": [],
+    "status": "completed_without_revision"
+  }
+}

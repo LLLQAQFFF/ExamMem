@@ -1,0 +1,114 @@
+{
+  "protocol_version": "evaluation_protocol_v1",
+  "case_id": "complementary_evidence_same_slot_001",
+  "scenario_type": "complementary_evidence",
+  "initial_memory": [
+    {
+      "memory_id": "error_conditional_probability_v1",
+      "scope": {
+        "user_id": "user_001",
+        "exam_id": "postgraduate_entrance_exam",
+        "subject_id": "math_1",
+        "memory_namespace": "error_pattern"
+      },
+      "slot_key": "error_pattern:math1.probability.conditional_probability:condition_omission",
+      "value": {
+        "type": "error_pattern",
+        "error_type": "condition_omission",
+        "summary": "条件概率计算时忽略条件事件",
+        "details": ["把 P(A|B) 直接当成 P(A)"]
+      },
+      "confidence": 0.74,
+      "evidence_count": 2,
+      "lifecycle_state": "active",
+      "version": 1,
+      "valid_from": "2026-08-02T08:00:00Z",
+      "valid_to": null,
+      "superseded_by": null,
+      "provenance": ["event_conditional_101", "event_conditional_102"]
+    }
+  ],
+  "events": [
+    {
+      "event_id": "event_conditional_103",
+      "idempotency_key": "conditional-error-103",
+      "context": {
+        "user_id": "user_001",
+        "exam_id": "postgraduate_entrance_exam",
+        "subject_id": "math_1"
+      },
+      "session_id": "session_005",
+      "question_id": "conditional_probability_103",
+      "knowledge_point_ids": ["math1.probability.conditional_probability"],
+      "difficulty": 0.65,
+      "answer_correct": false,
+      "error_type": "condition_omission",
+      "error_detail": "计算 P(A|B) 时仍使用整个样本空间作为分母，没有把样本空间限制到事件 B",
+      "occurred_at": "2026-08-07T10:00:00Z"
+    }
+  ],
+  "gold_operations": [
+    {
+      "operation_id": "step_001:error_pattern",
+      "step_id": "step_001",
+      "event_id": "event_conditional_103",
+      "extracted_fields": {
+        "knowledge_point_ids": ["math1.probability.conditional_probability"],
+        "answer_correct": false,
+        "error_type": "condition_omission",
+        "error_detail": "计算 P(A|B) 时仍使用整个样本空间作为分母，没有把样本空间限制到事件 B"
+      },
+      "canonical_knowledge_point_ids": ["math1.probability.conditional_probability"],
+      "slot_key": "error_pattern:math1.probability.conditional_probability:condition_omission",
+      "candidate_memory_ids": ["error_conditional_probability_v1"],
+      "operation": "MERGE",
+      "target_memory_ids": ["error_conditional_probability_v1"],
+      "result_memory_id": "error_conditional_probability_v2",
+      "reason_code": "same_slot_adds_complementary_canonical_detail",
+      "evidence_event_ids": ["event_conditional_103"]
+    }
+  ],
+  "gold_states": [
+    {
+      "step_id": "step_001",
+      "active_memory_ids": ["error_conditional_probability_v2"],
+      "archived_memory_ids": ["error_conditional_probability_v1"],
+      "invalidated_memory_ids": [],
+      "contested_memory_ids": [],
+      "version_relations": [
+        {
+          "predecessor_memory_id": "error_conditional_probability_v1",
+          "successor_memory_id": "error_conditional_probability_v2",
+          "relation": "superseded_by"
+        }
+      ]
+    }
+  ],
+  "queries": [
+    {
+      "query_id": "query_001",
+      "after_step_id": "step_001",
+      "scope": {
+        "user_id": "user_001",
+        "exam_id": "postgraduate_entrance_exam",
+        "subject_id": "math_1",
+        "memory_namespace": "error_pattern"
+      },
+      "text": "条件概率方面有哪些需要复习的错误模式？",
+      "top_k": 3
+    }
+  ],
+  "gold_actions": [
+    {
+      "step_id": "step_001",
+      "action_type": "recommend_review",
+      "knowledge_point_ids": ["math1.probability.conditional_probability"],
+      "reason_code": "review_both_manifestations_of_condition_omission"
+    }
+  ],
+  "metadata": {
+    "split": "protocol_check",
+    "seed": 20260806,
+    "gold_revision": 2
+  }
+}

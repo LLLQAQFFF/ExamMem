@@ -1,0 +1,36 @@
+{
+  "protocol_version": "evaluation_protocol_v1",
+  "scenario_type": "semantic_duplicate",
+  "case_ids": [
+    "semantic_duplicate_independent_evidence_001",
+    "semantic_duplicate_idempotent_replay_002"
+  ],
+  "primary_label_source": "project_owner_interactive_annotation",
+  "ai_review": {
+    "status": "accepted_after_consistency_revision",
+    "reviewed_at": "2026-08-10",
+    "notes": [
+      "Independent evidence with the same meaning is MERGE and creates an immutable successor version.",
+      "An exact idempotent replay is NO_OP and must not increase evidence_count or confidence.",
+      "Archived after MERGE means an old representation, not a false proposition."
+    ]
+  },
+  "blind_self_review": {
+    "minimum_interval_days": 1,
+    "completed": false,
+    "status": "waived_independent_human_review_completed"
+  },
+  "independent_human_review": {
+    "reviewer_id": "independent_reviewer_001",
+    "reviewed_at": "2026-08-10",
+    "asserted_no_access_to_primary_labels": true,
+    "reviewed_case_ids": [
+      "semantic_duplicate_independent_evidence_001",
+      "semantic_duplicate_idempotent_replay_002"
+    ],
+    "answers": ["C", "A"],
+    "agreement_with_primary": true,
+    "conflicts": [],
+    "status": "completed_without_revision"
+  }
+}

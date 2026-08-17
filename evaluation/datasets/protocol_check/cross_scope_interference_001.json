@@ -1,0 +1,153 @@
+{
+  "protocol_version": "evaluation_protocol_v1",
+  "case_id": "same_slot_across_users_updates_only_event_owner_001",
+  "scenario_type": "cross_scope_interference",
+  "initial_memory": [
+    {
+      "memory_id": "error_user_001_eigenvalue_concept_v1",
+      "scope": {
+        "user_id": "user_001",
+        "exam_id": "postgraduate_entrance_exam",
+        "subject_id": "math_1",
+        "memory_namespace": "error_pattern"
+      },
+      "slot_key": "error_pattern:math1.linear_algebra.eigenvalue:concept_confusion",
+      "value": {
+        "type": "error_pattern",
+        "error_type": "concept_confusion",
+        "summary": "混淆特征值与特征向量的对应关系",
+        "details": ["认为一个特征向量可以同时对应任意特征值"]
+      },
+      "confidence": 0.82,
+      "evidence_count": 3,
+      "lifecycle_state": "active",
+      "version": 1,
+      "valid_from": "2026-08-01T08:00:00Z",
+      "valid_to": null,
+      "superseded_by": null,
+      "provenance": [
+        "event_user_001_eigenvalue_098",
+        "event_user_001_eigenvalue_099",
+        "event_user_001_eigenvalue_100"
+      ]
+    },
+    {
+      "memory_id": "error_user_002_eigenvalue_concept_v1",
+      "scope": {
+        "user_id": "user_002",
+        "exam_id": "postgraduate_entrance_exam",
+        "subject_id": "math_1",
+        "memory_namespace": "error_pattern"
+      },
+      "slot_key": "error_pattern:math1.linear_algebra.eigenvalue:concept_confusion",
+      "value": {
+        "type": "error_pattern",
+        "error_type": "concept_confusion",
+        "summary": "混淆特征值与特征向量的对应关系",
+        "details": ["求得特征值后没有在对应方程中求特征向量"]
+      },
+      "confidence": 0.76,
+      "evidence_count": 2,
+      "lifecycle_state": "active",
+      "version": 1,
+      "valid_from": "2026-08-02T08:00:00Z",
+      "valid_to": null,
+      "superseded_by": null,
+      "provenance": [
+        "event_user_002_eigenvalue_099",
+        "event_user_002_eigenvalue_100"
+      ]
+    }
+  ],
+  "events": [
+    {
+      "event_id": "event_user_002_eigenvalue_101",
+      "idempotency_key": "user-002-eigenvalue-101",
+      "context": {
+        "user_id": "user_002",
+        "exam_id": "postgraduate_entrance_exam",
+        "subject_id": "math_1"
+      },
+      "session_id": "session_080",
+      "question_id": "eigenvalue_101",
+      "knowledge_point_ids": ["math1.linear_algebra.eigenvalue"],
+      "difficulty": 0.72,
+      "answer_correct": false,
+      "error_type": "concept_confusion",
+      "error_detail": "把属于不同特征值的特征向量当作同一个解空间",
+      "occurred_at": "2026-08-10T13:00:00Z"
+    }
+  ],
+  "gold_operations": [
+    {
+      "operation_id": "step_001:error_pattern",
+      "step_id": "step_001",
+      "event_id": "event_user_002_eigenvalue_101",
+      "extracted_fields": {
+        "knowledge_point_ids": ["math1.linear_algebra.eigenvalue"],
+        "answer_correct": false,
+        "error_type": "concept_confusion",
+        "error_detail": "把属于不同特征值的特征向量当作同一个解空间"
+      },
+      "canonical_knowledge_point_ids": ["math1.linear_algebra.eigenvalue"],
+      "slot_key": "error_pattern:math1.linear_algebra.eigenvalue:concept_confusion",
+      "candidate_memory_ids": ["error_user_002_eigenvalue_concept_v1"],
+      "operation": "MERGE",
+      "target_memory_ids": ["error_user_002_eigenvalue_concept_v1"],
+      "result_memory_id": "error_user_002_eigenvalue_concept_v2",
+      "reason_code": "exact_user_scope_selects_only_event_owner_memory",
+      "evidence_event_ids": ["event_user_002_eigenvalue_101"]
+    }
+  ],
+  "gold_states": [
+    {
+      "step_id": "step_001",
+      "active_memory_ids": [
+        "error_user_001_eigenvalue_concept_v1",
+        "error_user_002_eigenvalue_concept_v2"
+      ],
+      "archived_memory_ids": ["error_user_002_eigenvalue_concept_v1"],
+      "invalidated_memory_ids": [],
+      "contested_memory_ids": [],
+      "version_relations": [
+        {
+          "predecessor_memory_id": "error_user_002_eigenvalue_concept_v1",
+          "successor_memory_id": "error_user_002_eigenvalue_concept_v2",
+          "relation": "superseded_by"
+        }
+      ]
+    }
+  ],
+  "queries": [
+    {
+      "query_id": "query_001",
+      "after_step_id": "step_001",
+      "scope": {
+        "user_id": "user_002",
+        "exam_id": "postgraduate_entrance_exam",
+        "subject_id": "math_1",
+        "memory_namespace": "error_pattern"
+      },
+      "text": "用户 2 的特征值概念错误有哪些？",
+      "top_k": 3
+    }
+  ],
+  "gold_actions": [
+    {
+      "step_id": "step_001",
+      "action_type": "recommend_review",
+      "knowledge_point_ids": ["math1.linear_algebra.eigenvalue"],
+      "reason_code": "only_user_002_evidence_drives_user_002_review"
+    }
+  ],
+  "metadata": {
+    "split": "protocol_check",
+    "seed": 20260806,
+    "gold_revision": 2,
+    "policy_parameters": {
+      "exact_scope_filter_before_similarity": true,
+      "cross_user_candidate_count": 0,
+      "cohort_analytics_in_personal_candidate_pool": false
+    }
+  }
+}

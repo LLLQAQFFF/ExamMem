@@ -1,0 +1,42 @@
+{
+  "protocol_version": "evaluation_protocol_v1",
+  "scenario_type": "multi_value_error_pattern",
+  "case_ids": [
+    "seventh_distinct_error_detail_is_preserved_001",
+    "semantic_duplicate_detail_adds_evidence_not_value_002"
+  ],
+  "primary_label_source": "project_owner_multiple_choice_annotation",
+  "selected_options": {
+    "case_s_operation": "A_MERGE_AND_PRESERVE_ALL_SEVEN_DETAILS",
+    "case_t_operation": "A_MERGE_EVIDENCE_AND_DEDUPLICATE_VALUE",
+    "gold_content_contract": "A_OPTIONAL_TYPED_EXPECTED_RESULT_VALUE"
+  },
+  "design_constraint": "Keep schemas minimally sufficient and do not add fields that can be derived from existing data.",
+  "ai_review": {
+    "status": "accepted_without_revision",
+    "reviewed_at": "2026-08-10",
+    "notes": [
+      "Stored error details have no arbitrary business cap; prompt projection limits belong to the later read path.",
+      "Independent semantic duplicates create a new version and add provenance while the canonical detail list remains deduplicated.",
+      "expected_result_value is justified only where result content cannot otherwise be asserted; no redundant expected evidence-count field was added."
+    ]
+  },
+  "blind_self_review": {
+    "minimum_interval_days": 1,
+    "completed": false,
+    "status": "waived_independent_human_review_completed"
+  },
+  "independent_human_review": {
+    "reviewer_id": "independent_reviewer_001",
+    "reviewed_at": "2026-08-10",
+    "asserted_no_access_to_primary_labels": true,
+    "reviewed_case_ids": [
+      "seventh_distinct_error_detail_is_preserved_001",
+      "semantic_duplicate_detail_adds_evidence_not_value_002"
+    ],
+    "answers": ["C", "A"],
+    "agreement_with_primary": true,
+    "conflicts": [],
+    "status": "completed_without_revision"
+  }
+}

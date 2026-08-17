@@ -1,0 +1,264 @@
+{
+  "protocol_version": "evaluation_protocol_v1",
+  "case_id": "mastery_decline_sustained_concept_errors_002",
+  "scenario_type": "mastery_decline",
+  "initial_memory": [
+    {
+      "memory_id": "mastery_bayes_high_v1",
+      "scope": {
+        "user_id": "user_001",
+        "exam_id": "postgraduate_entrance_exam",
+        "subject_id": "math_1",
+        "memory_namespace": "mastery"
+      },
+      "slot_key": "mastery:math1.probability.bayes",
+      "value": {"type": "mastery", "level": "high", "score": 0.86},
+      "confidence": 0.9,
+      "evidence_count": 12,
+      "lifecycle_state": "active",
+      "version": 1,
+      "valid_from": "2026-08-01T08:30:00Z",
+      "valid_to": null,
+      "superseded_by": null,
+      "provenance": [
+        "event_bayes_289",
+        "event_bayes_290",
+        "event_bayes_291",
+        "event_bayes_292",
+        "event_bayes_293",
+        "event_bayes_294",
+        "event_bayes_295",
+        "event_bayes_296",
+        "event_bayes_297",
+        "event_bayes_298",
+        "event_bayes_299",
+        "event_bayes_300"
+      ]
+    }
+  ],
+  "events": [
+    {
+      "event_id": "event_bayes_301",
+      "idempotency_key": "bayes-concept-error-301",
+      "context": {
+        "user_id": "user_001",
+        "exam_id": "postgraduate_entrance_exam",
+        "subject_id": "math_1"
+      },
+      "session_id": "session_020",
+      "question_id": "bayes_formula_301",
+      "knowledge_point_ids": ["math1.probability.bayes"],
+      "difficulty": 0.68,
+      "answer_correct": false,
+      "error_type": "concept_confusion",
+      "error_detail": "混淆先验概率与后验概率",
+      "occurred_at": "2026-08-08T11:00:00Z"
+    },
+    {
+      "event_id": "event_bayes_302",
+      "idempotency_key": "bayes-concept-error-302",
+      "context": {
+        "user_id": "user_001",
+        "exam_id": "postgraduate_entrance_exam",
+        "subject_id": "math_1"
+      },
+      "session_id": "session_021",
+      "question_id": "bayes_formula_302",
+      "knowledge_point_ids": ["math1.probability.bayes"],
+      "difficulty": 0.72,
+      "answer_correct": false,
+      "error_type": "concept_confusion",
+      "error_detail": "无法区分 P(A|B) 与 P(B|A)",
+      "occurred_at": "2026-08-09T11:00:00Z"
+    },
+    {
+      "event_id": "event_bayes_303",
+      "idempotency_key": "bayes-concept-error-303",
+      "context": {
+        "user_id": "user_001",
+        "exam_id": "postgraduate_entrance_exam",
+        "subject_id": "math_1"
+      },
+      "session_id": "session_021",
+      "question_id": "bayes_formula_303",
+      "knowledge_point_ids": ["math1.probability.bayes"],
+      "difficulty": 0.76,
+      "answer_correct": false,
+      "error_type": "concept_confusion",
+      "error_detail": "把后验概率误写为先验概率与证据概率的乘积",
+      "occurred_at": "2026-08-09T11:30:00Z"
+    }
+  ],
+  "gold_operations": [
+    {
+      "operation_id": "step_001:mastery",
+      "step_id": "step_001",
+      "event_id": "event_bayes_301",
+      "extracted_fields": {
+        "knowledge_point_ids": ["math1.probability.bayes"],
+        "answer_correct": false,
+        "error_type": "concept_confusion",
+        "error_detail": "混淆先验概率与后验概率"
+      },
+      "canonical_knowledge_point_ids": ["math1.probability.bayes"],
+      "slot_key": "mastery:math1.probability.bayes",
+      "candidate_memory_ids": ["mastery_bayes_high_v1"],
+      "operation": "CONTESTED",
+      "target_memory_ids": ["mastery_bayes_high_v1"],
+      "result_memory_id": "mastery_bayes_decline_contested_v2",
+      "reason_code": "first_qualifying_error_creates_contested_decline_evidence",
+      "evidence_event_ids": ["event_bayes_301"]
+    },
+    {
+      "operation_id": "step_002:mastery",
+      "step_id": "step_002",
+      "event_id": "event_bayes_302",
+      "extracted_fields": {
+        "knowledge_point_ids": ["math1.probability.bayes"],
+        "answer_correct": false,
+        "error_type": "concept_confusion",
+        "error_detail": "无法区分 P(A|B) 与 P(B|A)"
+      },
+      "canonical_knowledge_point_ids": ["math1.probability.bayes"],
+      "slot_key": "mastery:math1.probability.bayes",
+      "candidate_memory_ids": [
+        "mastery_bayes_high_v1",
+        "mastery_bayes_decline_contested_v2"
+      ],
+      "operation": "MERGE",
+      "target_memory_ids": ["mastery_bayes_decline_contested_v2"],
+      "result_memory_id": "mastery_bayes_decline_contested_v3",
+      "reason_code": "second_qualifying_error_merges_contested_evidence",
+      "evidence_event_ids": ["event_bayes_302"]
+    },
+    {
+      "operation_id": "step_003:mastery",
+      "step_id": "step_003",
+      "event_id": "event_bayes_303",
+      "extracted_fields": {
+        "knowledge_point_ids": ["math1.probability.bayes"],
+        "answer_correct": false,
+        "error_type": "concept_confusion",
+        "error_detail": "把后验概率误写为先验概率与证据概率的乘积"
+      },
+      "canonical_knowledge_point_ids": ["math1.probability.bayes"],
+      "slot_key": "mastery:math1.probability.bayes",
+      "candidate_memory_ids": [
+        "mastery_bayes_high_v1",
+        "mastery_bayes_decline_contested_v3"
+      ],
+      "operation": "SUPERSEDE",
+      "target_memory_ids": [
+        "mastery_bayes_high_v1",
+        "mastery_bayes_decline_contested_v3"
+      ],
+      "result_memory_id": "mastery_bayes_improving_v4",
+      "reason_code": "three_cross_session_concept_errors_downgrade_to_improving",
+      "evidence_event_ids": [
+        "event_bayes_301",
+        "event_bayes_302",
+        "event_bayes_303"
+      ]
+    }
+  ],
+  "gold_states": [
+    {
+      "step_id": "step_001",
+      "active_memory_ids": ["mastery_bayes_high_v1"],
+      "archived_memory_ids": [],
+      "invalidated_memory_ids": [],
+      "contested_memory_ids": ["mastery_bayes_decline_contested_v2"],
+      "version_relations": []
+    },
+    {
+      "step_id": "step_002",
+      "active_memory_ids": ["mastery_bayes_high_v1"],
+      "archived_memory_ids": ["mastery_bayes_decline_contested_v2"],
+      "invalidated_memory_ids": [],
+      "contested_memory_ids": ["mastery_bayes_decline_contested_v3"],
+      "version_relations": [
+        {
+          "predecessor_memory_id": "mastery_bayes_decline_contested_v2",
+          "successor_memory_id": "mastery_bayes_decline_contested_v3",
+          "relation": "superseded_by"
+        }
+      ]
+    },
+    {
+      "step_id": "step_003",
+      "active_memory_ids": ["mastery_bayes_improving_v4"],
+      "archived_memory_ids": [
+        "mastery_bayes_high_v1",
+        "mastery_bayes_decline_contested_v2",
+        "mastery_bayes_decline_contested_v3"
+      ],
+      "invalidated_memory_ids": [],
+      "contested_memory_ids": [],
+      "version_relations": [
+        {
+          "predecessor_memory_id": "mastery_bayes_decline_contested_v2",
+          "successor_memory_id": "mastery_bayes_decline_contested_v3",
+          "relation": "superseded_by"
+        },
+        {
+          "predecessor_memory_id": "mastery_bayes_high_v1",
+          "successor_memory_id": "mastery_bayes_improving_v4",
+          "relation": "superseded_by"
+        },
+        {
+          "predecessor_memory_id": "mastery_bayes_decline_contested_v3",
+          "successor_memory_id": "mastery_bayes_improving_v4",
+          "relation": "superseded_by"
+        }
+      ]
+    }
+  ],
+  "queries": [
+    {
+      "query_id": "query_001",
+      "after_step_id": "step_003",
+      "scope": {
+        "user_id": "user_001",
+        "exam_id": "postgraduate_entrance_exam",
+        "subject_id": "math_1",
+        "memory_namespace": "mastery"
+      },
+      "text": "贝叶斯公式是否需要重新进入重点复习列表？",
+      "top_k": 3
+    }
+  ],
+  "gold_actions": [
+    {
+      "step_id": "step_001",
+      "action_type": "no_action",
+      "knowledge_point_ids": ["math1.probability.bayes"],
+      "reason_code": "first_contested_error_does_not_change_teaching_action"
+    },
+    {
+      "step_id": "step_002",
+      "action_type": "no_action",
+      "knowledge_point_ids": ["math1.probability.bayes"],
+      "reason_code": "second_contested_error_still_below_decline_threshold"
+    },
+    {
+      "step_id": "step_003",
+      "action_type": "recommend_review",
+      "knowledge_point_ids": ["math1.probability.bayes"],
+      "reason_code": "sustained_concept_errors_reduce_mastery_to_improving"
+    }
+  ],
+  "metadata": {
+    "split": "protocol_check",
+    "seed": 20260806,
+    "gold_revision": 2,
+    "policy_parameters": {
+      "decline_from": "high",
+      "decline_to": "improving",
+      "minimum_consecutive_incorrect": 3,
+      "minimum_difficulty": 0.65,
+      "minimum_distinct_questions": 3,
+      "minimum_distinct_sessions": 2,
+      "qualifying_error_types": ["concept_confusion"]
+    }
+  }
+}

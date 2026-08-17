@@ -1,0 +1,121 @@
+{
+  "protocol_version": "evaluation_protocol_v1",
+  "case_id": "mastery_decline_single_concept_error_001",
+  "scenario_type": "mastery_decline",
+  "initial_memory": [
+    {
+      "memory_id": "mastery_eigenvector_high_v1",
+      "scope": {
+        "user_id": "user_001",
+        "exam_id": "postgraduate_entrance_exam",
+        "subject_id": "math_1",
+        "memory_namespace": "mastery"
+      },
+      "slot_key": "mastery:math1.linear_algebra.eigenvector",
+      "value": {"type": "mastery", "level": "high", "score": 0.84},
+      "confidence": 0.88,
+      "evidence_count": 10,
+      "lifecycle_state": "active",
+      "version": 1,
+      "valid_from": "2026-08-01T08:00:00Z",
+      "valid_to": null,
+      "superseded_by": null,
+      "provenance": [
+        "event_eigenvector_091",
+        "event_eigenvector_092",
+        "event_eigenvector_093",
+        "event_eigenvector_094",
+        "event_eigenvector_095",
+        "event_eigenvector_096",
+        "event_eigenvector_097",
+        "event_eigenvector_098",
+        "event_eigenvector_099",
+        "event_eigenvector_100"
+      ]
+    }
+  ],
+  "events": [
+    {
+      "event_id": "event_eigenvector_101",
+      "idempotency_key": "eigenvector-concept-error-101",
+      "context": {
+        "user_id": "user_001",
+        "exam_id": "postgraduate_entrance_exam",
+        "subject_id": "math_1"
+      },
+      "session_id": "session_019",
+      "question_id": "eigenvector_101",
+      "knowledge_point_ids": ["math1.linear_algebra.eigenvector"],
+      "difficulty": 0.72,
+      "answer_correct": false,
+      "error_type": "concept_confusion",
+      "error_detail": "认为属于不同特征值的特征向量可以线性相关",
+      "occurred_at": "2026-08-08T10:00:00Z"
+    }
+  ],
+  "gold_operations": [
+    {
+      "operation_id": "step_001:mastery",
+      "step_id": "step_001",
+      "event_id": "event_eigenvector_101",
+      "extracted_fields": {
+        "knowledge_point_ids": ["math1.linear_algebra.eigenvector"],
+        "answer_correct": false,
+        "error_type": "concept_confusion",
+        "error_detail": "认为属于不同特征值的特征向量可以线性相关"
+      },
+      "canonical_knowledge_point_ids": ["math1.linear_algebra.eigenvector"],
+      "slot_key": "mastery:math1.linear_algebra.eigenvector",
+      "candidate_memory_ids": ["mastery_eigenvector_high_v1"],
+      "operation": "CONTESTED",
+      "target_memory_ids": ["mastery_eigenvector_high_v1"],
+      "result_memory_id": "mastery_eigenvector_decline_contested_v2",
+      "reason_code": "single_concept_error_contests_but_does_not_downgrade_high",
+      "evidence_event_ids": ["event_eigenvector_101"]
+    }
+  ],
+  "gold_states": [
+    {
+      "step_id": "step_001",
+      "active_memory_ids": ["mastery_eigenvector_high_v1"],
+      "archived_memory_ids": [],
+      "invalidated_memory_ids": [],
+      "contested_memory_ids": ["mastery_eigenvector_decline_contested_v2"],
+      "version_relations": []
+    }
+  ],
+  "queries": [
+    {
+      "query_id": "query_001",
+      "after_step_id": "step_001",
+      "scope": {
+        "user_id": "user_001",
+        "exam_id": "postgraduate_entrance_exam",
+        "subject_id": "math_1",
+        "memory_namespace": "mastery"
+      },
+      "text": "一次概念错误后是否应立即降低特征向量掌握等级？",
+      "top_k": 3
+    }
+  ],
+  "gold_actions": [
+    {
+      "step_id": "step_001",
+      "action_type": "no_action",
+      "knowledge_point_ids": ["math1.linear_algebra.eigenvector"],
+      "reason_code": "single_contested_error_does_not_change_teaching_action"
+    }
+  ],
+  "metadata": {
+    "split": "protocol_check",
+    "seed": 20260806,
+    "gold_revision": 2,
+    "policy_parameters": {
+      "minimum_consecutive_incorrect": 3,
+      "minimum_difficulty": 0.65,
+      "minimum_distinct_questions": 3,
+      "minimum_distinct_sessions": 2,
+      "qualifying_error_types": ["concept_confusion"]
+    }
+  }
+}

@@ -1,0 +1,252 @@
+{
+  "protocol_version": "evaluation_protocol_v1",
+  "case_id": "old_low_mastery_is_replaced_by_recent_cross_session_success_001",
+  "scenario_type": "long_range_change",
+  "initial_memory": [
+    {
+      "memory_id": "mastery_quadratic_form_low_v1",
+      "scope": {
+        "user_id": "user_001",
+        "exam_id": "postgraduate_entrance_exam",
+        "subject_id": "math_1",
+        "memory_namespace": "mastery"
+      },
+      "slot_key": "mastery:math1.linear_algebra.quadratic_form",
+      "value": {"type": "mastery", "level": "low", "score": 0.34},
+      "confidence": 0.82,
+      "evidence_count": 5,
+      "lifecycle_state": "active",
+      "version": 1,
+      "valid_from": "2026-06-20T08:00:00Z",
+      "valid_to": null,
+      "superseded_by": null,
+      "provenance": [
+        "event_quadratic_form_096",
+        "event_quadratic_form_097",
+        "event_quadratic_form_098",
+        "event_quadratic_form_099",
+        "event_quadratic_form_100"
+      ]
+    }
+  ],
+  "events": [
+    {
+      "event_id": "event_quadratic_form_101",
+      "idempotency_key": "quadratic-form-correct-101",
+      "context": {
+        "user_id": "user_001",
+        "exam_id": "postgraduate_entrance_exam",
+        "subject_id": "math_1"
+      },
+      "session_id": "session_090",
+      "question_id": "quadratic_form_101",
+      "knowledge_point_ids": ["math1.linear_algebra.quadratic_form"],
+      "difficulty": 0.68,
+      "answer_correct": true,
+      "occurred_at": "2026-08-08T09:00:00Z"
+    },
+    {
+      "event_id": "event_quadratic_form_102",
+      "idempotency_key": "quadratic-form-correct-102",
+      "context": {
+        "user_id": "user_001",
+        "exam_id": "postgraduate_entrance_exam",
+        "subject_id": "math_1"
+      },
+      "session_id": "session_091",
+      "question_id": "quadratic_form_102",
+      "knowledge_point_ids": ["math1.linear_algebra.quadratic_form"],
+      "difficulty": 0.72,
+      "answer_correct": true,
+      "occurred_at": "2026-08-09T09:00:00Z"
+    },
+    {
+      "event_id": "event_quadratic_form_103",
+      "idempotency_key": "quadratic-form-correct-103",
+      "context": {
+        "user_id": "user_001",
+        "exam_id": "postgraduate_entrance_exam",
+        "subject_id": "math_1"
+      },
+      "session_id": "session_091",
+      "question_id": "quadratic_form_103",
+      "knowledge_point_ids": ["math1.linear_algebra.quadratic_form"],
+      "difficulty": 0.76,
+      "answer_correct": true,
+      "occurred_at": "2026-08-09T09:30:00Z"
+    }
+  ],
+  "gold_operations": [
+    {
+      "operation_id": "step_001:mastery",
+      "step_id": "step_001",
+      "event_id": "event_quadratic_form_101",
+      "extracted_fields": {
+        "knowledge_point_ids": ["math1.linear_algebra.quadratic_form"],
+        "answer_correct": true
+      },
+      "canonical_knowledge_point_ids": ["math1.linear_algebra.quadratic_form"],
+      "slot_key": "mastery:math1.linear_algebra.quadratic_form",
+      "candidate_memory_ids": ["mastery_quadratic_form_low_v1"],
+      "operation": "MERGE",
+      "target_memory_ids": ["mastery_quadratic_form_low_v1"],
+      "result_memory_id": "mastery_quadratic_form_low_v2",
+      "reason_code": "first_recent_success_extends_existing_version_chain",
+      "evidence_event_ids": ["event_quadratic_form_101"]
+    },
+    {
+      "operation_id": "step_002:mastery",
+      "step_id": "step_002",
+      "event_id": "event_quadratic_form_102",
+      "extracted_fields": {
+        "knowledge_point_ids": ["math1.linear_algebra.quadratic_form"],
+        "answer_correct": true
+      },
+      "canonical_knowledge_point_ids": ["math1.linear_algebra.quadratic_form"],
+      "slot_key": "mastery:math1.linear_algebra.quadratic_form",
+      "candidate_memory_ids": ["mastery_quadratic_form_low_v2"],
+      "operation": "MERGE",
+      "target_memory_ids": ["mastery_quadratic_form_low_v2"],
+      "result_memory_id": "mastery_quadratic_form_low_v3",
+      "reason_code": "second_cross_session_success_remains_below_promotion_threshold",
+      "evidence_event_ids": ["event_quadratic_form_102"]
+    },
+    {
+      "operation_id": "step_003:mastery",
+      "step_id": "step_003",
+      "event_id": "event_quadratic_form_103",
+      "extracted_fields": {
+        "knowledge_point_ids": ["math1.linear_algebra.quadratic_form"],
+        "answer_correct": true
+      },
+      "canonical_knowledge_point_ids": ["math1.linear_algebra.quadratic_form"],
+      "slot_key": "mastery:math1.linear_algebra.quadratic_form",
+      "candidate_memory_ids": ["mastery_quadratic_form_low_v3"],
+      "operation": "SUPERSEDE",
+      "target_memory_ids": ["mastery_quadratic_form_low_v3"],
+      "result_memory_id": "mastery_quadratic_form_high_v4",
+      "expected_result_value": {
+        "type": "mastery",
+        "level": "high",
+        "score": 0.82
+      },
+      "reason_code": "three_recent_cross_session_successes_replace_old_low_state",
+      "evidence_event_ids": [
+        "event_quadratic_form_101",
+        "event_quadratic_form_102",
+        "event_quadratic_form_103"
+      ]
+    }
+  ],
+  "gold_states": [
+    {
+      "step_id": "step_001",
+      "active_memory_ids": ["mastery_quadratic_form_low_v2"],
+      "archived_memory_ids": ["mastery_quadratic_form_low_v1"],
+      "invalidated_memory_ids": [],
+      "contested_memory_ids": [],
+      "version_relations": [
+        {
+          "predecessor_memory_id": "mastery_quadratic_form_low_v1",
+          "successor_memory_id": "mastery_quadratic_form_low_v2",
+          "relation": "superseded_by"
+        }
+      ]
+    },
+    {
+      "step_id": "step_002",
+      "active_memory_ids": ["mastery_quadratic_form_low_v3"],
+      "archived_memory_ids": [
+        "mastery_quadratic_form_low_v1",
+        "mastery_quadratic_form_low_v2"
+      ],
+      "invalidated_memory_ids": [],
+      "contested_memory_ids": [],
+      "version_relations": [
+        {
+          "predecessor_memory_id": "mastery_quadratic_form_low_v1",
+          "successor_memory_id": "mastery_quadratic_form_low_v2",
+          "relation": "superseded_by"
+        },
+        {
+          "predecessor_memory_id": "mastery_quadratic_form_low_v2",
+          "successor_memory_id": "mastery_quadratic_form_low_v3",
+          "relation": "superseded_by"
+        }
+      ]
+    },
+    {
+      "step_id": "step_003",
+      "active_memory_ids": ["mastery_quadratic_form_high_v4"],
+      "archived_memory_ids": [
+        "mastery_quadratic_form_low_v1",
+        "mastery_quadratic_form_low_v2",
+        "mastery_quadratic_form_low_v3"
+      ],
+      "invalidated_memory_ids": [],
+      "contested_memory_ids": [],
+      "version_relations": [
+        {
+          "predecessor_memory_id": "mastery_quadratic_form_low_v1",
+          "successor_memory_id": "mastery_quadratic_form_low_v2",
+          "relation": "superseded_by"
+        },
+        {
+          "predecessor_memory_id": "mastery_quadratic_form_low_v2",
+          "successor_memory_id": "mastery_quadratic_form_low_v3",
+          "relation": "superseded_by"
+        },
+        {
+          "predecessor_memory_id": "mastery_quadratic_form_low_v3",
+          "successor_memory_id": "mastery_quadratic_form_high_v4",
+          "relation": "superseded_by"
+        }
+      ]
+    }
+  ],
+  "queries": [
+    {
+      "query_id": "query_001",
+      "after_step_id": "step_003",
+      "scope": {
+        "user_id": "user_001",
+        "exam_id": "postgraduate_entrance_exam",
+        "subject_id": "math_1",
+        "memory_namespace": "mastery"
+      },
+      "text": "二次型是否仍应按历史 low 状态过度复习？",
+      "top_k": 3
+    }
+  ],
+  "gold_actions": [
+    {
+      "step_id": "step_001",
+      "action_type": "recommend_review",
+      "knowledge_point_ids": ["math1.linear_algebra.quadratic_form"],
+      "reason_code": "first_recent_success_is_not_sufficient_for_promotion"
+    },
+    {
+      "step_id": "step_002",
+      "action_type": "recommend_review",
+      "knowledge_point_ids": ["math1.linear_algebra.quadratic_form"],
+      "reason_code": "second_recent_success_is_not_sufficient_for_promotion"
+    },
+    {
+      "step_id": "step_003",
+      "action_type": "avoid_over_review",
+      "knowledge_point_ids": ["math1.linear_algebra.quadratic_form"],
+      "reason_code": "recent_sustained_success_replaces_stale_low_state"
+    }
+  ],
+  "metadata": {
+    "split": "protocol_check",
+    "seed": 20260806,
+    "gold_revision": 2,
+    "policy_parameters": {
+      "inactivity_days_before_new_evidence": 49,
+      "minimum_consecutive_correct": 3,
+      "minimum_distinct_sessions": 2,
+      "long_gap_starts_new_version_chain": false
+    }
+  }
+}

@@ -1,0 +1,148 @@
+{
+  "protocol_version": "evaluation_protocol_v1",
+  "case_id": "single_error_after_long_gap_does_not_reactivate_archived_low_002",
+  "scenario_type": "long_range_change",
+  "initial_memory": [
+    {
+      "memory_id": "mastery_bayes_low_v1",
+      "scope": {
+        "user_id": "user_001",
+        "exam_id": "postgraduate_entrance_exam",
+        "subject_id": "math_1",
+        "memory_namespace": "mastery"
+      },
+      "slot_key": "mastery:math1.probability.bayes",
+      "value": {"type": "mastery", "level": "low", "score": 0.36},
+      "confidence": 0.8,
+      "evidence_count": 4,
+      "lifecycle_state": "archived",
+      "version": 1,
+      "valid_from": "2026-06-01T08:00:00Z",
+      "valid_to": "2026-07-10T08:00:00Z",
+      "superseded_by": "mastery_bayes_high_v2",
+      "provenance": [
+        "event_bayes_091",
+        "event_bayes_092",
+        "event_bayes_093",
+        "event_bayes_094"
+      ]
+    },
+    {
+      "memory_id": "mastery_bayes_high_v2",
+      "scope": {
+        "user_id": "user_001",
+        "exam_id": "postgraduate_entrance_exam",
+        "subject_id": "math_1",
+        "memory_namespace": "mastery"
+      },
+      "slot_key": "mastery:math1.probability.bayes",
+      "value": {"type": "mastery", "level": "high", "score": 0.84},
+      "confidence": 0.88,
+      "evidence_count": 8,
+      "lifecycle_state": "active",
+      "version": 2,
+      "valid_from": "2026-07-10T08:00:00Z",
+      "valid_to": null,
+      "superseded_by": null,
+      "provenance": [
+        "event_bayes_091",
+        "event_bayes_092",
+        "event_bayes_093",
+        "event_bayes_094",
+        "event_bayes_095",
+        "event_bayes_096",
+        "event_bayes_097",
+        "event_bayes_098"
+      ]
+    }
+  ],
+  "events": [
+    {
+      "event_id": "event_bayes_101",
+      "idempotency_key": "bayes-long-gap-error-101",
+      "context": {
+        "user_id": "user_001",
+        "exam_id": "postgraduate_entrance_exam",
+        "subject_id": "math_1"
+      },
+      "session_id": "session_092",
+      "question_id": "bayes_formula_101",
+      "knowledge_point_ids": ["math1.probability.bayes"],
+      "difficulty": 0.73,
+      "answer_correct": false,
+      "error_type": "concept_confusion",
+      "error_detail": "把后验概率 P(A|B) 与似然 P(B|A) 的方向混淆",
+      "occurred_at": "2026-08-10T14:00:00Z"
+    }
+  ],
+  "gold_operations": [
+    {
+      "operation_id": "step_001:mastery",
+      "step_id": "step_001",
+      "event_id": "event_bayes_101",
+      "extracted_fields": {
+        "knowledge_point_ids": ["math1.probability.bayes"],
+        "answer_correct": false,
+        "error_type": "concept_confusion",
+        "error_detail": "把后验概率 P(A|B) 与似然 P(B|A) 的方向混淆"
+      },
+      "canonical_knowledge_point_ids": ["math1.probability.bayes"],
+      "slot_key": "mastery:math1.probability.bayes",
+      "candidate_memory_ids": ["mastery_bayes_high_v2"],
+      "operation": "CONTESTED",
+      "target_memory_ids": ["mastery_bayes_high_v2"],
+      "result_memory_id": "mastery_bayes_decline_contested_v3",
+      "reason_code": "single_concept_error_after_long_gap_contests_current_high_without_reactivating_old_low",
+      "evidence_event_ids": ["event_bayes_101"]
+    }
+  ],
+  "gold_states": [
+    {
+      "step_id": "step_001",
+      "active_memory_ids": ["mastery_bayes_high_v2"],
+      "archived_memory_ids": ["mastery_bayes_low_v1"],
+      "invalidated_memory_ids": [],
+      "contested_memory_ids": ["mastery_bayes_decline_contested_v3"],
+      "version_relations": [
+        {
+          "predecessor_memory_id": "mastery_bayes_low_v1",
+          "successor_memory_id": "mastery_bayes_high_v2",
+          "relation": "superseded_by"
+        }
+      ]
+    }
+  ],
+  "queries": [
+    {
+      "query_id": "query_001",
+      "after_step_id": "step_001",
+      "scope": {
+        "user_id": "user_001",
+        "exam_id": "postgraduate_entrance_exam",
+        "subject_id": "math_1",
+        "memory_namespace": "mastery"
+      },
+      "text": "长时间未练习后的一次概念错误是否会重新激活历史 low？",
+      "top_k": 3
+    }
+  ],
+  "gold_actions": [
+    {
+      "step_id": "step_001",
+      "action_type": "recommend_review",
+      "knowledge_point_ids": ["math1.probability.bayes"],
+      "reason_code": "long_gap_and_concept_error_raise_forgetting_risk_without_immediate_mastery_downgrade"
+    }
+  ],
+  "metadata": {
+    "split": "protocol_check",
+    "seed": 20260806,
+    "gold_revision": 2,
+    "policy_parameters": {
+      "inactivity_days": 31,
+      "time_alone_changes_mastery": false,
+      "archived_memory_can_reactivate": false,
+      "long_gap_concept_error_triggers_diagnostic_review": true
+    }
+  }
+}

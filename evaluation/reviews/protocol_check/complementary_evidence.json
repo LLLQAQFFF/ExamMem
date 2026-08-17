@@ -1,0 +1,36 @@
+{
+  "protocol_version": "evaluation_protocol_v1",
+  "scenario_type": "complementary_evidence",
+  "case_ids": [
+    "complementary_evidence_same_slot_001",
+    "complementary_evidence_different_slot_002"
+  ],
+  "primary_label_source": "project_owner_interactive_annotation",
+  "ai_review": {
+    "status": "accepted_after_state_completion",
+    "reviewed_at": "2026-08-10",
+    "notes": [
+      "Same-scope and same-slot complementary detail is MERGE, preserving prior details in an immutable successor.",
+      "Same knowledge point with a different error slot is ADD; both memories remain active.",
+      "All valid details remain stored; any prompt-size limit belongs to read-time projection rather than write-time validation."
+    ]
+  },
+  "blind_self_review": {
+    "minimum_interval_days": 1,
+    "completed": false,
+    "status": "waived_independent_human_review_completed"
+  },
+  "independent_human_review": {
+    "reviewer_id": "independent_reviewer_001",
+    "reviewed_at": "2026-08-10",
+    "asserted_no_access_to_primary_labels": true,
+    "reviewed_case_ids": [
+      "complementary_evidence_same_slot_001",
+      "complementary_evidence_different_slot_002"
+    ],
+    "answers": ["B", "A"],
+    "agreement_with_primary": true,
+    "conflicts": [],
+    "status": "completed_without_revision"
+  }
+}

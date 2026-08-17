@@ -1,0 +1,129 @@
+{
+  "protocol_version": "evaluation_protocol_v1",
+  "case_id": "semantic_duplicate_detail_adds_evidence_not_value_002",
+  "scenario_type": "multi_value_error_pattern",
+  "initial_memory": [
+    {
+      "memory_id": "error_total_probability_missing_branch_v1",
+      "scope": {
+        "user_id": "user_001",
+        "exam_id": "postgraduate_entrance_exam",
+        "subject_id": "math_1",
+        "memory_namespace": "error_pattern"
+      },
+      "slot_key": "error_pattern:math1.probability.total_probability:condition_omission",
+      "value": {
+        "type": "error_pattern",
+        "error_type": "condition_omission",
+        "summary": "使用全概率公式时遗漏分类分支",
+        "details": ["计算全概率时遗漏一个互斥事件分支"]
+      },
+      "confidence": 0.78,
+      "evidence_count": 3,
+      "lifecycle_state": "active",
+      "version": 1,
+      "valid_from": "2026-08-03T08:00:00Z",
+      "valid_to": null,
+      "superseded_by": null,
+      "provenance": [
+        "event_missing_branch_098",
+        "event_missing_branch_099",
+        "event_missing_branch_100"
+      ]
+    }
+  ],
+  "events": [
+    {
+      "event_id": "event_missing_branch_101",
+      "idempotency_key": "missing-branch-paraphrase-101",
+      "context": {
+        "user_id": "user_001",
+        "exam_id": "postgraduate_entrance_exam",
+        "subject_id": "math_1"
+      },
+      "session_id": "session_071",
+      "question_id": "total_probability_102",
+      "knowledge_point_ids": ["math1.probability.total_probability"],
+      "difficulty": 0.68,
+      "answer_correct": false,
+      "error_type": "condition_omission",
+      "error_detail": "使用全概率公式时少算了一个分类分支",
+      "occurred_at": "2026-08-10T12:30:00Z"
+    }
+  ],
+  "gold_operations": [
+    {
+      "operation_id": "step_001:error_pattern",
+      "step_id": "step_001",
+      "event_id": "event_missing_branch_101",
+      "extracted_fields": {
+        "knowledge_point_ids": ["math1.probability.total_probability"],
+        "answer_correct": false,
+        "error_type": "condition_omission",
+        "error_detail": "使用全概率公式时少算了一个分类分支"
+      },
+      "canonical_knowledge_point_ids": ["math1.probability.total_probability"],
+      "slot_key": "error_pattern:math1.probability.total_probability:condition_omission",
+      "candidate_memory_ids": ["error_total_probability_missing_branch_v1"],
+      "operation": "MERGE",
+      "target_memory_ids": ["error_total_probability_missing_branch_v1"],
+      "result_memory_id": "error_total_probability_missing_branch_v2",
+      "expected_result_value": {
+        "type": "error_pattern",
+        "error_type": "condition_omission",
+        "summary": "使用全概率公式时遗漏分类分支",
+        "details": ["计算全概率时遗漏一个互斥事件分支"]
+      },
+      "reason_code": "independent_semantic_duplicate_adds_evidence_without_duplicate_detail",
+      "evidence_event_ids": ["event_missing_branch_101"]
+    }
+  ],
+  "gold_states": [
+    {
+      "step_id": "step_001",
+      "active_memory_ids": ["error_total_probability_missing_branch_v2"],
+      "archived_memory_ids": ["error_total_probability_missing_branch_v1"],
+      "invalidated_memory_ids": [],
+      "contested_memory_ids": [],
+      "version_relations": [
+        {
+          "predecessor_memory_id": "error_total_probability_missing_branch_v1",
+          "successor_memory_id": "error_total_probability_missing_branch_v2",
+          "relation": "superseded_by"
+        }
+      ]
+    }
+  ],
+  "queries": [
+    {
+      "query_id": "query_001",
+      "after_step_id": "step_001",
+      "scope": {
+        "user_id": "user_001",
+        "exam_id": "postgraduate_entrance_exam",
+        "subject_id": "math_1",
+        "memory_namespace": "error_pattern"
+      },
+      "text": "同义错误描述是否被去重但仍作为独立证据？",
+      "top_k": 3
+    }
+  ],
+  "gold_actions": [
+    {
+      "step_id": "step_001",
+      "action_type": "recommend_review",
+      "knowledge_point_ids": ["math1.probability.total_probability"],
+      "reason_code": "repeated_independent_missing_branch_evidence_strengthens_review_need"
+    }
+  ],
+  "metadata": {
+    "split": "protocol_check",
+    "seed": 20260806,
+    "gold_revision": 2,
+    "policy_parameters": {
+      "semantic_detail_deduplication": true,
+      "independent_duplicate_event_adds_evidence": true,
+      "stored_error_detail_limit": null
+    }
+  }
+}

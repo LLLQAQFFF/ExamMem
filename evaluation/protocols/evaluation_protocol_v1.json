@@ -1,0 +1,88 @@
+{
+  "protocol_version": "evaluation_protocol_v1",
+  "seed": 20260806,
+  "subject_areas": ["linear_algebra", "probability_theory"],
+  "backend_modes": ["none", "native", "append_only", "vector", "lifecycle"],
+  "dataset_splits": [
+    {"split": "protocol_check", "case_count": 24, "contributes_to_formal_score": false, "frozen": false},
+    {"split": "dev", "case_count": 40, "contributes_to_formal_score": true, "frozen": false},
+    {"split": "test", "case_count": 80, "contributes_to_formal_score": true, "frozen": true}
+  ],
+  "scenario_quotas": [
+    {"scenario_type": "semantic_duplicate", "protocol_check_count": 2},
+    {"scenario_type": "complementary_evidence", "protocol_check_count": 2},
+    {"scenario_type": "mastery_improvement", "protocol_check_count": 2},
+    {"scenario_type": "mastery_decline", "protocol_check_count": 2},
+    {"scenario_type": "accidental_error", "protocol_check_count": 2},
+    {"scenario_type": "stable_weakness", "protocol_check_count": 2},
+    {"scenario_type": "explicit_correction", "protocol_check_count": 2},
+    {"scenario_type": "low_confidence_exception", "protocol_check_count": 2},
+    {"scenario_type": "plan_transition", "protocol_check_count": 2},
+    {"scenario_type": "multi_value_error_pattern", "protocol_check_count": 2},
+    {"scenario_type": "cross_scope_interference", "protocol_check_count": 2},
+    {"scenario_type": "long_range_change", "protocol_check_count": 2}
+  ],
+  "fairness_fields": [
+    "dataset_hash",
+    "event_order",
+    "model.provider",
+    "model.name",
+    "model.parameters",
+    "retrieval_top_k",
+    "retry.timeout_seconds",
+    "retry.max_retries",
+    "retry.backoff_seconds"
+  ],
+  "gold_policy": {
+    "insufficient_evidence_operations": ["CONTESTED", "NO_OP"],
+    "single_error_must_not_downgrade_stable_mastery": true,
+    "direct_conflict_requires_same_scope_and_slot": true,
+    "archived_excluded_from_recommendation_context": true,
+    "operation_reason_and_event_evidence_required": true,
+    "minimum_blind_review_interval_days": 1,
+    "gold_revision_must_increase": true
+  },
+  "metrics": [
+    {"metric_id": "extraction.knowledge_point_accuracy", "layer": "extraction", "display_name": "Knowledge Point Accuracy", "formula": "correct canonical knowledge point labels / gold labels", "direction": "higher_is_better", "target": null},
+    {"metric_id": "extraction.error_type_macro_f1", "layer": "extraction", "display_name": "Error Type Macro-F1", "formula": "unweighted mean of per-class error type F1", "direction": "higher_is_better", "target": null},
+    {"metric_id": "slot.precision", "layer": "slot", "display_name": "Slot Precision", "formula": "correct predicted slots / predicted slots", "direction": "higher_is_better", "target": null},
+    {"metric_id": "slot.recall", "layer": "slot", "display_name": "Slot Recall", "formula": "correct predicted slots / gold slots", "direction": "higher_is_better", "target": null},
+    {"metric_id": "slot.f1", "layer": "slot", "display_name": "Slot F1", "formula": "2 * slot precision * slot recall / (slot precision + slot recall)", "direction": "higher_is_better", "target": {"operator": "gte", "threshold": 0.85, "tolerance": 0.0}},
+    {"metric_id": "lifecycle.operation_accuracy", "layer": "lifecycle", "display_name": "Operation Accuracy", "formula": "correct lifecycle operations / gold operations", "direction": "higher_is_better", "target": null},
+    {"metric_id": "lifecycle.operation_macro_f1", "layer": "lifecycle", "display_name": "Operation Macro-F1", "formula": "unweighted mean of per-operation F1", "direction": "higher_is_better", "target": {"operator": "gte", "threshold": 0.8, "tolerance": 0.0}},
+    {"metric_id": "pollution.false_merge_rate", "layer": "pollution", "display_name": "False Merge Rate", "formula": "incorrect MERGE decisions / predicted MERGE decisions", "direction": "lower_is_better", "target": null},
+    {"metric_id": "pollution.false_supersede_rate", "layer": "pollution", "display_name": "False Supersede Rate", "formula": "incorrect SUPERSEDE decisions / predicted SUPERSEDE decisions", "direction": "lower_is_better", "target": null},
+    {"metric_id": "state.active_state_exact_match", "layer": "state", "display_name": "Active State Exact Match", "formula": "steps with exact active memory ID set / evaluated steps", "direction": "higher_is_better", "target": null},
+    {"metric_id": "state.stale_rate", "layer": "state", "display_name": "Stale Memory Rate", "formula": "stale active memories / active memories", "direction": "lower_is_better", "target": {"operator": "lte", "threshold": 0.05, "tolerance": 0.0}},
+    {"metric_id": "state.duplicate_rate", "layer": "state", "display_name": "Duplicate Memory Rate", "formula": "duplicate active slots / active slots", "direction": "lower_is_better", "target": {"operator": "lte", "threshold": 0.05, "tolerance": 0.0}},
+    {"metric_id": "isolation.cross_scope_leakage_rate", "layer": "isolation", "display_name": "Cross-Scope Leakage Rate", "formula": "retrieved memories outside requested scope / retrieved memories", "direction": "lower_is_better", "target": {"operator": "eq", "threshold": 0.0, "tolerance": 0.0}},
+    {"metric_id": "isolation.scope_test_pass_rate", "layer": "isolation", "display_name": "Scope Isolation Test Pass Rate", "formula": "passed scope isolation cases / scope isolation cases", "direction": "higher_is_better", "target": {"operator": "eq", "threshold": 1.0, "tolerance": 0.0}},
+    {"metric_id": "retrieval.weak_recall_at_k", "layer": "retrieval", "display_name": "Weak Point Recall@K", "formula": "gold weak points retrieved in top-k / gold weak points", "direction": "higher_is_better", "target": null},
+    {"metric_id": "retrieval.archived_hit_at_k", "layer": "retrieval", "display_name": "Archived Hit@K", "formula": "archived memories retrieved in top-k / retrieved memories in top-k", "direction": "lower_is_better", "target": {"operator": "eq", "threshold": 0.0, "tolerance": 0.0}},
+    {"metric_id": "recommendation.knowledge_point_accuracy", "layer": "recommendation", "display_name": "Next Knowledge Point Accuracy", "formula": "recommended knowledge points matching gold / recommendations", "direction": "higher_is_better", "target": null},
+    {"metric_id": "recommendation.difficulty_match_rate", "layer": "recommendation", "display_name": "Difficulty Match Rate", "formula": "recommendations inside gold difficulty band / recommendations", "direction": "higher_is_better", "target": null},
+    {"metric_id": "recommendation.over_review_rate", "layer": "recommendation", "display_name": "Over-Review Rate", "formula": "recommendations targeting already-mastered points / recommendations", "direction": "lower_is_better", "target": null},
+    {"metric_id": "engineering.llm_call_count", "layer": "engineering", "display_name": "LLM Call Count", "formula": "sum of all LLM attempts including retries", "direction": "lower_is_better", "target": null},
+    {"metric_id": "engineering.total_tokens", "layer": "engineering", "display_name": "Total Tokens", "formula": "sum of provider-reported prompt and completion tokens", "direction": "lower_is_better", "target": null},
+    {"metric_id": "engineering.mean_latency_ms", "layer": "engineering", "display_name": "Mean Rollout Latency", "formula": "arithmetic mean of end-to-end rollout latency in milliseconds", "direction": "lower_is_better", "target": null},
+    {"metric_id": "engineering.p95_latency_ms", "layer": "engineering", "display_name": "P95 Rollout Latency", "formula": "nearest-rank 95th percentile of end-to-end rollout latency", "direction": "lower_is_better", "target": null},
+    {"metric_id": "engineering.memory_record_growth", "layer": "engineering", "display_name": "Memory Record Growth", "formula": "logical memory records after rollout minus records before rollout", "direction": "lower_is_better", "target": null},
+    {"metric_id": "engineering.memory_byte_growth", "layer": "engineering", "display_name": "Memory Byte Growth", "formula": "canonical JSON UTF-8 bytes after rollout minus bytes before rollout", "direction": "lower_is_better", "target": null}
+  ],
+  "cost_accounting": {
+    "count_all_llm_attempts_including_retries": true,
+    "token_source": "provider usage metadata; unavailable usage is reported as undefined, never estimated silently",
+    "latency_clock": "monotonic",
+    "latency_scope": "end_to_end_rollout",
+    "p95_method": "nearest_rank",
+    "pricing_snapshot_required": true,
+    "currency": "USD",
+    "memory_record_unit": "logical_record",
+    "memory_byte_unit": "canonical_json_utf8"
+  },
+  "optimization_gate": {
+    "core_metric_minimum_improvement_points": 0.05,
+    "protected_metric_maximum_decline_points": 0.02,
+    "maximum_cost_increase_ratio": 0.20
+  }
+}

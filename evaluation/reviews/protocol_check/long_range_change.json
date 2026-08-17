@@ -1,0 +1,42 @@
+{
+  "protocol_version": "evaluation_protocol_v1",
+  "scenario_type": "long_range_change",
+  "case_ids": [
+    "old_low_mastery_is_replaced_by_recent_cross_session_success_001",
+    "single_error_after_long_gap_does_not_reactivate_archived_low_002"
+  ],
+  "primary_label_source": "project_owner_multiple_choice_annotation",
+  "selected_options": {
+    "case_w_long_range_improvement": "A_CONTINUE_VERSION_CHAIN_AND_SUPERSEDE_TO_HIGH",
+    "case_x_long_range_error": "A_CONTEST_CURRENT_HIGH_KEEP_OLD_LOW_ARCHIVED_AND_REVIEW",
+    "time_policy": "A_TIME_AFFECTS_FORGETTING_RISK_NOT_MASTERY_DIRECTLY"
+  },
+  "ai_review": {
+    "status": "accepted_without_revision",
+    "reviewed_at": "2026-08-10",
+    "notes": [
+      "A long inactivity gap does not reset version identity; recent evidence continues the existing canonical slot chain.",
+      "Time passage alone cannot mutate mastery, while forgetting risk may change downstream recommendation priority.",
+      "Archived states never reactivate in place; recurring low mastery requires a new chain-tail version.",
+      "One credible concept error after a long gap creates a contested branch and a diagnostic review action without immediately lowering current high mastery."
+    ]
+  },
+  "blind_self_review": {
+    "minimum_interval_days": 1,
+    "completed": false,
+    "status": "waived_independent_human_review_completed"
+  },
+  "independent_human_review": {
+    "reviewer_id": "independent_reviewer_001",
+    "reviewed_at": "2026-08-10",
+    "asserted_no_access_to_primary_labels": true,
+    "reviewed_case_ids": [
+      "old_low_mastery_is_replaced_by_recent_cross_session_success_001",
+      "single_error_after_long_gap_does_not_reactivate_archived_low_002"
+    ],
+    "answers": ["A", "B"],
+    "agreement_with_primary": true,
+    "conflicts": [],
+    "status": "completed_without_revision"
+  }
+}

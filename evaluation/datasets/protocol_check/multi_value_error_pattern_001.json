@@ -1,0 +1,147 @@
+{
+  "protocol_version": "evaluation_protocol_v1",
+  "case_id": "seventh_distinct_error_detail_is_preserved_001",
+  "scenario_type": "multi_value_error_pattern",
+  "initial_memory": [
+    {
+      "memory_id": "error_total_probability_formula_v1",
+      "scope": {
+        "user_id": "user_001",
+        "exam_id": "postgraduate_entrance_exam",
+        "subject_id": "math_1",
+        "memory_namespace": "error_pattern"
+      },
+      "slot_key": "error_pattern:math1.probability.total_probability:formula_misuse",
+      "value": {
+        "type": "error_pattern",
+        "error_type": "formula_misuse",
+        "summary": "使用全概率公式时错误处理分类事件及其概率",
+        "details": [
+          "遗漏一个互斥分类事件分支",
+          "没有为各分支乘对应的先验概率",
+          "使用的分类事件集合没有覆盖全集",
+          "把相互重叠的事件当作互斥划分",
+          "把条件概率 P(A|B_i) 写成 P(B_i|A)",
+          "求和时混用了不同分类体系下的事件"
+        ]
+      },
+      "confidence": 0.9,
+      "evidence_count": 6,
+      "lifecycle_state": "active",
+      "version": 1,
+      "valid_from": "2026-08-01T08:00:00Z",
+      "valid_to": null,
+      "superseded_by": null,
+      "provenance": [
+        "event_total_probability_error_095",
+        "event_total_probability_error_096",
+        "event_total_probability_error_097",
+        "event_total_probability_error_098",
+        "event_total_probability_error_099",
+        "event_total_probability_error_100"
+      ]
+    }
+  ],
+  "events": [
+    {
+      "event_id": "event_total_probability_error_101",
+      "idempotency_key": "total-probability-detail-101",
+      "context": {
+        "user_id": "user_001",
+        "exam_id": "postgraduate_entrance_exam",
+        "subject_id": "math_1"
+      },
+      "session_id": "session_070",
+      "question_id": "total_probability_101",
+      "knowledge_point_ids": ["math1.probability.total_probability"],
+      "difficulty": 0.7,
+      "answer_correct": false,
+      "error_type": "formula_misuse",
+      "error_detail": "把分类事件的先验概率与对应的联合概率直接相加",
+      "occurred_at": "2026-08-10T12:00:00Z"
+    }
+  ],
+  "gold_operations": [
+    {
+      "operation_id": "step_001:error_pattern",
+      "step_id": "step_001",
+      "event_id": "event_total_probability_error_101",
+      "extracted_fields": {
+        "knowledge_point_ids": ["math1.probability.total_probability"],
+        "answer_correct": false,
+        "error_type": "formula_misuse",
+        "error_detail": "把分类事件的先验概率与对应的联合概率直接相加"
+      },
+      "canonical_knowledge_point_ids": ["math1.probability.total_probability"],
+      "slot_key": "error_pattern:math1.probability.total_probability:formula_misuse",
+      "candidate_memory_ids": ["error_total_probability_formula_v1"],
+      "operation": "MERGE",
+      "target_memory_ids": ["error_total_probability_formula_v1"],
+      "result_memory_id": "error_total_probability_formula_v2",
+      "expected_result_value": {
+        "type": "error_pattern",
+        "error_type": "formula_misuse",
+        "summary": "使用全概率公式时错误处理分类事件及其概率",
+        "details": [
+          "遗漏一个互斥分类事件分支",
+          "没有为各分支乘对应的先验概率",
+          "使用的分类事件集合没有覆盖全集",
+          "把相互重叠的事件当作互斥划分",
+          "把条件概率 P(A|B_i) 写成 P(B_i|A)",
+          "求和时混用了不同分类体系下的事件",
+          "把分类事件的先验概率与对应的联合概率直接相加"
+        ]
+      },
+      "reason_code": "distinct_seventh_detail_is_merged_without_storage_cap",
+      "evidence_event_ids": ["event_total_probability_error_101"]
+    }
+  ],
+  "gold_states": [
+    {
+      "step_id": "step_001",
+      "active_memory_ids": ["error_total_probability_formula_v2"],
+      "archived_memory_ids": ["error_total_probability_formula_v1"],
+      "invalidated_memory_ids": [],
+      "contested_memory_ids": [],
+      "version_relations": [
+        {
+          "predecessor_memory_id": "error_total_probability_formula_v1",
+          "successor_memory_id": "error_total_probability_formula_v2",
+          "relation": "superseded_by"
+        }
+      ]
+    }
+  ],
+  "queries": [
+    {
+      "query_id": "query_001",
+      "after_step_id": "step_001",
+      "scope": {
+        "user_id": "user_001",
+        "exam_id": "postgraduate_entrance_exam",
+        "subject_id": "math_1",
+        "memory_namespace": "error_pattern"
+      },
+      "text": "全概率公式的所有不同错误细节是否完整保留？",
+      "top_k": 3
+    }
+  ],
+  "gold_actions": [
+    {
+      "step_id": "step_001",
+      "action_type": "recommend_review",
+      "knowledge_point_ids": ["math1.probability.total_probability"],
+      "reason_code": "persistent_multi_detail_formula_pattern_requires_review"
+    }
+  ],
+  "metadata": {
+    "split": "protocol_check",
+    "seed": 20260806,
+    "gold_revision": 2,
+    "policy_parameters": {
+      "stored_error_detail_limit": null,
+      "prompt_projection_is_separate_from_storage": true,
+      "preserve_all_distinct_details": true
+    }
+  }
+}

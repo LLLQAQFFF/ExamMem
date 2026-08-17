@@ -1,0 +1,122 @@
+{
+  "protocol_version": "evaluation_protocol_v1",
+  "case_id": "temporary_guided_success_does_not_upgrade_mastery_002",
+  "scenario_type": "low_confidence_exception",
+  "initial_memory": [
+    {
+      "memory_id": "mastery_conditional_probability_low_v1",
+      "scope": {
+        "user_id": "user_001",
+        "exam_id": "postgraduate_entrance_exam",
+        "subject_id": "math_1",
+        "memory_namespace": "mastery"
+      },
+      "slot_key": "mastery:math1.probability.conditional_probability",
+      "value": {"type": "mastery", "level": "low", "score": 0.35},
+      "confidence": 0.84,
+      "evidence_count": 6,
+      "lifecycle_state": "active",
+      "version": 1,
+      "valid_from": "2026-08-02T08:00:00Z",
+      "valid_to": null,
+      "superseded_by": null,
+      "provenance": [
+        "event_conditional_probability_095",
+        "event_conditional_probability_096",
+        "event_conditional_probability_097",
+        "event_conditional_probability_098",
+        "event_conditional_probability_099",
+        "event_conditional_probability_100"
+      ]
+    }
+  ],
+  "events": [
+    {
+      "event_id": "event_conditional_probability_101",
+      "idempotency_key": "conditional-probability-guided-101",
+      "context": {
+        "user_id": "user_001",
+        "exam_id": "postgraduate_entrance_exam",
+        "subject_id": "math_1"
+      },
+      "session_id": "session_051",
+      "question_id": "conditional_probability_101",
+      "knowledge_point_ids": ["math1.probability.conditional_probability"],
+      "difficulty": 0.65,
+      "answer_correct": true,
+      "error_type": null,
+      "evidence_quality": {
+        "confidence": 1.0,
+        "is_temporary_exception": true,
+        "reasons": ["user_reported_exception"]
+      },
+      "occurred_at": "2026-08-10T10:30:00Z"
+    }
+  ],
+  "gold_operations": [
+    {
+      "operation_id": "step_001:mastery",
+      "step_id": "step_001",
+      "event_id": "event_conditional_probability_101",
+      "extracted_fields": {
+        "knowledge_point_ids": ["math1.probability.conditional_probability"],
+        "answer_correct": true,
+        "evidence_quality": {
+          "confidence": 1.0,
+          "is_temporary_exception": true,
+          "reasons": ["user_reported_exception"]
+        }
+      },
+      "canonical_knowledge_point_ids": ["math1.probability.conditional_probability"],
+      "slot_key": "mastery:math1.probability.conditional_probability",
+      "candidate_memory_ids": ["mastery_conditional_probability_low_v1"],
+      "operation": "NO_OP",
+      "target_memory_ids": ["mastery_conditional_probability_low_v1"],
+      "result_memory_id": null,
+      "reason_code": "guided_temporary_success_is_not_independent_mastery_evidence",
+      "evidence_event_ids": ["event_conditional_probability_101"]
+    }
+  ],
+  "gold_states": [
+    {
+      "step_id": "step_001",
+      "active_memory_ids": ["mastery_conditional_probability_low_v1"],
+      "archived_memory_ids": [],
+      "invalidated_memory_ids": [],
+      "contested_memory_ids": [],
+      "version_relations": []
+    }
+  ],
+  "queries": [
+    {
+      "query_id": "query_001",
+      "after_step_id": "step_001",
+      "scope": {
+        "user_id": "user_001",
+        "exam_id": "postgraduate_entrance_exam",
+        "subject_id": "math_1",
+        "memory_namespace": "mastery"
+      },
+      "text": "在完整提示下答对是否足以提升条件概率掌握度？",
+      "top_k": 3
+    }
+  ],
+  "gold_actions": [
+    {
+      "step_id": "step_001",
+      "action_type": "recommend_review",
+      "knowledge_point_ids": ["math1.probability.conditional_probability"],
+      "reason_code": "temporary_guided_success_does_not_remove_existing_review_need"
+    }
+  ],
+  "metadata": {
+    "split": "protocol_check",
+    "seed": 20260806,
+    "gold_revision": 2,
+    "policy_parameters": {
+      "temporary_exceptions_remain_in_l1": true,
+      "temporary_exceptions_count_toward_l2_thresholds": false,
+      "independent_success_required_for_mastery_update": true
+    }
+  }
+}

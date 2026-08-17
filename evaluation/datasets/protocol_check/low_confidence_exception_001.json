@@ -1,0 +1,151 @@
+{
+  "protocol_version": "evaluation_protocol_v1",
+  "case_id": "low_confidence_grading_does_not_pollute_memory_001",
+  "scenario_type": "low_confidence_exception",
+  "initial_memory": [
+    {
+      "memory_id": "mastery_matrix_rank_high_v1",
+      "scope": {
+        "user_id": "user_001",
+        "exam_id": "postgraduate_entrance_exam",
+        "subject_id": "math_1",
+        "memory_namespace": "mastery"
+      },
+      "slot_key": "mastery:math1.linear_algebra.matrix_rank",
+      "value": {"type": "mastery", "level": "high", "score": 0.86},
+      "confidence": 0.91,
+      "evidence_count": 8,
+      "lifecycle_state": "active",
+      "version": 1,
+      "valid_from": "2026-08-01T08:00:00Z",
+      "valid_to": null,
+      "superseded_by": null,
+      "provenance": [
+        "event_matrix_rank_093",
+        "event_matrix_rank_094",
+        "event_matrix_rank_095",
+        "event_matrix_rank_096",
+        "event_matrix_rank_097",
+        "event_matrix_rank_098",
+        "event_matrix_rank_099",
+        "event_matrix_rank_100"
+      ]
+    }
+  ],
+  "events": [
+    {
+      "event_id": "event_matrix_rank_101",
+      "idempotency_key": "matrix-rank-ambiguous-grade-101",
+      "context": {
+        "user_id": "user_001",
+        "exam_id": "postgraduate_entrance_exam",
+        "subject_id": "math_1"
+      },
+      "session_id": "session_050",
+      "question_id": "matrix_rank_101",
+      "knowledge_point_ids": ["math1.linear_algebra.matrix_rank"],
+      "difficulty": 0.72,
+      "answer_correct": false,
+      "error_type": "unknown",
+      "error_detail": "答案采用了未被当前评分器可靠识别的等价行变换，判错结果存在歧义",
+      "evidence_quality": {
+        "confidence": 0.32,
+        "is_temporary_exception": false,
+        "reasons": ["low_grader_confidence", "ambiguous_response"]
+      },
+      "occurred_at": "2026-08-10T10:00:00Z"
+    }
+  ],
+  "gold_operations": [
+    {
+      "operation_id": "step_001:mastery",
+      "step_id": "step_001",
+      "event_id": "event_matrix_rank_101",
+      "extracted_fields": {
+        "knowledge_point_ids": ["math1.linear_algebra.matrix_rank"],
+        "answer_correct": false,
+        "error_type": "unknown",
+        "error_detail": "答案采用了未被当前评分器可靠识别的等价行变换，判错结果存在歧义",
+        "evidence_quality": {
+          "confidence": 0.32,
+          "is_temporary_exception": false,
+          "reasons": ["low_grader_confidence", "ambiguous_response"]
+        }
+      },
+      "canonical_knowledge_point_ids": ["math1.linear_algebra.matrix_rank"],
+      "slot_key": "mastery:math1.linear_algebra.matrix_rank",
+      "candidate_memory_ids": ["mastery_matrix_rank_high_v1"],
+      "operation": "NO_OP",
+      "target_memory_ids": ["mastery_matrix_rank_high_v1"],
+      "result_memory_id": null,
+      "reason_code": "low_confidence_grade_does_not_change_mastery",
+      "evidence_event_ids": ["event_matrix_rank_101"]
+    },
+    {
+      "operation_id": "step_001:error_pattern",
+      "step_id": "step_001",
+      "event_id": "event_matrix_rank_101",
+      "extracted_fields": {
+        "knowledge_point_ids": ["math1.linear_algebra.matrix_rank"],
+        "answer_correct": false,
+        "error_type": "unknown",
+        "error_detail": "答案采用了未被当前评分器可靠识别的等价行变换，判错结果存在歧义",
+        "evidence_quality": {
+          "confidence": 0.32,
+          "is_temporary_exception": false,
+          "reasons": ["low_grader_confidence", "ambiguous_response"]
+        }
+      },
+      "canonical_knowledge_point_ids": ["math1.linear_algebra.matrix_rank"],
+      "slot_key": "error_pattern:math1.linear_algebra.matrix_rank:unknown",
+      "candidate_memory_ids": [],
+      "operation": "NO_OP",
+      "target_memory_ids": [],
+      "result_memory_id": null,
+      "reason_code": "ambiguous_low_confidence_result_does_not_create_error_pattern",
+      "evidence_event_ids": ["event_matrix_rank_101"]
+    }
+  ],
+  "gold_states": [
+    {
+      "step_id": "step_001",
+      "active_memory_ids": ["mastery_matrix_rank_high_v1"],
+      "archived_memory_ids": [],
+      "invalidated_memory_ids": [],
+      "contested_memory_ids": [],
+      "version_relations": []
+    }
+  ],
+  "queries": [
+    {
+      "query_id": "query_001",
+      "after_step_id": "step_001",
+      "scope": {
+        "user_id": "user_001",
+        "exam_id": "postgraduate_entrance_exam",
+        "subject_id": "math_1",
+        "memory_namespace": "mastery"
+      },
+      "text": "一次低置信度判错是否应降低矩阵秩掌握度？",
+      "top_k": 3
+    }
+  ],
+  "gold_actions": [
+    {
+      "step_id": "step_001",
+      "action_type": "no_action",
+      "knowledge_point_ids": ["math1.linear_algebra.matrix_rank"],
+      "reason_code": "ambiguous_grade_must_be_reviewed_before_teaching_policy_changes"
+    }
+  ],
+  "metadata": {
+    "split": "protocol_check",
+    "seed": 20260806,
+    "gold_revision": 2,
+    "policy_parameters": {
+      "minimum_evidence_confidence_for_l2": 0.7,
+      "low_quality_events_remain_in_l1": true,
+      "low_quality_events_count_toward_l2_thresholds": false
+    }
+  }
+}

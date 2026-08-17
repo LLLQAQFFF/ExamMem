@@ -1,0 +1,134 @@
+{
+  "protocol_version": "evaluation_protocol_v1",
+  "case_id": "ambiguous_plan_cancellation_creates_contested_branch_002",
+  "scenario_type": "plan_transition",
+  "initial_memory": [
+    {
+      "memory_id": "plan_probability_review_v1",
+      "scope": {
+        "user_id": "user_001",
+        "exam_id": "postgraduate_entrance_exam",
+        "subject_id": "math_1",
+        "memory_namespace": "plan"
+      },
+      "slot_key": "plan:postgraduate_entrance_exam:math_1",
+      "value": {
+        "type": "plan",
+        "goal": "本周完成贝叶斯公式复习",
+        "status": "in_progress",
+        "progress": 0.4,
+        "due_at": "2026-08-16T23:59:59Z"
+      },
+      "confidence": 0.9,
+      "evidence_count": 3,
+      "lifecycle_state": "active",
+      "version": 1,
+      "valid_from": "2026-08-06T08:00:00Z",
+      "valid_to": null,
+      "superseded_by": null,
+      "provenance": [
+        "event_plan_probability_created_001",
+        "event_plan_probability_progress_002",
+        "event_plan_probability_progress_003"
+      ]
+    }
+  ],
+  "events": [
+    {
+      "event_id": "event_plan_probability_maybe_cancel_004",
+      "idempotency_key": "plan-probability-maybe-cancel-004",
+      "event_type": "plan_transition",
+      "context": {
+        "user_id": "user_001",
+        "exam_id": "postgraduate_entrance_exam",
+        "subject_id": "math_1"
+      },
+      "session_id": "session_061",
+      "knowledge_point_ids": ["math1.probability.bayes"],
+      "evidence_quality": {
+        "confidence": 0.45,
+        "is_temporary_exception": false,
+        "reasons": ["insufficient_context"]
+      },
+      "plan_transition": {
+        "target_memory_id": "plan_probability_review_v1",
+        "to_status": "cancelled",
+        "source": "user",
+        "reason": "用户表示最近可能先不复习贝叶斯公式，但没有明确确认取消"
+      },
+      "occurred_at": "2026-08-10T11:30:00Z"
+    }
+  ],
+  "gold_operations": [
+    {
+      "operation_id": "step_001:plan",
+      "step_id": "step_001",
+      "event_id": "event_plan_probability_maybe_cancel_004",
+      "extracted_fields": {
+        "event_type": "plan_transition",
+        "knowledge_point_ids": ["math1.probability.bayes"],
+        "evidence_quality": {
+          "confidence": 0.45,
+          "is_temporary_exception": false,
+          "reasons": ["insufficient_context"]
+        },
+        "plan_transition": {
+          "target_memory_id": "plan_probability_review_v1",
+          "to_status": "cancelled",
+          "source": "user",
+          "reason": "用户表示最近可能先不复习贝叶斯公式，但没有明确确认取消"
+        }
+      },
+      "canonical_knowledge_point_ids": ["math1.probability.bayes"],
+      "slot_key": "plan:postgraduate_entrance_exam:math_1",
+      "candidate_memory_ids": ["plan_probability_review_v1"],
+      "operation": "CONTESTED",
+      "target_memory_ids": ["plan_probability_review_v1"],
+      "result_memory_id": "plan_probability_review_cancel_contested_v2",
+      "reason_code": "ambiguous_user_cancellation_is_insufficient_to_stop_active_plan",
+      "evidence_event_ids": ["event_plan_probability_maybe_cancel_004"]
+    }
+  ],
+  "gold_states": [
+    {
+      "step_id": "step_001",
+      "active_memory_ids": ["plan_probability_review_v1"],
+      "archived_memory_ids": [],
+      "invalidated_memory_ids": [],
+      "contested_memory_ids": ["plan_probability_review_cancel_contested_v2"],
+      "version_relations": []
+    }
+  ],
+  "queries": [
+    {
+      "query_id": "query_001",
+      "after_step_id": "step_001",
+      "scope": {
+        "user_id": "user_001",
+        "exam_id": "postgraduate_entrance_exam",
+        "subject_id": "math_1",
+        "memory_namespace": "plan"
+      },
+      "text": "用户模糊表达可能取消后，贝叶斯公式计划是否仍然有效？",
+      "top_k": 3
+    }
+  ],
+  "gold_actions": [
+    {
+      "step_id": "step_001",
+      "action_type": "recommend_review",
+      "knowledge_point_ids": ["math1.probability.bayes"],
+      "reason_code": "active_plan_continues_with_uncertainty_until_cancellation_is_confirmed"
+    }
+  ],
+  "metadata": {
+    "split": "protocol_check",
+    "seed": 20260806,
+    "gold_revision": 2,
+    "policy_parameters": {
+      "ambiguous_cancellation_operation": "CONTESTED",
+      "contested_cancellation_keeps_active_plan": true,
+      "contested_plan_is_marked_uncertain": true
+    }
+  }
+}

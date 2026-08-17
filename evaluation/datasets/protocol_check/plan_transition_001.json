@@ -1,0 +1,125 @@
+{
+  "protocol_version": "evaluation_protocol_v1",
+  "case_id": "completed_plan_is_invalidated_after_progress_goal_001",
+  "scenario_type": "plan_transition",
+  "initial_memory": [
+    {
+      "memory_id": "plan_conditional_probability_review_v1",
+      "scope": {
+        "user_id": "user_001",
+        "exam_id": "postgraduate_entrance_exam",
+        "subject_id": "math_1",
+        "memory_namespace": "plan"
+      },
+      "slot_key": "plan:postgraduate_entrance_exam:math_1",
+      "value": {
+        "type": "plan",
+        "goal": "本周独立完成 5 道条件概率复习题",
+        "status": "in_progress",
+        "progress": 0.8,
+        "due_at": "2026-08-12T23:59:59Z"
+      },
+      "confidence": 1.0,
+      "evidence_count": 4,
+      "lifecycle_state": "active",
+      "version": 1,
+      "valid_from": "2026-08-05T08:00:00Z",
+      "valid_to": null,
+      "superseded_by": null,
+      "provenance": [
+        "event_plan_conditional_created_001",
+        "event_plan_conditional_progress_002",
+        "event_plan_conditional_progress_003",
+        "event_plan_conditional_progress_004"
+      ]
+    }
+  ],
+  "events": [
+    {
+      "event_id": "event_plan_conditional_completed_005",
+      "idempotency_key": "plan-conditional-completed-005",
+      "event_type": "plan_transition",
+      "context": {
+        "user_id": "user_001",
+        "exam_id": "postgraduate_entrance_exam",
+        "subject_id": "math_1"
+      },
+      "session_id": "session_060",
+      "knowledge_point_ids": ["math1.probability.conditional_probability"],
+      "plan_transition": {
+        "target_memory_id": "plan_conditional_probability_review_v1",
+        "to_status": "completed",
+        "source": "practice_progress",
+        "reason": "确定性进度规则确认第 5 道独立复习题已经完成"
+      },
+      "occurred_at": "2026-08-10T11:00:00Z"
+    }
+  ],
+  "gold_operations": [
+    {
+      "operation_id": "step_001:plan",
+      "step_id": "step_001",
+      "event_id": "event_plan_conditional_completed_005",
+      "extracted_fields": {
+        "event_type": "plan_transition",
+        "knowledge_point_ids": ["math1.probability.conditional_probability"],
+        "plan_transition": {
+          "target_memory_id": "plan_conditional_probability_review_v1",
+          "to_status": "completed",
+          "source": "practice_progress",
+          "reason": "确定性进度规则确认第 5 道独立复习题已经完成"
+        }
+      },
+      "canonical_knowledge_point_ids": ["math1.probability.conditional_probability"],
+      "slot_key": "plan:postgraduate_entrance_exam:math_1",
+      "candidate_memory_ids": ["plan_conditional_probability_review_v1"],
+      "operation": "INVALIDATE",
+      "target_memory_ids": ["plan_conditional_probability_review_v1"],
+      "result_memory_id": null,
+      "reason_code": "deterministic_progress_rule_confirms_plan_completed",
+      "evidence_event_ids": ["event_plan_conditional_completed_005"]
+    }
+  ],
+  "gold_states": [
+    {
+      "step_id": "step_001",
+      "active_memory_ids": [],
+      "archived_memory_ids": [],
+      "invalidated_memory_ids": ["plan_conditional_probability_review_v1"],
+      "contested_memory_ids": [],
+      "version_relations": []
+    }
+  ],
+  "queries": [
+    {
+      "query_id": "query_001",
+      "after_step_id": "step_001",
+      "scope": {
+        "user_id": "user_001",
+        "exam_id": "postgraduate_entrance_exam",
+        "subject_id": "math_1",
+        "memory_namespace": "plan"
+      },
+      "text": "已经完成的条件概率周计划是否仍应驱动推荐？",
+      "top_k": 3
+    }
+  ],
+  "gold_actions": [
+    {
+      "step_id": "step_001",
+      "action_type": "no_action",
+      "knowledge_point_ids": ["math1.probability.conditional_probability"],
+      "reason_code": "completed_plan_no_longer_drives_review"
+    }
+  ],
+  "metadata": {
+    "split": "protocol_check",
+    "seed": 20260806,
+    "gold_revision": 2,
+    "policy_parameters": {
+      "completed_plan_operation": "INVALIDATE",
+      "practice_progress_is_deterministic": true,
+      "inactive_plan_drives_recommendation": false
+    }
+  }
+}

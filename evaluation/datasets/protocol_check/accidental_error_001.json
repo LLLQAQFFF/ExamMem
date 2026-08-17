@@ -1,0 +1,139 @@
+{
+  "protocol_version": "evaluation_protocol_v1",
+  "case_id": "accidental_error_without_stable_pattern_001",
+  "scenario_type": "accidental_error",
+  "initial_memory": [
+    {
+      "memory_id": "mastery_determinant_high_v1",
+      "scope": {
+        "user_id": "user_001",
+        "exam_id": "postgraduate_entrance_exam",
+        "subject_id": "math_1",
+        "memory_namespace": "mastery"
+      },
+      "slot_key": "mastery:math1.linear_algebra.determinant",
+      "value": {"type": "mastery", "level": "high", "score": 0.85},
+      "confidence": 0.9,
+      "evidence_count": 12,
+      "lifecycle_state": "active",
+      "version": 1,
+      "valid_from": "2026-08-01T08:00:00Z",
+      "valid_to": null,
+      "superseded_by": null,
+      "provenance": [
+        "event_determinant_089",
+        "event_determinant_090",
+        "event_determinant_091",
+        "event_determinant_092",
+        "event_determinant_093",
+        "event_determinant_094",
+        "event_determinant_095",
+        "event_determinant_096",
+        "event_determinant_097",
+        "event_determinant_098",
+        "event_determinant_099",
+        "event_determinant_100"
+      ]
+    }
+  ],
+  "events": [
+    {
+      "event_id": "event_determinant_101",
+      "idempotency_key": "determinant-careless-101",
+      "context": {
+        "user_id": "user_001",
+        "exam_id": "postgraduate_entrance_exam",
+        "subject_id": "math_1"
+      },
+      "session_id": "session_022",
+      "question_id": "determinant_101",
+      "knowledge_point_ids": ["math1.linear_algebra.determinant"],
+      "difficulty": 0.7,
+      "answer_correct": false,
+      "error_type": "careless_error",
+      "error_detail": "解题方法与推理正确，但最后一步把 -3 + 5 计算成 1",
+      "occurred_at": "2026-08-09T13:00:00Z"
+    }
+  ],
+  "gold_operations": [
+    {
+      "operation_id": "step_001:mastery",
+      "step_id": "step_001",
+      "event_id": "event_determinant_101",
+      "extracted_fields": {
+        "knowledge_point_ids": ["math1.linear_algebra.determinant"],
+        "answer_correct": false,
+        "error_type": "careless_error",
+        "error_detail": "解题方法与推理正确，但最后一步把 -3 + 5 计算成 1"
+      },
+      "canonical_knowledge_point_ids": ["math1.linear_algebra.determinant"],
+      "slot_key": "mastery:math1.linear_algebra.determinant",
+      "candidate_memory_ids": ["mastery_determinant_high_v1"],
+      "operation": "NO_OP",
+      "target_memory_ids": ["mastery_determinant_high_v1"],
+      "result_memory_id": null,
+      "reason_code": "single_careless_error_does_not_change_concept_mastery",
+      "evidence_event_ids": ["event_determinant_101"]
+    },
+    {
+      "operation_id": "step_001:error_pattern",
+      "step_id": "step_001",
+      "event_id": "event_determinant_101",
+      "extracted_fields": {
+        "knowledge_point_ids": ["math1.linear_algebra.determinant"],
+        "answer_correct": false,
+        "error_type": "careless_error",
+        "error_detail": "解题方法与推理正确，但最后一步把 -3 + 5 计算成 1"
+      },
+      "canonical_knowledge_point_ids": ["math1.linear_algebra.determinant"],
+      "slot_key": "error_pattern:math1.linear_algebra.determinant:careless_error",
+      "candidate_memory_ids": [],
+      "operation": "NO_OP",
+      "target_memory_ids": [],
+      "result_memory_id": null,
+      "reason_code": "single_careless_event_is_not_a_stable_error_pattern",
+      "evidence_event_ids": ["event_determinant_101"]
+    }
+  ],
+  "gold_states": [
+    {
+      "step_id": "step_001",
+      "active_memory_ids": ["mastery_determinant_high_v1"],
+      "archived_memory_ids": [],
+      "invalidated_memory_ids": [],
+      "contested_memory_ids": [],
+      "version_relations": []
+    }
+  ],
+  "queries": [
+    {
+      "query_id": "query_001",
+      "after_step_id": "step_001",
+      "scope": {
+        "user_id": "user_001",
+        "exam_id": "postgraduate_entrance_exam",
+        "subject_id": "math_1",
+        "memory_namespace": "mastery"
+      },
+      "text": "是否应因一次粗心错误降低行列式掌握度？",
+      "top_k": 3
+    }
+  ],
+  "gold_actions": [
+    {
+      "step_id": "step_001",
+      "action_type": "no_action",
+      "knowledge_point_ids": ["math1.linear_algebra.determinant"],
+      "reason_code": "isolated_careless_error_requires_no_teaching_change"
+    }
+  ],
+  "metadata": {
+    "split": "protocol_check",
+    "seed": 20260806,
+    "gold_revision": 2,
+    "policy_parameters": {
+      "stable_error_pattern_minimum_independent_events": 3,
+      "careless_error_changes_concept_mastery": false
+    }
+  }
+}

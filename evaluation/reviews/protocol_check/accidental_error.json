@@ -1,0 +1,45 @@
+{
+  "protocol_version": "evaluation_protocol_v1",
+  "scenario_type": "accidental_error",
+  "case_ids": [
+    "accidental_error_without_stable_pattern_001",
+    "accidental_error_with_stable_pattern_002"
+  ],
+  "primary_label_source": "project_owner_multiple_choice_annotation",
+  "selected_options": {
+    "case_i_mastery": "A_NO_OP",
+    "case_i_error_pattern": "A_NO_OP",
+    "case_i_action": "A_NO_ACTION",
+    "case_j_mastery": "A_NO_OP",
+    "case_j_error_pattern": "A_MERGE",
+    "case_j_action": "A_RECOMMEND_REVIEW",
+    "accidental_vs_decline": "A_SEPARATE_CONCEPT_MASTERY_FROM_REPEATED_CARELESS_PATTERN"
+  },
+  "ai_review": {
+    "status": "accepted_without_revision",
+    "reviewed_at": "2026-08-10",
+    "notes": [
+      "An isolated careless event is retained in L1 but changes neither mastery nor stable L2 error patterns.",
+      "A repeated careless event can strengthen an existing error pattern without lowering conceptual mastery.",
+      "One event therefore carries separate mastery and error_pattern Gold operations."
+    ]
+  },
+  "blind_self_review": {
+    "minimum_interval_days": 1,
+    "completed": false,
+    "status": "waived_independent_human_review_completed"
+  },
+  "independent_human_review": {
+    "reviewer_id": "independent_reviewer_001",
+    "reviewed_at": "2026-08-10",
+    "asserted_no_access_to_primary_labels": true,
+    "reviewed_case_ids": [
+      "accidental_error_without_stable_pattern_001",
+      "accidental_error_with_stable_pattern_002"
+    ],
+    "answers": ["B", "C"],
+    "agreement_with_primary": true,
+    "conflicts": [],
+    "status": "completed_without_revision"
+  }
+}

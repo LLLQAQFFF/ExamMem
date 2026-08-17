@@ -1,0 +1,180 @@
+{
+  "protocol_version": "evaluation_protocol_v1",
+  "case_id": "stable_weakness_existing_pattern_strengthened_002",
+  "scenario_type": "stable_weakness",
+  "initial_memory": [
+    {
+      "memory_id": "mastery_vector_space_low_v1",
+      "scope": {
+        "user_id": "user_001",
+        "exam_id": "postgraduate_entrance_exam",
+        "subject_id": "math_1",
+        "memory_namespace": "mastery"
+      },
+      "slot_key": "mastery:math1.linear_algebra.vector_space",
+      "value": {"type": "mastery", "level": "low", "score": 0.3},
+      "confidence": 0.86,
+      "evidence_count": 8,
+      "lifecycle_state": "active",
+      "version": 1,
+      "valid_from": "2026-08-01T09:30:00Z",
+      "valid_to": null,
+      "superseded_by": null,
+      "provenance": [
+        "event_vector_space_093",
+        "event_vector_space_094",
+        "event_vector_space_095",
+        "event_vector_space_096",
+        "event_vector_space_097",
+        "event_vector_space_098",
+        "event_vector_space_099",
+        "event_vector_space_100"
+      ]
+    },
+    {
+      "memory_id": "error_vector_space_definition_v1",
+      "scope": {
+        "user_id": "user_001",
+        "exam_id": "postgraduate_entrance_exam",
+        "subject_id": "math_1",
+        "memory_namespace": "error_pattern"
+      },
+      "slot_key": "error_pattern:math1.linear_algebra.vector_space:concept_confusion",
+      "value": {
+        "type": "error_pattern",
+        "error_type": "concept_confusion",
+        "summary": "混淆向量集合与由向量张成的子空间",
+        "details": ["没有检查集合对线性组合是否封闭"]
+      },
+      "confidence": 0.84,
+      "evidence_count": 4,
+      "lifecycle_state": "active",
+      "version": 1,
+      "valid_from": "2026-08-02T09:30:00Z",
+      "valid_to": null,
+      "superseded_by": null,
+      "provenance": [
+        "event_vector_space_error_101",
+        "event_vector_space_error_102",
+        "event_vector_space_error_103",
+        "event_vector_space_error_104"
+      ]
+    }
+  ],
+  "events": [
+    {
+      "event_id": "event_vector_space_error_105",
+      "idempotency_key": "vector-space-concept-error-105",
+      "context": {
+        "user_id": "user_001",
+        "exam_id": "postgraduate_entrance_exam",
+        "subject_id": "math_1"
+      },
+      "session_id": "session_032",
+      "question_id": "vector_space_105",
+      "knowledge_point_ids": ["math1.linear_algebra.vector_space"],
+      "difficulty": 0.7,
+      "answer_correct": false,
+      "error_type": "concept_confusion",
+      "error_detail": "再次把任意向量集合直接视为其张成的子空间",
+      "occurred_at": "2026-08-09T15:00:00Z"
+    }
+  ],
+  "gold_operations": [
+    {
+      "operation_id": "step_001:mastery",
+      "step_id": "step_001",
+      "event_id": "event_vector_space_error_105",
+      "extracted_fields": {
+        "knowledge_point_ids": ["math1.linear_algebra.vector_space"],
+        "answer_correct": false,
+        "error_type": "concept_confusion",
+        "error_detail": "再次把任意向量集合直接视为其张成的子空间"
+      },
+      "canonical_knowledge_point_ids": ["math1.linear_algebra.vector_space"],
+      "slot_key": "mastery:math1.linear_algebra.vector_space",
+      "candidate_memory_ids": ["mastery_vector_space_low_v1"],
+      "operation": "MERGE",
+      "target_memory_ids": ["mastery_vector_space_low_v1"],
+      "result_memory_id": "mastery_vector_space_low_v2",
+      "reason_code": "new_error_strengthens_evidence_within_low_level",
+      "evidence_event_ids": ["event_vector_space_error_105"]
+    },
+    {
+      "operation_id": "step_001:error_pattern",
+      "step_id": "step_001",
+      "event_id": "event_vector_space_error_105",
+      "extracted_fields": {
+        "knowledge_point_ids": ["math1.linear_algebra.vector_space"],
+        "answer_correct": false,
+        "error_type": "concept_confusion",
+        "error_detail": "再次把任意向量集合直接视为其张成的子空间"
+      },
+      "canonical_knowledge_point_ids": ["math1.linear_algebra.vector_space"],
+      "slot_key": "error_pattern:math1.linear_algebra.vector_space:concept_confusion",
+      "candidate_memory_ids": ["error_vector_space_definition_v1"],
+      "operation": "MERGE",
+      "target_memory_ids": ["error_vector_space_definition_v1"],
+      "result_memory_id": "error_vector_space_definition_v2",
+      "reason_code": "independent_error_strengthens_existing_stable_pattern",
+      "evidence_event_ids": ["event_vector_space_error_105"]
+    }
+  ],
+  "gold_states": [
+    {
+      "step_id": "step_001",
+      "active_memory_ids": [
+        "mastery_vector_space_low_v2",
+        "error_vector_space_definition_v2"
+      ],
+      "archived_memory_ids": [
+        "mastery_vector_space_low_v1",
+        "error_vector_space_definition_v1"
+      ],
+      "invalidated_memory_ids": [],
+      "contested_memory_ids": [],
+      "version_relations": [
+        {
+          "predecessor_memory_id": "mastery_vector_space_low_v1",
+          "successor_memory_id": "mastery_vector_space_low_v2",
+          "relation": "superseded_by"
+        },
+        {
+          "predecessor_memory_id": "error_vector_space_definition_v1",
+          "successor_memory_id": "error_vector_space_definition_v2",
+          "relation": "superseded_by"
+        }
+      ]
+    }
+  ],
+  "queries": [
+    {
+      "query_id": "query_001",
+      "after_step_id": "step_001",
+      "scope": {
+        "user_id": "user_001",
+        "exam_id": "postgraduate_entrance_exam",
+        "subject_id": "math_1",
+        "memory_namespace": "error_pattern"
+      },
+      "text": "向量空间定义是否仍应作为重点薄弱点复习？",
+      "top_k": 3
+    }
+  ],
+  "gold_actions": [
+    {
+      "step_id": "step_001",
+      "action_type": "recommend_review",
+      "knowledge_point_ids": ["math1.linear_algebra.vector_space"],
+      "reason_code": "low_mastery_and_stable_concept_pattern_require_review"
+    }
+  ],
+  "metadata": {
+    "split": "protocol_check",
+    "seed": 20260806,
+    "gold_revision": 2,
+    "policy_parameters": {
+      "stable_error_pattern_minimum_independent_events": 3
+    }
+  }
+}

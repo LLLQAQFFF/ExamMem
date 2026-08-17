@@ -1,0 +1,41 @@
+{
+  "protocol_version": "evaluation_protocol_v1",
+  "scenario_type": "stable_weakness",
+  "case_ids": [
+    "stable_weakness_emerges_from_repeated_errors_001",
+    "stable_weakness_existing_pattern_strengthened_002"
+  ],
+  "primary_label_source": "project_owner_multiple_choice_annotation",
+  "selected_options": {
+    "original_selection": "C_A_B_A_A_A",
+    "accepted_revision": "A_A_B_A_A_A",
+    "revision_reason": "distinguish immediate recording from classification as a stable pattern"
+  },
+  "ai_review": {
+    "status": "accepted_after_concept_clarification",
+    "reviewed_at": "2026-08-10",
+    "notes": [
+      "A cold-topic error is recorded immediately as contested and may trigger review before it is stable.",
+      "Three independent errors promote the contested pattern to active and lower mastery to low.",
+      "A stable weakness combines repeated evidence, an active error pattern and low mastery rather than equating any one error with stability."
+    ]
+  },
+  "blind_self_review": {
+    "minimum_interval_days": 1,
+    "completed": false,
+    "status": "waived_independent_human_review_completed"
+  },
+  "independent_human_review": {
+    "reviewer_id": "independent_reviewer_001",
+    "reviewed_at": "2026-08-10",
+    "asserted_no_access_to_primary_labels": true,
+    "reviewed_case_ids": [
+      "stable_weakness_emerges_from_repeated_errors_001",
+      "stable_weakness_existing_pattern_strengthened_002"
+    ],
+    "answers": ["B", "A"],
+    "agreement_with_primary": true,
+    "conflicts": [],
+    "status": "completed_without_revision"
+  }
+}
