@@ -176,6 +176,8 @@ and versioned assessments), `93df09ed` (published Taxonomy runtime),
 language), `366779ab` (scoped Learning Archive and study Agents), and
 `cf847f96` (single learning entry plus real Practice generation progress).
 `4e19927b` records the earlier Smart Exam Prep acceptance snapshot.
+`27447a82` adds reversible assessment archival, restore, server-side continuation
+guards, Review filtering and migration `0011_assessment_archival`.
 
 No commit was pushed, released or deployed.
 
