@@ -12,7 +12,7 @@ from evaluation.contracts.rollout import (
     ModelSettings,
     RetrySettings,
 )
-from evaluation.contracts.trace import MemoryStateTrace
+from evaluation.contracts.trace import LLMCallTrace, MemoryStateTrace, TokenUsage
 from evaluation.materializer import MaterializedStep
 from evaluation.protocols.validation import load_cases
 from evaluation.runner import run_case
@@ -52,9 +52,17 @@ class FakeSession:
     mode = BackendMode.LIFECYCLE
     policy_version = "lifecycle_policy_v1"
 
-    def __init__(self, *, fail: bool = False, delay_seconds: float = 0.0) -> None:
+    def __init__(
+        self,
+        *,
+        fail: bool = False,
+        delay_seconds: float = 0.0,
+        llm_calls_per_step: int = 0,
+    ) -> None:
         self.fail = fail
         self.delay_seconds = delay_seconds
+        self.llm_calls_per_step = llm_calls_per_step
+        self.call_index = 0
         self.snapshot_payload: dict[str, Any] = {"step": 0}
 
     async def seed(self, case):  # noqa: ANN001, ANN201
@@ -98,7 +106,25 @@ class FakeSession:
         return []
 
     def take_llm_calls(self):  # noqa: ANN201
-        return []
+        calls = []
+        for _ in range(self.llm_calls_per_step):
+            self.call_index += 1
+            calls.append(
+                LLMCallTrace(
+                    call_id=f"fake-call-{self.call_index}",
+                    purpose="test",
+                    provider="fake",
+                    model="fake",
+                    token_usage=TokenUsage(
+                        prompt_tokens=1,
+                        completion_tokens=1,
+                        total_tokens=2,
+                    ),
+                    latency_ms=1,
+                    succeeded=True,
+                )
+            )
+        return calls
 
 
 async def test_runner_builds_a_complete_vertical_slice() -> None:
@@ -152,3 +178,22 @@ async def test_runner_preserves_partial_evidence_on_timeout() -> None:
     assert result.status.value == "timeout"
     assert result.traces[-1].status.value == "timeout"
     assert result.traces[-1].errors[0].error_type == "TimeoutError"
+
+
+async def test_runner_stops_after_atomic_step_when_llm_budget_is_exceeded() -> None:
+    case = load_cases("dev")[0]
+    config = _config()
+    config.fairness.max_llm_calls_per_case = 1
+
+    result = await run_case(
+        run_id="budget-vertical-slice",
+        case=case,
+        session=FakeSession(llm_calls_per_step=1),
+        config=config,
+        code_sha="1de8ad56",
+    )
+
+    assert result.status.value == "partial"
+    assert result.errors[0].error_type == "LLMCallBudgetExceeded"
+    assert result.llm_call_count == 2
+    assert len({trace.input_event.event_id for trace in result.traces}) == 2

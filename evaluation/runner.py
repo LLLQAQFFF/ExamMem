@@ -99,6 +99,7 @@ async def _run_case(
     current_candidate_ids: list[list[str]] = []
     current_stage = TraceStage.RECORD_EVENT
     rollout_status = RolloutStatus.COMPLETED
+    observed_llm_calls = 0
     try:
         async with asyncio.timeout(config.fairness.retry.timeout_seconds):
             initial_snapshot = await session.seed(case)
@@ -115,6 +116,7 @@ async def _run_case(
                 current_stage = TraceStage.APPLY
                 decisions, final_snapshot = await session.process(current_step)
                 calls = session.take_llm_calls()
+                observed_llm_calls += len(calls)
                 after_state = session.state_trace(final_snapshot)
 
                 retrieval_ids: list[str] = []
@@ -168,6 +170,22 @@ async def _run_case(
                         )
                     )
                     trace_index += 1
+                if observed_llm_calls > config.fairness.max_llm_calls_per_case:
+                    errors.append(
+                        TraceError(
+                            stage=TraceStage.DECIDE,
+                            error_type="LLMCallBudgetExceeded",
+                            message=(
+                                "per-case LLM call budget exceeded: "
+                                f"{observed_llm_calls} > "
+                                f"{config.fairness.max_llm_calls_per_case}"
+                            ),
+                            retryable=False,
+                            attempt=1,
+                        )
+                    )
+                    rollout_status = RolloutStatus.PARTIAL
+                    break
                 current_stage = TraceStage.APPLY
     except Exception as exc:  # noqa: BLE001 - failures are evaluation evidence
         timed_out = isinstance(exc, TimeoutError)

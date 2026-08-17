@@ -96,7 +96,10 @@ def _evaluate_run(args: argparse.Namespace) -> dict[str, Any]:
             concurrency=args.concurrency,
             timeout_seconds=args.timeout_seconds,
             top_k=args.top_k,
+            max_llm_calls_per_case=args.max_llm_calls_per_case,
             resume=args.resume,
+            case_ids=args.case_id,
+            scenarios=args.scenario,
         )
     )
     return {"status": "ok", "command": "evaluate run", **result}
@@ -179,7 +182,10 @@ def build_parser() -> argparse.ArgumentParser:
     evaluate_run.add_argument("--concurrency", type=int, default=1)
     evaluate_run.add_argument("--timeout-seconds", type=float, default=300.0)
     evaluate_run.add_argument("--top-k", type=int, default=5)
+    evaluate_run.add_argument("--max-llm-calls-per-case", type=int, default=100)
     evaluate_run.add_argument("--resume", action="store_true")
+    evaluate_run.add_argument("--case-id", action="append", default=[])
+    evaluate_run.add_argument("--scenario", action="append", default=[])
     evaluate_run.set_defaults(handler=_evaluate_run)
     return parser
 

@@ -33,6 +33,7 @@ async def test_partial_execution_writes_required_audit_artifacts(
 
     output = tmp_path / "offline-none"
     assert manifest["complete_five_arm_report"] is False
+    assert manifest["selected_case_count"] == 24
     assert (output / "manifest.json").is_file()
     assert (output / "config.json").is_file()
     assert len((output / "cases.jsonl").read_text().splitlines()) == 24
@@ -54,4 +55,16 @@ async def test_execution_refuses_frozen_test_rollout(tmp_path: Path) -> None:
             modes=[BackendMode.NONE],
             output_root=tmp_path,
             database_url=None,
+        )
+
+
+async def test_execution_rejects_unknown_case_filter(tmp_path: Path) -> None:
+    with pytest.raises(ValueError, match="unknown case IDs"):
+        await execute_evaluation(
+            experiment_id="unknown-filter",
+            split=DatasetSplit.PROTOCOL_CHECK,
+            modes=[BackendMode.NONE],
+            output_root=tmp_path,
+            database_url=None,
+            case_ids=["does_not_exist"],
         )

@@ -65,6 +65,7 @@ class FairnessField(str, Enum):
     MODEL_NAME = "model.name"
     MODEL_PARAMETERS = "model.parameters"
     RETRIEVAL_TOP_K = "retrieval_top_k"
+    LLM_CALL_BUDGET = "max_llm_calls_per_case"
     TIMEOUT = "retry.timeout_seconds"
     MAX_RETRIES = "retry.max_retries"
     RETRY_BACKOFF = "retry.backoff_seconds"

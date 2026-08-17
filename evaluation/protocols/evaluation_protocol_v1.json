@@ -29,6 +29,7 @@
     "model.name",
     "model.parameters",
     "retrieval_top_k",
+    "max_llm_calls_per_case",
     "retry.timeout_seconds",
     "retry.max_retries",
     "retry.backoff_seconds"

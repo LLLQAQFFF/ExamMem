@@ -48,6 +48,7 @@ EXAM_MEM_DATABASE_URL="$EXAM_MEM_DATABASE_URL" \
   --output-root artifacts/stage08/runs \
   --concurrency 1 \
   --timeout-seconds 300 \
+  --max-llm-calls-per-case 100 \
   --top-k 5
 ```
 
@@ -70,10 +71,13 @@ EXAM_MEM_DATABASE_URL="$EXAM_MEM_DATABASE_URL" \
   --output-root artifacts/stage08/runs \
   --concurrency 1 \
   --timeout-seconds 300 \
+  --max-llm-calls-per-case 100 \
   --top-k 5
 ```
 
 同一 user 的 case 始终串行；不同 user 才可受 `--concurrency` 控制并发。
+
+诊断时可重复传入 `--case-id CASE_ID` 或 `--scenario SCENARIO` 选择子集；两类过滤同时出现时取交集。正式 baseline 不加过滤器，manifest 会记录选择数量和过滤条件。
 
 ## 5. 产物与判读
 

@@ -74,6 +74,7 @@ class FairnessConfig(StrictRolloutModel):
     seed: Literal[PROTOCOL_SEED]
     model: ModelSettings
     retrieval_top_k: Annotated[int, Field(ge=1)]
+    max_llm_calls_per_case: Annotated[int, Field(ge=1)] = 100
     retry: RetrySettings
 
     def canonical_hash(self) -> str:

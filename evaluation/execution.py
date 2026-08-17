@@ -86,6 +86,7 @@ def _config(
     model: str,
     timeout_seconds: float,
     top_k: int,
+    max_llm_calls_per_case: int,
 ) -> ExperimentConfig:
     policy_versions = {
         BackendMode.NONE: "none_v1",
@@ -117,6 +118,7 @@ def _config(
                 additional_parameters={"language": "zh"},
             ),
             retrieval_top_k=top_k,
+            max_llm_calls_per_case=max_llm_calls_per_case,
             retry=RetrySettings(
                 timeout_seconds=timeout_seconds,
                 max_retries=0,
@@ -356,15 +358,38 @@ async def execute_evaluation(
     concurrency: int = 1,
     timeout_seconds: float = 300.0,
     top_k: int = 5,
+    max_llm_calls_per_case: int = 100,
     resume: bool = False,
+    case_ids: Sequence[str] = (),
+    scenarios: Sequence[str] = (),
 ) -> dict[str, Any]:
     """Run selected arms; finalize a report only after all five exist."""
     if split is DatasetSplit.TEST:
         raise ValueError("frozen test may only be schema/hash verified in Stage 08")
     if concurrency < 1:
         raise ValueError("concurrency must be at least one")
-    cases = load_cases(split)
-    dataset_hash = _dataset_hash(split, cases)
+    all_cases = load_cases(split)
+    dataset_hash = _dataset_hash(split, all_cases)
+    requested_case_ids = set(case_ids)
+    requested_scenarios = set(scenarios)
+    known_case_ids = {case.case_id for case in all_cases}
+    known_scenarios = {case.scenario_type.value for case in all_cases}
+    if requested_case_ids - known_case_ids:
+        raise ValueError(
+            "unknown case IDs: " + ", ".join(sorted(requested_case_ids - known_case_ids))
+        )
+    if requested_scenarios - known_scenarios:
+        raise ValueError(
+            "unknown scenarios: " + ", ".join(sorted(requested_scenarios - known_scenarios))
+        )
+    cases = [
+        case
+        for case in all_cases
+        if (not requested_case_ids or case.case_id in requested_case_ids)
+        and (not requested_scenarios or case.scenario_type.value in requested_scenarios)
+    ]
+    if not cases:
+        raise ValueError("case/scenario filters selected no evaluation cases")
     _assert_evaluation_sources_clean()
     code_sha = _code_sha()
     resolved = resolve_llm_runtime_config()
@@ -384,6 +409,7 @@ async def execute_evaluation(
                 model=resolved.model,
                 timeout_seconds=timeout_seconds,
                 top_k=top_k,
+                max_llm_calls_per_case=max_llm_calls_per_case,
             )
             all_results[mode] = await _run_mode(
                 experiment_id=experiment_id,
@@ -409,6 +435,9 @@ async def execute_evaluation(
         "seed": PROTOCOL_SEED,
         "created_at": datetime.now(timezone.utc).isoformat(),
         "backend_modes": [mode.value for mode in modes],
+        "selected_case_count": len(cases),
+        "case_id_filters": sorted(requested_case_ids),
+        "scenario_filters": sorted(requested_scenarios),
         "complete_five_arm_report": set(all_results) == set(BackendMode),
     }
     (output / "manifest.json").write_bytes(_json_bytes(manifest))
