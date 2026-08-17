@@ -458,6 +458,39 @@ async def test_generated_questions_are_checkpointed_and_attempts_share_exam_scop
                         },
                     )
                     assert answer_response.status_code == 200, answer_response.text
+                    review_response = await client.get(
+                        "/api/v1/exam-mem/practice/sessions/practice:generated:001"
+                    )
+                    assert review_response.status_code == 200, review_response.text
+                    generated_review = review_response.json()
+                    assert generated_review["assessment"] == {
+                        "attempt_id": generated["assessment"]["attempt_id"],
+                        "assessment_id": generated["assessment"]["assessment_id"],
+                        "assessment_version": 1,
+                        "title": "贝叶斯公式 专项检测",
+                        "taxonomy_version": "math1_v1",
+                    }
+                    generated_checkpoint = next(
+                        item
+                        for item in generated_review["checkpoints"]
+                        if item.get("submitted_answer") is not None
+                    )
+                    assert generated_checkpoint["question"]["reference_answer"]
+                    archive_response = await client.get(
+                        "/api/v1/exam-mem/learning-archive",
+                        params={
+                            "exam_id": "postgraduate_entrance_exam",
+                            "subject_id": "math_1",
+                            "taxonomy_version": "math1_v1",
+                        },
+                    )
+                    assert archive_response.status_code == 200, archive_response.text
+                    assert any(
+                        item["event"]["event_id"] == generated_checkpoint["learning_event_id"]
+                        and item["source"]["assessment_id"]
+                        == generated["assessment"]["assessment_id"]
+                        for item in archive_response.json()["l1"]
+                    )
                     second_response = await client.post(
                         "/api/v1/exam-mem/practice/start",
                         json={
@@ -607,6 +640,51 @@ async def test_real_entry_runs_one_plugin_workflow_and_replays_without_duplicate
                     answer_checkpoint = next(
                         item for item in review["checkpoints"] if item["grade_result"] is not None
                     )
+                    assert answer_checkpoint["submitted_answer"]["answer"] == (
+                        "controlled incorrect answer"
+                    )
+                    assert answer_checkpoint["question"]["reference_answer"]
+                    assert answer_checkpoint["question"]["grading_rubric"]
+                    assert answer_checkpoint["learning_event_id"]
+                    summary = review["attempt_summary"]
+                    assert summary["question_count"] == len(stage07_practice_questions())
+                    assert summary["answered_count"] == 1
+                    assert summary["correct_count"] == 0
+                    assert summary["score"] == 0.25
+                    assert summary["strengths"] == []
+                    assert summary["weak_points"] == answer_checkpoint["mapped_knowledge_point_ids"]
+                    assert summary["error_patterns"] == [
+                        answer_checkpoint["diagnosis_result"]["error_type"]
+                    ]
+                    assert summary["next_actions"] == [
+                        {
+                            "knowledge_point_id": answer_checkpoint["recommendation"][
+                                "target_knowledge_point_id"
+                            ],
+                            "reason_codes": answer_checkpoint["recommendation"]["reason_codes"],
+                            "source_memory_ids": answer_checkpoint["recommendation"][
+                                "source_memory_ids"
+                            ],
+                        }
+                    ]
+                    archive_response = await client.get(
+                        "/api/v1/exam-mem/learning-archive",
+                        params={
+                            "exam_id": "postgraduate_entrance_exam",
+                            "subject_id": "math_1",
+                        },
+                    )
+                    assert archive_response.status_code == 200, archive_response.text
+                    archive_event = next(
+                        item
+                        for item in archive_response.json()["l1"]
+                        if item["event"]["event_id"] == answer_checkpoint["learning_event_id"]
+                    )
+                    assert archive_event["detail"]["question"]["reference_answer"]
+                    assert archive_event["detail"]["submitted_answer"]["answer"] == (
+                        "controlled incorrect answer"
+                    )
+                    assert archive_event["memories"]
                     dispute_body = {
                         "practice_session_id": PRACTICE_SESSION_ID,
                         "checkpoint_key": answer_checkpoint["checkpoint_key"],

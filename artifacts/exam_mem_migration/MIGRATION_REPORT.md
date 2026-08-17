@@ -127,14 +127,14 @@ model quality or provider availability.
 
 | Category | Result |
 | --- | --- |
-| Host suite excluding ExamMem, with DSN absent | `3593 passed, 9 skipped`; disabled-plugin contract passed |
-| Full repository with ExamMem and local isolated PostgreSQL | `4293 passed, 9 skipped` |
-| CP6 focused backend/entry/product suite | `484 passed` |
+| Host suite excluding ExamMem, with DSN absent | latest dedicated baseline `3856 passed, 9 skipped`; disabled-plugin contract passed |
+| Full repository with ExamMem and local isolated PostgreSQL | `4312 passed, 9 skipped` on 2026-08-17 |
+| ExamMem focused suite | `456 passed` |
 | Five Backend matrix | `33 passed` |
 | Browser HTTP / Python SDK / unified WebSocket real entry suite | `3 passed` |
-| Frozen migrations/config/Session/WS gate | `45 passed` |
+| Frozen migration and schema metadata gate | `21 passed` |
 | Python static gate | Ruff passed |
-| Web tests | Node `65/65`; ESLint 0 errors and 56 warnings |
+| Web tests | Node `65/65`; ESLint 0 errors and 58 pre-existing warnings |
 | Web production build | Turbopack compiled and type-checked; 63 routes, including six ExamMem routes |
 | Git/security | diff check, Core dependency scan, changed-file secret scan and source integrity passed |
 
@@ -226,3 +226,19 @@ channel. A linked Learning Path conversation can be summarized only against its
 already-bound leaf objective and is automatically confirmed as learning
 exposure. Neither flow can claim mastery, change a grade, write L2, or rebuild
 L3. Practice evidence remains the only current mastery-producing path.
+
+## Review evidence transparency and plan isolation follow-up
+
+The 2026-08-17 follow-up keeps the existing write model unchanged and adds a
+task-specific read model documented in
+`LEARNING_PLAN_REVIEW_ARCHIVE_REQUIREMENTS.zh-CN.md`. Exam Review now requires
+one plan/subject scope, preserves assessment → version → attempt grouping, and
+reveals the complete question/answer/rubric/grade/diagnosis/recommendation chain
+only for already-submitted questions. Its attempt summary is deterministically
+derived from persisted facts and creates no Memory side effect.
+
+Learning Archive L1 remains append-only but now resolves each formal event to
+its checkpoint detail and linked L2 provenance. Review and Archive use stable
+session/event/memory identifiers for bidirectional navigation. L2 corrections
+still use the existing confirmed append-only lifecycle workflow. No migration,
+frozen-contract change or DeepTutor Core dependency was added.

@@ -13,6 +13,7 @@ import {
   Workflow,
   X,
 } from "lucide-react";
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -90,13 +91,19 @@ export default function LearningMemoryWorkbench() {
     void listStudyPlans()
       .then((items) => {
         const published = items.filter((item) => item.versions.length > 0);
+        const requestedPlanId = searchParams.get("plan_id");
         setPlans(published);
-        setPlanId((current) => current || published[0]?.plan_id || "");
+        setPlanId((current) =>
+          current ||
+          (published.some((item) => item.plan_id === requestedPlanId)
+            ? requestedPlanId || ""
+            : published[0]?.plan_id || ""),
+        );
       })
       .catch((cause) =>
         setError(cause instanceof Error ? cause.message : String(cause)),
       );
-  }, []);
+  }, [searchParams]);
 
   const plan = plans.find((item) => item.plan_id === planId) ?? null;
   const versions = useMemo(() => plan?.versions ?? [], [plan]);
@@ -117,15 +124,24 @@ export default function LearningMemoryWorkbench() {
   );
 
   useEffect(() => {
-    setVersionNumber(plan?.active_version ?? versions[0]?.version ?? null);
-  }, [planId, plan?.active_version, versions]);
+    const requestedTaxonomy = searchParams.get("taxonomy_version");
+    const requestedVersion = versions.find((item) =>
+      Object.values(item.taxonomy_versions).includes(requestedTaxonomy || ""),
+    );
+    setVersionNumber(
+      requestedVersion?.version ?? plan?.active_version ?? versions[0]?.version ?? null,
+    );
+  }, [planId, plan?.active_version, searchParams, versions]);
   useEffect(() => {
+    const requestedSubject = searchParams.get("subject_id");
     setSubjectId((current) =>
-      subjects.some((item) => item.id === current)
+      subjects.some((item) => item.id === requestedSubject)
+        ? requestedSubject || ""
+        : subjects.some((item) => item.id === current)
         ? current
         : subjects[0]?.id || "",
     );
-  }, [versionNumber, subjects]);
+  }, [searchParams, versionNumber, subjects]);
   useEffect(() => {
     setModuleId((current) =>
       modules.some((item) => item.id === current) ? current : "",
@@ -195,6 +211,17 @@ export default function LearningMemoryWorkbench() {
       group.sort((a, b) => b.memory.version - a.memory.version);
     return [...groups.values()];
   }, [archive]);
+  useEffect(() => {
+    const requestedMemoryId = searchParams.get("memory_id");
+    if (!requestedMemoryId || !archive) return;
+    const requested = archive.l2.find(
+      (item) => item.memory.memory_id === requestedMemoryId,
+    );
+    if (requested) {
+      setView("l2");
+      setSelectedMemory(requested);
+    }
+  }, [archive, searchParams]);
 
   const analyze = async () => {
     if (!scope || !conversationId) return;
@@ -363,7 +390,14 @@ export default function LearningMemoryWorkbench() {
       {view === "overview" && archive ? (
         <ArchiveOverview archive={archive} tr={tr} />
       ) : null}
-      {view === "l1" ? <L1View archive={archive} tr={tr} /> : null}
+      {view === "l1" ? (
+        <L1View
+          archive={archive}
+          focusedEventId={searchParams.get("event_id")}
+          planId={planId}
+          tr={tr}
+        />
+      ) : null}
       {view === "l2" ? (
         <L2View
           groups={memoriesBySlot}
@@ -614,7 +648,17 @@ function Filter({
   );
 }
 
-function L1View({ archive, tr }: { archive: LearningArchive | null; tr: Tr }) {
+function L1View({
+  archive,
+  focusedEventId,
+  planId,
+  tr,
+}: {
+  archive: LearningArchive | null;
+  focusedEventId: string | null;
+  planId: string;
+  tr: Tr;
+}) {
   const rows = [
     ...(archive?.l1.map((item) => ({
       id: item.event.event_id,
@@ -628,6 +672,7 @@ function L1View({ archive, tr }: { archive: LearningArchive | null; tr: Tr }) {
             : ""
       }`,
       badge: tr("正式刷题", "Formal practice"),
+      evidence: item,
     })) ?? []),
     ...(archive?.learning_path_observations.map((item) => ({
       id: item.observation_id,
@@ -635,6 +680,7 @@ function L1View({ archive, tr }: { archive: LearningArchive | null; tr: Tr }) {
       title: item.summary,
       detail: item.rationale,
       badge: tr("学习路径侧记（非 L1）", "Learning-path note (not L1)"),
+      evidence: null,
     })) ?? []),
   ].sort((a, b) => b.at.localeCompare(a.at));
   if (!rows.length)
@@ -649,11 +695,12 @@ function L1View({ archive, tr }: { archive: LearningArchive | null; tr: Tr }) {
   return (
     <section className="space-y-3">
       {rows.map((row) => (
-        <article
+        <details
           key={row.id}
+          open={row.id === focusedEventId || undefined}
           className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-4"
         >
-          <div className="flex justify-between gap-3">
+          <summary className="flex cursor-pointer list-none justify-between gap-3">
             <div>
               <span className="rounded-full bg-[var(--muted)] px-2 py-1 text-xs">
                 {row.badge}
@@ -666,11 +713,116 @@ function L1View({ archive, tr }: { archive: LearningArchive | null; tr: Tr }) {
             <time className="text-xs text-[var(--muted-foreground)]">
               {new Date(row.at).toLocaleString()}
             </time>
-          </div>
-        </article>
+          </summary>
+          {row.evidence?.detail ? (
+            <div className="mt-4 space-y-3 border-t border-[var(--border)] pt-4">
+              <EvidenceBlock
+                label={tr("题目", "Question")}
+                value={row.evidence.detail.question?.stem}
+              />
+              <EvidenceBlock
+                label={tr("我的作答", "My answer")}
+                value={row.evidence.detail.submitted_answer?.answer}
+              />
+              <EvidenceBlock
+                label={tr("参考答案", "Reference answer")}
+                value={row.evidence.detail.question?.reference_answer}
+              />
+              <EvidenceBlock
+                label={tr("题解与评分规则", "Solution and rubric")}
+                value={learningRubricText(
+                  row.evidence.detail.question?.grading_rubric,
+                )}
+              />
+              <EvidenceBlock
+                label={tr("判题依据", "Grade evidence")}
+                value={row.evidence.detail.grade_result?.evidence.join("\n")}
+              />
+              <EvidenceBlock
+                label={tr("诊断", "Diagnosis")}
+                value={row.evidence.detail.diagnosis_result?.explanation}
+              />
+              <EvidenceBlock
+                label={tr("下一步建议", "Next recommendation")}
+                value={row.evidence.detail.recommendation?.reason_codes.join(" · ")}
+              />
+              {row.evidence.memories.length ? (
+                <div>
+                  <p className="text-xs font-medium">{tr("生成的记忆", "Generated memories")}</p>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {row.evidence.memories.map((memory) => (
+                      <Link
+                        key={memory.memory_id}
+                        href={memoryHref(
+                          planId,
+                          archive?.scope.subject_id,
+                          archive?.scope.taxonomy_version,
+                          memory.memory_id,
+                        )}
+                        className="rounded-full border border-[var(--border)] px-2 py-1 text-xs text-[var(--primary)]"
+                      >
+                        {`${memory.memory_namespace} · v${memory.version} · ${memory.lifecycle_state}`}
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+              <Link
+                href={`/exam-mem/review?practice_session_id=${encodeURIComponent(row.evidence.event.session_id)}`}
+                className="inline-flex text-xs text-[var(--primary)] underline-offset-4 hover:underline"
+              >
+                {tr("打开这次考试复盘", "Open this assessment review")}
+              </Link>
+            </div>
+          ) : null}
+        </details>
       ))}
     </section>
   );
+}
+
+function memoryHref(
+  planId: string,
+  subjectId: string | undefined,
+  taxonomyVersion: string | null | undefined,
+  memoryId: string,
+): string {
+  const params = new URLSearchParams({
+    view: "l2",
+    plan_id: planId,
+    memory_id: memoryId,
+  });
+  if (subjectId) params.set("subject_id", subjectId);
+  if (taxonomyVersion) params.set("taxonomy_version", taxonomyVersion);
+  return `/exam-mem/memories?${params}`;
+}
+
+function EvidenceBlock({ label, value }: { label: string; value?: string | null }) {
+  if (!value) return null;
+  return (
+    <div className="rounded-lg bg-[var(--muted)]/40 p-3">
+      <p className="text-xs font-medium">{label}</p>
+      <p className="mt-1 whitespace-pre-wrap text-sm text-[var(--muted-foreground)]">
+        {value}
+      </p>
+    </div>
+  );
+}
+
+function learningRubricText(rubric: Record<string, unknown> | undefined): string | null {
+  if (!rubric) return null;
+  const steps = rubric.required_steps;
+  if (Array.isArray(steps)) {
+    const descriptions = steps
+      .map((item) =>
+        item && typeof item === "object" && "description" in item
+          ? String(item.description)
+          : "",
+      )
+      .filter(Boolean);
+    if (descriptions.length) return descriptions.join("\n");
+  }
+  return JSON.stringify(rubric, null, 2);
 }
 
 function L2View(props: {
@@ -735,28 +887,33 @@ function L2View(props: {
               {props.tr("版本与来源", "Versions and sources")}
             </h2>
             {selectedVersions.map((item) => (
-              <button
-                type="button"
+              <div
                 key={item.memory.memory_id}
-                onClick={() => props.setSelected(item)}
-                className="w-full rounded-lg bg-[var(--muted)]/50 p-3 text-left text-xs"
+                className="rounded-lg bg-[var(--muted)]/50 p-3 text-xs"
               >
-                <p>
-                  {`${item.memory.lifecycle_state} · v${item.memory.version} · ${item.sources.length} ${props.tr("条来源", "sources")}`}
-                </p>
-                <p className="mt-1">{memoryValueSummary(item.memory.value)}</p>
+                <button
+                  type="button"
+                  onClick={() => props.setSelected(item)}
+                  className="w-full text-left"
+                >
+                  <p>
+                    {`${item.memory.lifecycle_state} · v${item.memory.version} · ${item.sources.length} ${props.tr("条来源", "sources")}`}
+                  </p>
+                  <p className="mt-1">{memoryValueSummary(item.memory.value)}</p>
+                </button>
                 {item.sources.map((source) => (
-                  <p
+                  <Link
                     key={`${item.memory.memory_id}:${source.event_id}`}
-                    className="mt-1 text-[var(--muted-foreground)]"
+                    href={`/exam-mem/review?practice_session_id=${encodeURIComponent(source.session_id)}`}
+                    className="mt-1 block text-[var(--muted-foreground)] underline-offset-4 hover:underline"
                   >
                     {source.assessment_title || source.event_type}
                     {source.assessment_version
                       ? ` · exam v${source.assessment_version}`
                       : ""}
-                  </p>
+                  </Link>
                 ))}
-              </button>
+              </div>
             ))}
             {props.selected.memory.lifecycle_state === "active" ? (
               <div className="rounded-lg border border-amber-500/30 p-3">
@@ -812,27 +969,35 @@ function L3View({ archive, tr }: { archive: LearningArchive | null; tr: Tr }) {
     [tr("活跃计划", "Active plans"), model.active_plans],
   ] as const;
   return (
-    <section className="grid gap-4 md:grid-cols-2">
-      {groups.map(([title, items]) => (
-        <article
-          key={title}
-          className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-5"
-        >
-          <h2 className="font-semibold">{title}</h2>
-          <div className="mt-3 space-y-2">
-            {items.length ? (
-              items.map((item) => (
-                <p key={item} className="rounded-lg bg-[var(--muted)]/50 p-3 text-sm">
-                  {item}
-                </p>
-              ))
-            ) : (
-              <p className="text-sm text-[var(--muted-foreground)]">—</p>
-            )}
-          </div>
-        </article>
-      ))}
-    </section>
+    <div className="space-y-4">
+      <p className="rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-xs text-amber-700 dark:text-amber-300">
+        {tr(
+          "L3 是当前学习计划与科目的跨大纲版本综合画像；上方大纲版本筛选只约束 L1/L2，不会把 L3 误标成单一版本。",
+          "L3 is the plan-and-subject projection across syllabus versions. The syllabus filter above applies to L1/L2 and does not mislabel L3 as a single-version view.",
+        )}
+      </p>
+      <section className="grid gap-4 md:grid-cols-2">
+        {groups.map(([title, items]) => (
+          <article
+            key={title}
+            className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-5"
+          >
+            <h2 className="font-semibold">{title}</h2>
+            <div className="mt-3 space-y-2">
+              {items.length ? (
+                items.map((item) => (
+                  <p key={item} className="rounded-lg bg-[var(--muted)]/50 p-3 text-sm">
+                    {item}
+                  </p>
+                ))
+              ) : (
+                <p className="text-sm text-[var(--muted-foreground)]">—</p>
+              )}
+            </div>
+          </article>
+        ))}
+      </section>
+    </div>
   );
 }
 

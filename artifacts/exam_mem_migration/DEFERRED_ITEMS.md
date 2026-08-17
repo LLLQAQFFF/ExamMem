@@ -49,8 +49,12 @@ is a product boundary, not an unfinished fallback path.
   unrelated private context are not silently processed. Confirmed Chat clues
   remain outside formal L1/L2/L3 and do not affect mastery.
 - L3 displays only the current rebuildable Student Model. Historical L3
-  projection browsing is deferred; L2 already provides the authoritative
-  version timeline and provenance required for this release.
+  projection browsing and single-taxonomy-version rebuild are deferred. The UI
+  explicitly labels current L3 as a plan+subject projection across syllabus
+  versions; L2 provides the authoritative version timeline and provenance.
+- Free-form learner reflections after an assessment are not yet persisted.
+  Adding them requires an append-only, idempotent and explicitly confirmed
+  contract before any reflection may influence L2.
 - Migrations `0007`～`0010` have no automatic destructive downgrade when review,
   study-plan/session-link, assessment/attempt or Agent observation rows exist.
   Retention/archival requires an explicit operational decision.

@@ -338,3 +338,22 @@ the source design remains deferred.
 - Focused Python contracts passed `16/16`; the Practice PostgreSQL suite passed
   `111/111`; Web Node tests passed `64/64`; changed-file lint, type-checking,
   locale parity and the 63-route production build passed.
+
+### Evidence transparency and plan-isolation follow-up
+
+- Goal: separate “review one assessment attempt” from “inspect and correct
+  long-term learning information”, with the published Study Plan as the
+  default isolation boundary.
+- Assumptions: checkpoint JSON and provenance are authoritative; L1 remains
+  append-only; L2 correction remains the only current memory-edit workflow;
+  reference answers are visible only after the exact question was submitted.
+- Success: Review requires one plan/subject filter and shows assessment →
+  version → attempt, complete answered-question detail and a deterministic
+  summary. Archive L1 expands to the same evidence, links its L2 versions and
+  supports bidirectional navigation. L3 is explicitly labelled as the current
+  plan+subject projection across syllabus versions.
+- Result: no schema or migration change was needed. ExamMem tests passed
+  `456/456`; full Python passed `4312` with `9` skips; Node passed `65/65`;
+  migration/schema gates passed `21/21`; Ruff, i18n, changed-file ESLint,
+  diff/security checks and the 63-route production build passed. PostgreSQL
+  tests used random schemas and left none behind.

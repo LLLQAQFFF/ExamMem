@@ -17,7 +17,9 @@ from .models import (
     event_correction_targets,
     event_plan_transition_targets,
     learning_events,
+    learning_memories,
     memory_provenance,
+    practice_workflow_checkpoints,
 )
 from .student_model_repository import PostgresStudentModelRepository
 
@@ -64,6 +66,12 @@ class PostgresLearningArchiveRepository:
             "l1": l1,
             "l2": l2,
             "l3": l3_payload,
+            "l3_scope": {
+                "exam_id": context.exam_id,
+                "subject_id": context.subject_id,
+                "taxonomy_version": None,
+                "aggregation": "plan_subject_all_taxonomy_versions",
+            },
             "counts": {
                 "l1": len(l1),
                 "l2": len(l2),
@@ -123,6 +131,9 @@ class PostgresLearningArchiveRepository:
             context,
             [row["raw_payload"]["event_id"] for row in rows if row["taxonomy_version"] is None],
         )
+        event_ids = [row["raw_payload"]["event_id"] for row in rows]
+        details = await self._event_details(context, event_ids)
+        memories = await self._event_memories(context, event_ids)
         output: list[dict[str, Any]] = []
         for row in rows:
             payload = dict(row["raw_payload"])
@@ -141,6 +152,8 @@ class PostgresLearningArchiveRepository:
                 {
                     "event": payload,
                     "created_at": row["created_at"].isoformat(),
+                    "detail": details.get(payload["event_id"]),
+                    "memories": memories.get(payload["event_id"], []),
                     "source": (
                         None
                         if row["assessment_id"] is None
@@ -155,6 +168,108 @@ class PostgresLearningArchiveRepository:
                 }
             )
         return output
+
+    async def _event_details(
+        self,
+        context: LearningContext,
+        event_ids: Sequence[str],
+    ) -> dict[str, dict[str, Any]]:
+        if not event_ids:
+            return {}
+        rows = (
+            (
+                await self._connection.execute(
+                    select(practice_workflow_checkpoints.c.payload).where(
+                        practice_workflow_checkpoints.c.user_id == context.user_id,
+                        practice_workflow_checkpoints.c.exam_id == context.exam_id,
+                        practice_workflow_checkpoints.c.subject_id == context.subject_id,
+                        practice_workflow_checkpoints.c.payload["learning_event"][
+                            "event_id"
+                        ].astext.in_(tuple(event_ids)),
+                    )
+                )
+            )
+            .scalars()
+            .all()
+        )
+        selected = set(event_ids)
+        output: dict[str, dict[str, Any]] = {}
+        for payload in rows:
+            event = payload.get("learning_event") or {}
+            event_id = event.get("event_id")
+            if event_id not in selected:
+                continue
+            practice = payload.get("context") or {}
+            submission = practice.get("submitted_answer") or {}
+            output[event_id] = {
+                "question": practice.get("current_question"),
+                "submitted_answer": (
+                    None
+                    if not submission
+                    else {
+                        "answer": submission.get("answer"),
+                        "submitted_at": submission.get("submitted_at"),
+                    }
+                ),
+                "grade_result": payload.get("grade_result"),
+                "diagnosis_result": payload.get("diagnosis_result"),
+                "recommendation": payload.get("recommendation"),
+                "checkpoint_key": payload.get("checkpoint_key"),
+            }
+        return output
+
+    async def _event_memories(
+        self,
+        context: LearningContext,
+        event_ids: Sequence[str],
+    ) -> dict[str, list[dict[str, Any]]]:
+        if not event_ids:
+            return {}
+        rows = (
+            (
+                await self._connection.execute(
+                    select(
+                        memory_provenance.c.event_id,
+                        memory_provenance.c.relation_type,
+                        learning_memories.c.memory_id,
+                        learning_memories.c.memory_namespace,
+                        learning_memories.c.slot_key,
+                        learning_memories.c.version,
+                        learning_memories.c.lifecycle_state,
+                    )
+                    .join(
+                        learning_memories,
+                        learning_memories.c.memory_id == memory_provenance.c.memory_id,
+                    )
+                    .where(
+                        memory_provenance.c.event_id.in_(tuple(event_ids)),
+                        learning_memories.c.user_id == context.user_id,
+                        learning_memories.c.exam_id == context.exam_id,
+                        learning_memories.c.subject_id == context.subject_id,
+                    )
+                    .order_by(
+                        memory_provenance.c.event_id,
+                        learning_memories.c.slot_key,
+                        learning_memories.c.version,
+                    )
+                )
+            )
+            .mappings()
+            .all()
+        )
+        output: dict[str, list[dict[str, Any]]] = defaultdict(list)
+        for row in rows:
+            output[row["event_id"]].append(
+                {
+                    "memory_id": row["memory_id"],
+                    "memory_namespace": row["memory_namespace"],
+                    "slot_key": row["slot_key"],
+                    "version": row["version"],
+                    "lifecycle_state": row["lifecycle_state"],
+                    "relation_type": row["relation_type"],
+                }
+            )
+        return dict(output)
 
     async def _inherited_event_taxonomies(
         self,

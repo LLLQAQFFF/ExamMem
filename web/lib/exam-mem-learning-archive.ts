@@ -35,6 +35,31 @@ export interface LearningArchiveEvent {
     [key: string]: unknown;
   };
   created_at: string;
+  detail: {
+    question: {
+      question_id: string;
+      stem: string;
+      reference_answer: string;
+      grading_rubric: Record<string, unknown>;
+    } | null;
+    submitted_answer: { answer: string; submitted_at: string } | null;
+    grade_result: { correct: boolean; score: number; evidence: string[] } | null;
+    diagnosis_result: { error_type: string | null; explanation: string } | null;
+    recommendation: {
+      target_knowledge_point_id: string;
+      reason_codes: string[];
+      source_memory_ids: string[];
+    } | null;
+    checkpoint_key: string;
+  } | null;
+  memories: Array<{
+    memory_id: string;
+    memory_namespace: string;
+    slot_key: string;
+    version: number;
+    lifecycle_state: string;
+    relation_type: string;
+  }>;
   source: Omit<LearningArchiveSource, "event_id" | "event_type" | "session_id" | "knowledge_point_ids"> | null;
 }
 
@@ -74,6 +99,12 @@ export interface LearningArchive {
       source_watermark: string;
     };
   } | null;
+  l3_scope: {
+    exam_id: string;
+    subject_id: string;
+    taxonomy_version: null;
+    aggregation: "plan_subject_all_taxonomy_versions";
+  };
   counts: { l1: number; l2: number; l3: number };
   learning_path_observations: LearningObservation[];
 }

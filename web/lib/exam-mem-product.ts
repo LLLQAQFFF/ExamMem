@@ -5,7 +5,17 @@ import type { Assessment, AssessmentAttempt } from "@/lib/exam-mem-study-plans";
 export interface PracticeCheckpointSummary {
   checkpoint_key: string;
   step_state: string;
-  question: { question_id: string; stem: string } | null;
+  question: {
+    question_id: string;
+    stem: string;
+    knowledge_point_ids?: string[];
+    difficulty?: number;
+    reference_answer?: string;
+    grading_rubric?: Record<string, unknown>;
+  } | null;
+  submitted_answer?: { answer: string; submitted_at: string } | null;
+  learning_event_id?: string | null;
+  mapped_knowledge_point_ids?: string[];
   grade_result: { correct: boolean; score: number; evidence: string[] } | null;
   grade_artifact: {
     reused: boolean;
@@ -42,6 +52,7 @@ export interface ExamReviewHistoryItem extends PracticeHistoryItem {
   attempt_status: AssessmentAttempt["status"] | null;
   completed_at: string | null;
   assessment_attempt_number: number | null;
+  taxonomy_version: string | null;
 }
 
 export interface ExamReviewGroup {
@@ -61,6 +72,13 @@ export interface RuntimeSnapshot {
 }
 
 export interface ExamReview extends PracticeHistoryItem {
+  assessment: {
+    assessment_id: string;
+    title: string;
+    taxonomy_version: string;
+    assessment_version: number;
+    attempt_id: string;
+  } | null;
   checkpoints: PracticeCheckpointSummary[];
   trace: Array<Record<string, unknown>>;
   lifecycle: {
@@ -73,6 +91,20 @@ export interface ExamReview extends PracticeHistoryItem {
     reason: string;
     checkpoint_key: string;
   }>;
+  attempt_summary: {
+    question_count: number;
+    answered_count: number;
+    correct_count: number;
+    score: number | null;
+    strengths: string[];
+    weak_points: string[];
+    error_patterns: string[];
+    next_actions: Array<{
+      knowledge_point_id: string;
+      reason_codes: string[];
+      source_memory_ids: string[];
+    }>;
+  };
 }
 
 export interface MemoryIssue {
@@ -174,6 +206,7 @@ export async function listExamReviewHistory(
         attempt_status: matched?.attempt.status ?? null,
         completed_at: matched?.attempt.completed_at ?? null,
         assessment_attempt_number: matched?.assessmentAttemptNumber ?? null,
+        taxonomy_version: matched?.assessment.taxonomy_version ?? null,
       };
     })
     .sort((left, right) => right.updated_at.localeCompare(left.updated_at));

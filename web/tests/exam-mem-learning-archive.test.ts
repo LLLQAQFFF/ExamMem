@@ -27,6 +27,12 @@ test("ExamMem graph keeps formal evidence, versioned memory and L3 projection li
       taxonomy_version: "math-v1",
     },
     counts: { l1: 1, l2: 1, l3: 2 },
+    l3_scope: {
+      exam_id: "plan:test",
+      subject_id: "math",
+      taxonomy_version: null,
+      aggregation: "plan_subject_all_taxonomy_versions",
+    },
     learning_path_observations: [],
     l1: [
       {
@@ -39,6 +45,36 @@ test("ExamMem graph keeps formal evidence, versioned memory and L3 projection li
           knowledge_point_ids: ["kp-1"],
           answer_correct: false,
         },
+        detail: {
+          question: {
+            question_id: "question-1",
+            stem: "求函数极限",
+            reference_answer: "使用洛必达法则",
+            grading_rubric: {},
+          },
+          submitted_answer: {
+            answer: "直接代入",
+            submitted_at: "2026-08-14T00:00:00Z",
+          },
+          grade_result: { correct: false, score: 0.2, evidence: ["步骤不完整"] },
+          diagnosis_result: { error_type: "conceptual", explanation: "未识别未定式" },
+          recommendation: {
+            target_knowledge_point_id: "kp-1",
+            reason_codes: ["REMEDIATE_ERROR_PATTERN"],
+            source_memory_ids: ["memory-1"],
+          },
+          checkpoint_key: "answer:1",
+        },
+        memories: [
+          {
+            memory_id: "memory-1",
+            memory_namespace: "mastery",
+            slot_key: "mastery:kp-1",
+            version: 1,
+            lifecycle_state: "active",
+            relation_type: "supports",
+          },
+        ],
         source: {
           attempt_id: "attempt-1",
           assessment_id: "exam-1",

@@ -9,6 +9,8 @@ import {
   LoaderCircle,
   RefreshCw,
 } from "lucide-react";
+import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -27,11 +29,12 @@ import { listAssessments, listStudyPlans } from "@/lib/exam-mem-study-plans";
 type StatusFilter = "all" | "completed" | "in_progress" | "failed";
 
 export default function ExamReviewWorkbench() {
+  const searchParams = useSearchParams();
   const { t, i18n } = useTranslation();
   const [history, setHistory] = useState<ExamReviewHistoryItem[]>([]);
   const [selectedExamKey, setSelectedExamKey] = useState<string | null>(null);
   const [review, setReview] = useState<ExamReview | null>(null);
-  const [scopeFilter, setScopeFilter] = useState("all");
+  const [scopeFilter, setScopeFilter] = useState("");
   const [scopeLabels, setScopeLabels] = useState<Record<string, string>>({});
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [query, setQuery] = useState("");
@@ -54,7 +57,7 @@ export default function ExamReviewWorkbench() {
   const filteredGroups = useMemo(() => {
     const normalizedQuery = query.trim().toLocaleLowerCase(i18n.language);
     return groups.filter((group) => {
-      const matchesScope = scopeFilter === "all" || scopeKey(group) === scopeFilter;
+      const matchesScope = scopeKey(group) === scopeFilter;
       const matchesStatus =
         statusFilter === "all" ||
         group.attempts.some((attempt) => attempt.attempt_status === statusFilter);
@@ -119,10 +122,24 @@ export default function ExamReviewWorkbench() {
       }
       setHistory(sessions);
       setScopeLabels(labels);
-      if (loadedGroups.length) {
-        const first = loadedGroups[0];
+      const requestedSessionId = searchParams.get("practice_session_id");
+      const requestedAttempt = sessions.find(
+        (item) => item.practice_session_id === requestedSessionId,
+      );
+      const requestedGroup = requestedAttempt
+        ? loadedGroups.find(
+            (item) =>
+              item.key ===
+              (requestedAttempt.assessment_id ??
+                `legacy:${requestedAttempt.exam_id}:${requestedAttempt.subject_id}`),
+          )
+        : null;
+      const first = requestedGroup ?? loadedGroups[0];
+      if (first) {
+        setScopeFilter(scopeKey(first));
         setSelectedExamKey(first.key);
         const firstAttempt =
+          requestedAttempt ??
           first.attempts.find((attempt) => attempt.attempt_status === "completed") ??
           first.attempts[0];
         if (firstAttempt) {
@@ -145,7 +162,7 @@ export default function ExamReviewWorkbench() {
     } finally {
       setLoading(false);
     }
-  }, [t]);
+  }, [searchParams, t]);
 
   useEffect(() => void load(), [load]);
   useEffect(() => {
@@ -274,10 +291,16 @@ export default function ExamReviewWorkbench() {
           />
           <select
             value={scopeFilter}
-            onChange={(event) => setScopeFilter(event.target.value)}
+            onChange={(event) => {
+              setScopeFilter(event.target.value);
+              setSelectedExamKey(null);
+              setReview(null);
+            }}
             className="rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-sm"
           >
-            <option value="all">{t("All subjects")}</option>
+            <option value="" disabled>
+              {t("Select a study plan")}
+            </option>
             {scopeOptions.map((option) => (
               <option key={option.key} value={option.key}>
                 {option.label}
@@ -365,17 +388,37 @@ export default function ExamReviewWorkbench() {
                   value={review.runtime?.backend_mode ?? "legacy"}
                 />
               </section>
-              {review.checkpoints.map((checkpoint) => (
-                <section
-                  key={checkpoint.checkpoint_key}
-                  className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-5"
-                >
+              <AttemptSummary review={review} />
+              {review.checkpoints
+                .filter((checkpoint) => checkpoint.submitted_answer)
+                .map((checkpoint, index) => (
+                  <section
+                    key={checkpoint.checkpoint_key}
+                    className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-5"
+                  >
                   <p className="break-all font-mono text-xs text-[var(--muted-foreground)]">
                     {checkpoint.checkpoint_key}
                   </p>
                   <h2 className="mt-2 font-semibold">
+                    {t("Question")} {index + 1} ·{" "}
                     {checkpoint.question?.stem ?? checkpoint.step_state}
                   </h2>
+                  <div className="mt-3 grid gap-3 md:grid-cols-2">
+                    <AnswerBlock
+                      label={t("Your answer")}
+                      value={checkpoint.submitted_answer?.answer}
+                    />
+                    <AnswerBlock
+                      label={t("Reference answer")}
+                      value={checkpoint.question?.reference_answer}
+                    />
+                  </div>
+                  {checkpoint.question?.grading_rubric ? (
+                    <AnswerBlock
+                      label={t("Solution and rubric")}
+                      value={rubricText(checkpoint.question.grading_rubric)}
+                    />
+                  ) : null}
                   {checkpoint.grade_result ? (
                     <p className="mt-3 text-sm">
                       {t("Grade")}: {formatScore(checkpoint.grade_result.score)} ·{" "}
@@ -395,8 +438,22 @@ export default function ExamReviewWorkbench() {
                         : t("New Grade Artifact")}
                     </p>
                   ) : null}
-                </section>
-              ))}
+                  {checkpoint.recommendation ? (
+                    <p className="mt-2 text-sm text-[var(--muted-foreground)]">
+                      {t("Next recommendation")}: {" "}
+                      {checkpoint.recommendation.reason_codes.join(" · ")}
+                    </p>
+                  ) : null}
+                  {checkpoint.learning_event_id && review.exam_id.startsWith("plan:") ? (
+                    <Link
+                      href={archiveEvidenceHref(review, checkpoint.learning_event_id)}
+                      className="mt-3 inline-flex text-xs text-[var(--primary)] underline-offset-4 hover:underline"
+                    >
+                      {t("View this evidence in Learning Archive")}
+                    </Link>
+                  ) : null}
+                  </section>
+                ))}
               {graded ? (
                 <section className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-5">
                   <h2 className="font-semibold">{t("Dispute this Grade")}</h2>
@@ -465,6 +522,92 @@ export default function ExamReviewWorkbench() {
       </div>
     </div>
   );
+}
+
+function AttemptSummary({ review }: { review: ExamReview }) {
+  const { t } = useTranslation();
+  const summary = review.attempt_summary;
+  return (
+    <section className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-5">
+      <h2 className="font-semibold">{t("Assessment summary")}</h2>
+      <p className="mt-1 text-xs text-[var(--muted-foreground)]">
+        {t(
+          "Generated deterministically from persisted grades, diagnoses and recommendations.",
+        )}
+      </p>
+      <div className="mt-4 grid gap-3 md:grid-cols-3">
+        <SummaryList label={t("Strengths")} items={summary.strengths} />
+        <SummaryList label={t("Weak points")} items={summary.weak_points} />
+        <SummaryList label={t("Error patterns")} items={summary.error_patterns} />
+      </div>
+      {summary.next_actions.length ? (
+        <div className="mt-4 rounded-lg bg-[var(--muted)]/40 p-3 text-sm">
+          <p className="font-medium">{t("Next actions")}</p>
+          {summary.next_actions.map((item, index) => (
+            <p
+              key={`${item.knowledge_point_id}:${index}`}
+              className="mt-1 text-[var(--muted-foreground)]"
+            >
+              {item.knowledge_point_id} · {item.reason_codes.join(" · ")}
+            </p>
+          ))}
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
+function SummaryList({ label, items }: { label: string; items: string[] }) {
+  return (
+    <div className="rounded-lg bg-[var(--muted)]/40 p-3">
+      <p className="text-xs font-medium">{label}</p>
+      <p className="mt-1 break-words text-sm text-[var(--muted-foreground)]">
+        {items.length ? items.join(" · ") : "—"}
+      </p>
+    </div>
+  );
+}
+
+function AnswerBlock({ label, value }: { label: string; value?: string | null }) {
+  if (!value) return null;
+  return (
+    <div className="mt-3 rounded-lg bg-[var(--muted)]/40 p-3">
+      <p className="text-xs font-medium">{label}</p>
+      <p className="mt-1 whitespace-pre-wrap text-sm text-[var(--muted-foreground)]">
+        {value}
+      </p>
+    </div>
+  );
+}
+
+function rubricText(rubric: Record<string, unknown>): string {
+  const steps = rubric.required_steps;
+  if (Array.isArray(steps)) {
+    const descriptions = steps
+      .map((item) =>
+        item && typeof item === "object" && "description" in item
+          ? String(item.description)
+          : "",
+      )
+      .filter(Boolean);
+    if (descriptions.length) return descriptions.join("\n");
+  }
+  return JSON.stringify(rubric, null, 2);
+}
+
+function archiveEvidenceHref(review: ExamReview, eventId: string): string {
+  const params = new URLSearchParams({
+    view: "l1",
+    event_id: eventId,
+    subject_id: review.subject_id,
+  });
+  if (review.exam_id.startsWith("plan:")) {
+    params.set("plan_id", review.exam_id.slice("plan:".length));
+  }
+  if (review.assessment?.taxonomy_version) {
+    params.set("taxonomy_version", review.assessment.taxonomy_version);
+  }
+  return `/exam-mem/memories?${params}`;
 }
 
 function VersionScores({

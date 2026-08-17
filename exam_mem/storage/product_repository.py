@@ -13,6 +13,8 @@ from exam_mem.practice.checkpoint import PracticeWorkflowCheckpoint
 
 from .grade_review_repository import PostgresGradeReviewRepository
 from .models import (
+    assessment_attempts,
+    assessments,
     learning_events,
     learning_memories,
     lifecycle_decisions,
@@ -121,9 +123,37 @@ class PostgresExamProductRepository:
             .all()
         )
         reviews = await PostgresGradeReviewRepository(self._connection).list_scope(context)
+        assessment = (
+            (
+                await self._connection.execute(
+                    select(
+                        assessment_attempts.c.attempt_id,
+                        assessment_attempts.c.assessment_version,
+                        assessments.c.assessment_id,
+                        assessments.c.title,
+                        assessments.c.taxonomy_version,
+                    )
+                    .join(
+                        assessments,
+                        assessments.c.assessment_id == assessment_attempts.c.assessment_id,
+                    )
+                    .where(
+                        assessment_attempts.c.user_id == context.user_id,
+                        assessment_attempts.c.practice_session_id == practice_session_id,
+                        assessments.c.user_id == context.user_id,
+                        assessments.c.exam_id == context.exam_id,
+                        assessments.c.subject_id == context.subject_id,
+                    )
+                )
+            )
+            .mappings()
+            .one_or_none()
+        )
         return {
             **summary,
-            "checkpoints": [_public_checkpoint(checkpoint) for checkpoint in reversed(checkpoints)],
+            "assessment": None if assessment is None else dict(assessment),
+            "checkpoints": [_review_checkpoint(checkpoint) for checkpoint in reversed(checkpoints)],
+            "attempt_summary": _attempt_summary(checkpoints),
             "trace": [_trace_payload(row) for row in trace_rows],
             "lifecycle": {
                 "decisions": [_audit_payload(row) for row in decision_rows],
@@ -311,6 +341,79 @@ def _public_checkpoint(checkpoint: PracticeWorkflowCheckpoint) -> dict[str, Any]
             if checkpoint.recommendation is None
             else checkpoint.recommendation.model_dump(mode="json")
         ),
+    }
+
+
+def _review_checkpoint(checkpoint: PracticeWorkflowCheckpoint) -> dict[str, Any]:
+    """Expose answer material only after that exact question was submitted."""
+
+    payload = _public_checkpoint(checkpoint)
+    submission = checkpoint.context.submitted_answer
+    question = checkpoint.context.current_question
+    if submission is None or question is None:
+        return payload
+    payload.update(
+        {
+            "question": question.model_dump(mode="json"),
+            "submitted_answer": {
+                "answer": submission.answer,
+                "submitted_at": submission.submitted_at.isoformat(),
+            },
+            "learning_event_id": (
+                None if checkpoint.learning_event is None else checkpoint.learning_event.event_id
+            ),
+            "mapped_knowledge_point_ids": list(checkpoint.mapped_knowledge_point_ids),
+        }
+    )
+    return payload
+
+
+def _attempt_summary(checkpoints: list[PracticeWorkflowCheckpoint]) -> dict[str, Any]:
+    answered = [item for item in checkpoints if item.context.submitted_answer is not None]
+    grades = [item.grade_result for item in answered if item.grade_result is not None]
+    strengths = sorted(
+        {
+            point
+            for item in answered
+            if item.grade_result is not None and item.grade_result.correct
+            for point in item.mapped_knowledge_point_ids
+        }
+    )
+    weak_points = sorted(
+        {
+            point
+            for item in answered
+            if item.grade_result is not None and not item.grade_result.correct
+            for point in item.mapped_knowledge_point_ids
+        }
+    )
+    error_patterns = sorted(
+        {
+            item.diagnosis_result.error_type.value
+            for item in answered
+            if item.diagnosis_result is not None and item.diagnosis_result.error_type is not None
+        }
+    )
+    next_actions = [
+        {
+            "knowledge_point_id": item.recommendation.target_knowledge_point_id,
+            "reason_codes": list(item.recommendation.reason_codes),
+            "source_memory_ids": list(item.recommendation.source_memory_ids),
+        }
+        for item in answered
+        if item.recommendation is not None
+    ]
+    return {
+        "question_count": max(
+            (len(item.context.question_catalog) for item in checkpoints), default=0
+        ),
+        "answered_count": len(answered),
+        "correct_count": sum(grade.correct for grade in grades),
+        "score": None if not grades else sum(grade.score for grade in grades) / len(grades),
+        "strengths": strengths,
+        "weak_points": weak_points,
+        "error_patterns": error_patterns,
+        "next_actions": next_actions,
     }
 
 
