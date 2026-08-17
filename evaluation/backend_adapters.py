@@ -44,6 +44,7 @@ from exam_mem.backends.native import NativeMemoryBackend, NativeMemoryClient, Na
 from exam_mem.backends.protocol import MemoryBackend
 from exam_mem.contracts import (
     ErrorPatternValue,
+    ErrorType,
     LearningContext,
     LearningEvent,
     LearningEventType,
@@ -627,6 +628,8 @@ class PostgresEvaluationSession:
         error_type = (
             memory.value.error_type if isinstance(memory.value, ErrorPatternValue) else None
         )
+        if not correct and error_type is None:
+            error_type = ErrorType.CONCEPT_CONFUSION
         return LearningEvent(
             event_id=event_id,
             idempotency_key=f"{event_id}:idempotency",
@@ -641,7 +644,11 @@ class PostgresEvaluationSession:
             answer_correct=correct,
             error_type=error_type,
             error_detail=(
-                memory.value.summary if isinstance(memory.value, ErrorPatternValue) else None
+                memory.value.summary
+                if isinstance(memory.value, ErrorPatternValue)
+                else "evaluation seed evidence supporting an initial low mastery state"
+                if not correct
+                else None
             ),
             occurred_at=memory.valid_from - timedelta(seconds=offset + 1),
         )

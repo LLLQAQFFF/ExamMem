@@ -10,11 +10,14 @@ import pytest
 from evaluation.backend_adapters import (
     DeterministicHashEmbeddingClient,
     NativeEvaluationSession,
+    PostgresEvaluationSession,
     TrackedRelationCompletion,
 )
 from evaluation.materializer import materialize_case
 from evaluation.protocols.validation import load_cases
+from exam_mem.backends import BackendMode
 from exam_mem.backends.native import NativeMemoryEvent
+from exam_mem.contracts import MasteryValue
 
 pytestmark = pytest.mark.asyncio
 
@@ -101,3 +104,37 @@ async def test_relation_call_preserves_cancellation_as_failed_trace(
     assert calls[0].succeeded is False
     assert calls[0].error is not None
     assert calls[0].error.error_type == "CancelledError"
+
+
+async def test_low_mastery_seed_event_is_valid_incorrect_evidence() -> None:
+    case = next(
+        case
+        for case in load_cases("protocol_check")
+        if any(
+            isinstance(memory.value, MasteryValue) and memory.value.score < 0.5
+            for memory in case.initial_memory
+        )
+    )
+    memory = next(
+        memory
+        for memory in case.initial_memory
+        if isinstance(memory.value, MasteryValue) and memory.value.score < 0.5
+    )
+    session = PostgresEvaluationSession(
+        engine=object(),  # type: ignore[arg-type]
+        mode=BackendMode.APPEND_ONLY,
+        run_id="seed-contract",
+        case=case,
+    )
+    runtime_memory = session._runtime_memory(memory)
+    event_id = next(
+        event_id
+        for event_id in runtime_memory.provenance
+        if event_id not in {session._runtime_scalar_id(event.event_id) for event in case.events}
+    )
+
+    event = session._seed_event(memory=runtime_memory, event_id=event_id, offset=0)
+
+    assert event.answer_correct is False
+    assert event.error_type is not None
+    assert event.error_detail is not None
