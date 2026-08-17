@@ -1,6 +1,6 @@
 # ExamMem 智能备考项目面试手册
 
-更新时间：2026-08-16
+更新时间：2026-08-17
 适用方向：大模型应用开发、Agent/RAG、AI 后端、Python/FastAPI、教育科技
 
 ## 1. 先确定你能诚实声称什么
@@ -11,7 +11,7 @@
 
 当前可以用代码和自动化测试证明：
 
-- 插件发现、HTTP、Python SDK、WebSocket、Browser API 与 PostgreSQL 闭环真实可运行；
+- 插件发现、Browser HTTP 产品 API、Python `DeepTutorApp` 入口、unified WebSocket 与 PostgreSQL 闭环真实可运行；
 - Taxonomy、四维 Scope、`slot_key`、L1 append-only、L2 CAS/provenance、L3 可重建、Lifecycle、Trace、checkpoint 和幂等契约受到测试保护；
 - 同一考试可有不可变题集版本和多次 attempt；
 - DeepTutor 原生 Chat/Quiz/Mastery Path 与 ExamMem 领域边界清楚；
@@ -42,21 +42,62 @@
 
 > DeepTutor 提供通用学习 Host，我负责的 ExamMem 是独立的备考领域插件。我的工作不是把菜单改名，而是定义并实现了版本化考试范围、作答状态机、独立业务存储、学习记忆一致性、失败恢复和真实入口装配；同时补中性 Hook，避免 Core 出现 `if exam_mem`。
 
-## 3. 三种项目介绍版本
+## 3. 面经调研结论：面试官实际在核对什么
 
-### 3.1 30 秒版
+### 3.1 调研口径
+
+本手册交叉使用两类资料：
+
+- 官方岗位描述用于确认企业公开要求，例如端到端链路、真实数据回放、评测、A/B、稳定性、安全和可观测性；
+- 近期社区面经用于收集真实追问样本，例如 ownership、数据集规模、Recall@K、状态恢复、记忆粒度、并发和后端基础。
+
+社区内容是应聘者自述或整理，不是逐字面试记录；样本也存在岗位、年限和幸存者偏差。因此这里只归纳多个来源反复出现的主题，不给出伪精确的“出现频率”，也不声称某家公司必问某题。
+
+### 3.2 高频关注点与本项目证据
+
+| 面试官关注点 | 他真正想确认什么 | ExamMem 可展示的证据 | 不能夸大的边界 |
+| --- | --- | --- | --- |
+| 项目背景与 ownership | 你解决了什么问题，哪些设计/代码确实由你负责 | Fork 到插件的分类、checkpoint 记录、精确提交和关键代码入口 | 不虚构团队人数、用户量或本人未完成的上游能力 |
+| 真实调用链 | 不是背框架名，能画出输入、编排、工具、状态和输出 | Browser HTTP、Python App、WebSocket 汇入同一 `exam_practice` workflow 的 PostgreSQL E2E | Browser HTTP 先经过插件 Router；仓库没有专用 `exam_mem/sdk.py` |
+| Agent/工作流取舍 | 为什么某些步骤允许模型自治，某些步骤必须确定 | 辅导复用 Agent loop；评分、记忆和审计使用显式状态机与严格契约 | 不把固定工作流包装成“多 Agent 自主规划” |
+| 状态、失败与并发 | 断线是否重复写，状态放哪，如何恢复和纠错 | checkpoint、append-only Trace、幂等键、Grade Artifact 复用、L2 CAS、Review/Correction | 没有线上流量就不声称经过高 QPS 验证 |
+| 数据与效果评测 | 数据从哪来，怎么切分，有什么 baseline，数字为何可信 | 确定性工程回归 + 待建设的领域金标方案；按来源/章节隔离 | 当前测试不证明真实模型出题、判题或学习增益 |
+| RAG 与模型基础 | chunk、召回、rerank、幻觉、结构化输出是否理解 | 能说明 DeepTutor RAG 与当前 ExamMem 闭环边界，模型边界使用 schema/版本 | 当前没有完成教材级多源 RAG，不报 Recall@5 |
+| 后端与生产化 | AI 应用是否仍有扎实的存储、事务、API 和运维能力 | FastAPI、PostgreSQL、Alembic、事务、CAS、隔离库、构建和安全门禁 | 熔断、限流、线上告警和 A/B 仍是生产化后续项 |
+
+近期官方岗位把“意图→检索→规划→工具→生成→安全→前端”的全链路、真实数据回放、业务指标、A/B、熔断降级和可观测性放在同一个职责中；多份面经又反复追问项目效果、数据集规模、失败重试、记忆、检索指标以及数据库/Redis/Python 基础。准备顺序因此应该是：先讲业务和 ownership，再讲调用链与一个故障故事，最后用评测证据和边界收口。
+
+### 3.3 面试前必须填好的“真实性卡片”
+
+下面内容不能由文档替你编造，请在面试前按真实情况写成一页：
+
+```text
+项目性质：个人项目 / 团队项目 / 开源贡献（选真实项）
+我的职责：需求、架构、后端、前端、测试、迁移中实际负责哪些
+协作边界：DeepTutor 上游已有能力、ExamMem 新增能力、工具辅助完成的部分
+时间投入：真实起止时间和主要阶段
+真实使用：本人演示 / 邀请测试 / 已上线用户（没有就写没有）
+可复现数字：测试数量、入口数量、migration head、构建结果
+尚未完成：真实模型金标评测、线上 A/B、成本/延迟压测等
+```
+
+如果这是个人迁移与产品化项目，可以诚实说：“我承担了产品建模、迁移方案、领域后端、前端集成和验收；DeepTutor 的通用 Chat/Quiz/Agent loop 是上游能力，我通过中性插件契约复用，没有把它说成自己从零实现。”
+
+## 4. 三种项目介绍版本
+
+### 4.1 30 秒版
 
 > 我做了一个基于 DeepTutor 的垂类考研智能备考插件 ExamMem。用户导入并确认考试大纲后，系统生成版本化、分层的知识体系，每个叶子知识点都能进入原生辅导对话，也能生成版本化检测。作答后通过固定评分契约进入诊断、Learning Memory、推荐和复盘。后端用 FastAPI、Pydantic、SQLAlchemy/Alembic、PostgreSQL/pgvector；迁移采用中性插件 API，DeepTutor Core 不直接依赖 ExamMem。重点解决的是 LLM 不确定性下的状态一致性、可追溯记忆和失败恢复，而不只是生成几道题。
 
-### 3.2 两分钟版
+### 4.2 两分钟版
 
 > 背景是通用对话和原生 Quiz 都能“出题”，但不能直接构成可信的备考产品。备考需要先有用户确认的考试范围；题目、评分和学习结论必须绑定同一个知识点与考试版本；网络断开或模型失败后还要能恢复，历史记录不能被后来的模型输出静默覆盖。
 >
 > 我的方案分三层。第一层是版本化 Study Plan/Taxonomy：大纲先成为可编辑草稿，确认后发布不可变版本，只有活跃叶子知识点能进入练习。第二层是可恢复 Practice 状态机：Question、Grade、Knowledge Mapping、Diagnosis、Memory、Recommendation 每一步都有 checkpoint、Trace 和幂等键，题集在 assessment version 中冻结，同一考试可以多次 attempt。第三层是独立 Learning Memory：L1 是 append-only 事件，L2 用 CAS、provenance 和 Lifecycle 管理事实版本，L3 是可以从 L1/L2 重建的投影。
 >
-> 架构上我没有把 ExamMem 硬编码进 DeepTutor Core，而是抽出中性插件、Capability、Host Turn、Mastery Path 和 Native Memory adapter；ExamMem 使用独立 PostgreSQL。测试覆盖五种 Memory Backend、迁移不变量、HTTP/SDK/WebSocket、PostgreSQL 事务和断线重放。现在能证明工程闭环，下一阶段要补考研金标集与真人评测，不能把 fake LLM 的回归测试当作模型效果。
+> 架构上我没有把 ExamMem 硬编码进 DeepTutor Core，而是抽出中性插件、Capability、Host Turn、Mastery Path 和 Native Memory adapter；ExamMem 使用独立 PostgreSQL。测试覆盖五种 Memory Backend、迁移不变量、Browser HTTP/Python App/unified WebSocket、PostgreSQL 事务和断线重放。现在能证明工程闭环，下一阶段要补考研金标集与真人评测，不能把 fake LLM 的回归测试当作模型效果。
 
-### 3.3 五分钟版结构
+### 4.3 五分钟版结构
 
 按下面顺序讲，不要从框架名开始：
 
@@ -68,18 +109,19 @@
 6. 证据：真实入口和 PostgreSQL 测试、迁移 hash、Core import gate、生产构建。
 7. 限制和下一步：金标数据集、真实模型评测、成本/延迟、在线学习效果。
 
-## 4. 架构与真实调用链
+## 5. 架构与真实调用链
 
-### 4.1 架构图
+### 5.1 架构图
 
 ```text
-Browser / Python SDK / unified WebSocket
-                  │
-                  ▼
-          DeepTutor Turn Host
-                  │ neutral contracts
-                  ▼
-      Capability Registry: exam_practice
+Browser UI ──HTTP──> ExamMem plugin Router ──PluginTurnHost──┐
+                                                            │
+Python DeepTutorApp API ─────────────────────────────────────┼──> Turn Runtime
+                                                            │
+unified WebSocket ───────────────────────────────────────────┘
+                                                            │
+                                                            ▼
+                                              Capability Registry: exam_practice
                   │
                   ▼
        ExamMem PracticeRuntimeProvider
@@ -90,18 +132,22 @@ Question → Grade → Catalog KP validation → Diagnosis
                   ▼
       Selected Memory Backend (no fallback)
                   │
-       ┌──────────┼───────────┐
-       ▼          ▼           ▼
- L1 append-only  L2 CAS     L3 rebuildable
- event           provenance projection
-       └──────────┼───────────┘
+       ├─ none / native / append_only / vector
+       │        → mode-specific declared side effect
+       │
+       └─ lifecycle
+                → L1 + L2 CAS/provenance + lifecycle audit
+                  (one database transaction)
+                → post-commit L3 rebuild (new transaction)
                   ▼
  Recommendation → checkpoint → append-only Trace
                   ▼
  Resume / Correction / Grade Review / derived Issues
 ```
 
-### 4.2 从大纲到辅导
+这里的“Python 入口”是 `DeepTutorApp.start_turn/stream_turn` 的应用门面，测试中按 SDK-style 入口验证；项目没有另造一个专用 `exam_mem/sdk.py`。Browser 的产品 HTTP API 也不是绕过 Host 直调 workflow，而是由插件 Router 组装上下文，再通过 `PluginTurnHost` 进入相同 Turn Runtime。
+
+### 5.2 从大纲到辅导
 
 ```text
 PDF/TXT/MD、公开 URL 或模型创建请求
@@ -114,7 +160,7 @@ PDF/TXT/MD、公开 URL 或模型创建请求
 
 关键点：发布之前允许编辑，发布之后不原地修改。新大纲产生新版本，旧考试仍可解释。
 
-### 4.3 从练习到记忆
+### 5.3 从练习到记忆
 
 ```text
 PracticeWorkbench
@@ -136,16 +182,18 @@ PracticeWorkbench
 
 - 插件装配：`deeptutor_plugins/exam_mem/__init__.py`
 - HTTP 产品 API：`deeptutor_plugins/exam_mem/api.py`
+- 大纲导入与学习计划适配：`deeptutor_plugins/exam_mem/study_plan.py`
 - Capability：`exam_mem/practice/capability.py`
 - Runtime 依赖装配：`exam_mem/practice/provider.py`
 - 状态机：`exam_mem/practice/workflow.py`
 - Learning Memory 生命周期：`exam_mem/backends/lifecycle.py`
 - PostgreSQL repositories：`exam_mem/storage/`
 - 前端：`web/components/exam-mem/`
+- 三入口 PostgreSQL E2E：`tests/exam_mem/practice/test_real_entries_postgres.py`
 
-## 5. 四个最值得讲的工程问题
+## 6. 四个最值得讲的工程问题
 
-### 5.1 为什么不继续改 Fork
+### 6.1 为什么不继续改 Fork
 
 问题：Fork 中业务代码会逐渐渗透到 Host 注册表、配置、数据库和 UI；以后同步上游成本越来越高。
 
@@ -159,7 +207,7 @@ PracticeWorkbench
 
 取舍：中性 API 增加了一层协议，但换来独立演进、可测试装配和更低上游合并成本。
 
-### 5.2 为什么不能让 LLM 再猜一次知识点
+### 6.2 为什么不能让 LLM 再猜一次知识点
 
 一次真实缺陷是：题目已经在不可变 catalog 中绑定叶子知识点，作答时却又让模型做语义映射。模型可能返回 `unknown`，结果只写 L1，L2/L3 都为空。
 
@@ -172,7 +220,7 @@ PracticeWorkbench
 
 这展示了一个通用原则：确定性业务身份一旦在上游固化，下游不能再交给概率模型重建。
 
-### 5.3 如何处理断线、重试和重复写
+### 6.3 如何处理断线、重试和重复写
 
 HTTP 的 `socket hang up` 只表示代理连接断了，不等于后端业务一定失败。若客户端盲目换 idempotency key 重试，会重复评分和记忆写入。
 
@@ -185,7 +233,7 @@ HTTP 的 `socket hang up` 只表示代理连接断了，不等于后端业务一
 - 诊断和 Memory 副作用仍按当前答案 Scope 执行；
 - retryable 与 contract mismatch 分开，契约错误 fail closed。
 
-### 5.4 L1/L2/L3 为什么不能是一个 JSON
+### 6.4 L1/L2/L3 为什么不能是一个 JSON
 
 - L1 是不可变证据，回答“发生过什么”；
 - L2 是有 Scope、有 provenance、有版本链的业务事实，回答“当前如何解释证据”；
@@ -193,9 +241,9 @@ HTTP 的 `socket hang up` 只表示代理连接断了，不等于后端业务一
 
 如果只保存一个可更新 JSON，无法解释结论来源、并发覆盖、纠错历史，也无法可靠重建。代价是表和事务更多，但它们服务的是不同不变量，不是为了炫技分层。
 
-## 6. 高频追问与参考回答
+## 7. 高频追问与参考回答
 
-### 6.1 产品和业务
+### 7.1 产品和业务
 
 #### Q1：DeepTutor 原来就能 Quiz，你的项目有什么必要？
 
@@ -213,7 +261,7 @@ HTTP 的 `socket hang up` 只表示代理连接断了，不等于后端业务一
 
 稳定 assessment ID 表示同一检测目标；immutable version 固定某次题集和 rubric；attempt 表示用户的一次作答。这样既能重复同一卷，也能生成新卷，同时不覆盖历史。
 
-### 6.2 Agent、RAG 和模型
+### 7.2 Agent、RAG 和模型
 
 #### Q5：这是 Agent 还是固定工作流？
 
@@ -235,7 +283,7 @@ DeepTutor Host 有多种 RAG 引擎，但 ExamMem 当前闭环没有声称完成
 
 语言是显式请求契约，不只翻译按钮。中文模式使用中文 system/user 模板并明确要求题目、理由、诊断与建议全部中文；英文同理。结构化字段和值保持稳定，展示文本按语言变化。测试应检查 prompt 选择和输出契约，不测试某个模型的固定措辞。
 
-### 6.3 数据库、事务和一致性
+### 7.3 数据库、事务和一致性
 
 #### Q10：为什么 ExamMem 必须独立 PostgreSQL？
 
@@ -255,13 +303,13 @@ L3 不是真值。按 Scope 从 L1/L2 和水位重建，写入新的 projection 
 
 #### Q14：事务边界在哪里？
 
-一次 Learning Memory 写入把 L1、L2 版本/provenance、Lifecycle Decision、Change Log 和必要的 L3 刷新放在受控连接/事务中。外部 LLM 调用在事务外完成，避免长事务占用连接；事务内只执行确定性校验和持久化。
+一次 Lifecycle Memory 写入在 `engine.begin()` 中原子提交 L1、L2 版本/provenance、Lifecycle Decision 和 Change Log。外部 LLM 调用在事务外完成，避免长事务占用连接。L3 明确不在这个事务里：提交成功后由 `refresh_after_commit()` 使用新事务重建；失败时保留可重建请求/Issue，不能回滚已经成立的 L1/L2 真值。这正是 L3 被定义为派生投影而非业务真值的原因。
 
 #### Q15：如何防止跨用户读写？
 
 `user_id` 来自 Host 认证上下文，不接受客户端自报；repository 查询同时带 user/exam/subject，Memory 再带 namespace/slot。API 只允许用户选择自己可见的考试和科目。测试覆盖 Scope 不匹配和跨上下文事件查询失败。
 
-### 6.4 可靠性和可观测性
+### 7.4 可靠性和可观测性
 
 #### Q16：`socket hang up` 和 HTTP 409 有什么区别？
 
@@ -279,7 +327,7 @@ L3 不是真值。按 Scope 从 L1/L2 和水位重建，写入新的 projection 
 
 它们是可比较的实验/产品模式：`none`、`native`、`append_only`、`vector`、`lifecycle`。所有模式走同一 Practice 状态机，只改变明确的副作用；缺少依赖时失败，不自动降级。这让后续评测能比较“无记忆/通用记忆/领域记忆”，也防止代码分叉。
 
-### 6.5 插件和开源工程
+### 7.5 插件和开源工程
 
 #### Q20：怎样证明 Core 没依赖 ExamMem？
 
@@ -287,7 +335,7 @@ L3 不是真值。按 Scope 从 L1/L2 和水位重建，写入新的 projection 
 
 #### Q21：插件如何被加载？
 
-Host 发现 first-party plugin entry，读取启停设置后调用 `get_plugin()`；manifest 声明 capability、tools、router、navigation、settings 和 migration metadata。Host 只认识通用 Contribution DTO，不认识 ExamMem 表或业务状态。
+Host 从 `deeptutor.plugins` entry point 和编译期 `deeptutor_plugins` namespace 延迟发现工厂；ExamMem 模块导出 `get_plugin()`，代码中的 `PluginManifest` 声明 capability、tools、router、navigation、settings 和 migration metadata。禁用插件时工厂不会被实例化。Host 只认识通用 Contribution DTO，不认识 ExamMem 表或业务状态。
 
 #### Q22：为什么 migration 也放进插件包？
 
@@ -297,7 +345,7 @@ Host 发现 first-party plugin entry，读取启停设置后调用 `get_plugin()
 
 许可证/第三方声明、secret 扫描、依赖漏洞、容器与 wheel 内容、CI 是否真实启动 pgvector、插件禁用测试、迁移 head/hash、全量 pytest、lint/type/build、演示脚本、数据库副作用和延期边界。发现风险会区分代码缺陷、依赖升级和文档限制，不把 warning 隐藏成“全绿”。
 
-### 6.6 前端和产品体验
+### 7.6 前端和产品体验
 
 #### Q24：为什么学习档案默认要“全部章节”？
 
@@ -307,7 +355,7 @@ Host 发现 first-party plugin entry，读取启停设置后调用 `get_plugin()
 
 L1 按时间线展示不可变事件；L2 以当前事实为主，同时展开 version/provenance/lifecycle 链；L3 展示当前投影和 source watermark，并提供重建状态。专业、版本、科目、章节、知识点、namespace、lifecycle 都是筛选维度，而不是把不同 Scope 混在一个列表。
 
-### 6.7 安全和隐私
+### 7.7 安全和隐私
 
 #### Q26：Prompt injection 怎么办？
 
@@ -323,7 +371,7 @@ Next.js、Mermaid、DOM sanitizer 都处在处理用户输入或 HTTP 请求的�
 
 #### Q29：外部大纲或论文归档如何防路径穿越和解压炸弹？
 
-不能直接使用 `extractall`。TAR 使用 Python 官方 `data` extraction filter，并额外拒绝
+这是 DeepTutor Host 文件处理层已有并经安全补强的能力，ExamMem 导入入口复用中性文本提取服务，不能说成 ExamMem 独有。实现上不能直接使用不带防护的 `extractall`。TAR 使用 Python 官方 `data` extraction filter，并额外拒绝
 符号链接、硬链接、设备文件和超限成员；ZIP 先校验每个相对路径、文件类型、加密标志、
 单项/总大小和压缩比，再限额流式写入。失败路径必须清理临时目录。测试要同时构造
 `../../`、绝对路径、链接、伪造大小、高压缩比和正常嵌套目录，不能只测正常文件。
@@ -335,13 +383,35 @@ Next.js、Mermaid、DOM sanitizer 都处在处理用户输入或 HTTP 请求的�
 runner 或外部 webhook 可以保留全网卡监听，但必须有网络隔离或入站鉴权，并在安全扫描中
 写明接受理由。
 
-## 7. 到底需不需要数据集
+### 7.8 面经中反复出现的压力追问
 
-结论：需要，而且必须分清“工程回归集”和“模型效果集”。
+#### Q31：这个项目哪些部分是你本人做的？
 
-当前 4000+ 自动化测试主要证明：状态机、事务、迁移、Scope、幂等、恢复和接口没有退化。测试中的确定性 fake LLM 不能回答：生成题是否正确、难度是否合适、评分理由是否可靠、推荐是否真的帮助学习。
+先按“上游—我的工作—证据”回答。DeepTutor 上游提供 Chat、Quiz、Agent loop、Native Memory 和基础 Web UI；我的工作是 ExamMem 的领域建模、冻结源迁移、插件边界、版本化学习计划/检测、Learning Memory、可靠性链路、产品 UI 和验收。随后指向一个自己最熟的提交、测试和故障故事。若使用了 AI 编程工具，应说明自己负责需求判断、架构取舍、审查与验收，不把工具生成等同于未经理解的本人实现。
 
-### 7.1 公共数据集能做什么
+#### Q32：没有真实用户，为什么相信它有价值？
+
+分开回答“问题是否存在”和“方案效果是否已证明”。备考范围漂移、成绩不可比较、闲聊污染正式记忆、断线重复写都是可以从产品流程和代码重现的问题；当前工程测试证明解决方案满足契约。但用户学习增益尚未被证明，下一步需要邀请测试、领域金标和前后测/A/B 测试。不能因为没有上线就说项目没有工程价值，也不能把工程正确性偷换成业务效果。
+
+#### Q33：你的评测集多大，为什么是这个规模？
+
+当前真实答案是：还没有完成正式模型效果金标集，不能虚报。计划先用 30～50 条分层 case 做快速开发冒烟，确保评测管线和 rubric 可用；再扩成 200～500 条冻结金标，用于模型/prompt/baseline 对比。规模不是越大越好，要同时报告知识点、题型、难度、异常类型覆盖和置信区间；若要支撑上线级结论，还需更大样本、时间切片和真实 bad case 回流。
+
+#### Q34：你拿什么做 baseline，提升从何而来？
+
+按子系统比较，不报一个混合总分：出题比较直接 LLM 与结构化 objective/rubric；判题比较不同模型/prompt/grader version；记忆比较 `none/native/append_only/vector/lifecycle`；可靠性比较无 checkpoint 与 checkpoint/replay。每次只改变一个变量，在同一冻结切分上报告指标、延迟和成本。没有跑出的数字只说实验设计，不提前声称提升。
+
+#### Q35：这是 AI 项目，为什么还会问数据库、Redis、Python 和网络？
+
+因为模型调用之外仍是在线系统：认证上下文决定用户隔离，事务和 CAS 决定记忆是否被覆盖，连接池和超时影响吞吐，HTTP/代理错误决定能否安全重试。ExamMem 可以重点讲 PostgreSQL 事务、append-only trigger、Alembic、幂等和 `socket hang up`；Redis/MQ 没有实际使用就只回答原理和适用场景，不硬说项目中用了。
+
+## 8. 到底需不需要数据集
+
+结论：如果要声称“模型效果好”或比较方案优劣，就需要数据集；如果只演示工程闭环，可以暂时没有正式金标，但必须明确尚未证明效果。两者都要分清“工程回归集”和“模型效果集”。
+
+截至 2026-08-17 的验收快照是：无 ExamMem DSN 的 DeepTutor 原生回归 `3856 passed, 9 skipped`；启用隔离 PostgreSQL 的全仓回归 `4312 passed, 9 skipped`；Web Node `412 passed`，production build 生成 63 个路由。这些数字主要证明状态机、事务、迁移、Scope、幂等、恢复、接口和构建没有退化。测试中的确定性 fake LLM 不能回答：生成题是否正确、难度是否合适、评分理由是否可靠、推荐是否真的帮助学习。
+
+### 8.1 公共数据集能做什么
 
 | 数据/框架 | 可用于 | 不能替代 | 许可/适配提醒 |
 | --- | --- | --- | --- |
@@ -352,9 +422,15 @@ runner 或外部 webhook 可以保留全网卡监听，但必须有网络隔离�
 | EdNet/ASSISTments | Knowledge Tracing 方法研究、交互序列 baseline | ExamMem 的 L1/L2/L3 业务正确性 | EdNet 是 CC BY-NC 4.0；ASSISTments 不同版本条款不同，题干可能需申请 |
 | RAGAS | 将检索质量、忠实度和生成质量拆开 | 人类教师金标与学习效果 | ExamMem 当前并未完成通用教材 RAG，不应为了指标硬套 |
 
-### 7.2 必须自建的考研金标集
+### 8.2 分阶段建设领域评测集
 
-建议先做 200～500 个高质量 case，而不是马上追求十万条弱标签。一个 case 包含：
+不要一开始追求十万条弱标签：
+
+1. 开发冒烟集：30～50 个高价值 case，覆盖主要题型、难度、错因和异常输入；用于每天快速比较 prompt/schema，不用于宣称上线级效果。
+2. 冻结金标集：200～500 个高质量 case，按来源、章节和时间隔离，关键样本教师双标；用于正式 baseline/ablation 和面试中的可复现结果。
+3. 真实 bad-case 集：有试用用户后，从失败 trace 中脱敏抽样，单独保留时间切片；不能回灌后又继续当未见测试集。
+
+一个 case 至少包含：
 
 ```json
 {
@@ -390,7 +466,7 @@ runner 或外部 webhook 可以保留全网卡监听，但必须有网络隔离�
 - 同一知识点重复考试和不同 assessment version；
 - 断线、重复请求、checkpoint 恢复、并发 CAS、纠错与重建。
 
-### 7.3 如何切分，避免数据泄漏
+### 8.3 如何切分，避免数据泄漏
 
 - 不要随机拆分近似题；按来源、章节和时间分组。
 - 测试集至少 hold out 完整章节或整份来源文档。
@@ -398,7 +474,7 @@ runner 或外部 webhook 可以保留全网卡监听，但必须有网络隔离�
 - 记录模型版本、prompt hash、taxonomy/grader/config revision。
 - 去重既做文本相似度，也检查相同模板只换数字的题。
 
-### 7.4 标注协议
+### 8.4 标注协议
 
 - 关键题由两名标注者独立完成，分歧交给第三人仲裁；
 - 先写 rubric 再看模型答案，减少迎合模型；
@@ -406,7 +482,7 @@ runner 或外部 webhook 可以保留全网卡监听，但必须有网络隔离�
 - LLM Judge 只能做辅助扩展，必须先与人工标签校准；
 - 题目版权和考生隐私必须有来源、用途和删除策略。
 
-### 7.5 指标矩阵
+### 8.5 指标矩阵
 
 | 子系统 | 建议指标 |
 | --- | --- |
@@ -418,7 +494,7 @@ runner 或外部 webhook 可以保留全网卡监听，但必须有网络隔离�
 | 系统 | 任务成功率、恢复成功率、重复副作用率（目标为 0）、P50/P95 延迟、token/成本、重试率 |
 | 学习效果 | 同知识点重复 attempt 的变化、前测/后测；没有对照实验时不能声称因果提升 |
 
-### 7.6 必做 baseline/ablation
+### 8.6 必做 baseline/ablation
 
 - 无记忆 vs Native Memory vs append-only vs vector vs lifecycle；
 - 直接 LLM 一步输出 vs 结构化 Practice 工作流；
@@ -431,7 +507,7 @@ runner 或外部 webhook 可以保留全网卡监听，但必须有网络隔离�
 
 > 当前阶段我已经用确定性替身把工程不变量和真实数据库闭环测全，但这不能代表模型效果。我设计的下一阶段是 200～500 条考研金标集，按来源和章节隔离切分，教师双标；分别评估大纲、出题、评分、推荐和记忆，公共 C-Eval/QGEval 只做外部基线，不直接作为产品结论。这个缺口我会明确写在报告里，而不是报一个无法复现的“准确率”。
 
-## 8. 面试演示脚本
+## 9. 面试演示脚本
 
 控制在 8～10 分钟：
 
@@ -446,18 +522,18 @@ runner 或外部 webhook 可以保留全网卡监听，但必须有网络隔离�
 
 准备一个“故障故事”：用 taxonomy/grader contract mismatch 或旧 `unknown` 映射说明你如何从日志 → checkpoint → 数据库 → 根因 → 契约修复 → 回归测试定位问题。
 
-## 9. 简历写法
+## 10. 简历写法
 
 不要填写不存在的用户量和准确率。可以写：
 
 - 将独立 ExamMem 迁移为 DeepTutor 第一方全栈插件，设计中性 Capability/Router/Settings/Migration/Host Service contributions，保持 Core 对 ExamMem 零直接依赖。
 - 实现“版本化大纲 → 叶子知识点辅导 → 不可变题集版本/多次检测 → 评分诊断 → Learning Memory → 推荐恢复复盘”闭环，并用独立 PostgreSQL 隔离业务真值。
 - 设计 L1 append-only、L2 CAS/provenance/Lifecycle、L3 可重建投影，以及 checkpoint、Trace、幂等和补偿机制，覆盖五种 Memory Backend。
-- 建立真实 HTTP/SDK/WebSocket/PostgreSQL 回归与 migration hash 门禁；明确区分确定性工程测试和待建设的模型效果金标集。
+- 建立真实 Browser HTTP/Python App/unified WebSocket/PostgreSQL 回归与 migration hash 门禁；明确区分确定性工程测试和待建设的模型效果金标集。
 
 如果必须量化，只使用可以从当前测试日志复现的数字，并注明它是“测试数量/入口覆盖”，不是“模型准确率”。
 
-## 10. 反问面试官
+## 11. 反问面试官
 
 - 团队目前更缺模型能力优化，还是评测、数据闭环和工程可靠性？
 - 线上 Agent 最常见失败来自检索、规划、工具、模型输出还是状态持久化？
@@ -465,7 +541,7 @@ runner 或外部 webhook 可以保留全网卡监听，但必须有网络隔离�
 - 对教育场景，业务最终优化的是答题正确率、学习增益、留存还是教师效率？
 - 模型/Prompt 版本与业务数据如何做可追溯和回滚？
 
-## 11. 资料来源与使用方式
+## 12. 资料来源与使用方式
 
 以下资料用于归纳面试关注点，不代表每家公司都会逐题询问：
 
@@ -473,12 +549,11 @@ runner 或外部 webhook 可以保留全网卡监听，但必须有网络隔离�
 
 - [海康威视大模型应用开发岗位](https://talent.hikvision.com/home/socity/position?postId=B4F6AAF8C5C1FEB7D6C131231EBAB46F)：官方岗位强调端到端 Agent 链路、真实数据回放、指标驱动、A/B、安全与可观测性。
 - [大模型应用开发面经（5 年经验）](https://www.nowcoder.com/feed/main/detail/129eaa1c20444651ac3b932e200d3da4)：社区经验，突出项目落地、RAG 难点、效果评估和基础知识。
-- [百度 Agent 面经整理](https://www.nowcoder.com/discuss/880841659733311488)：社区经验，集中讨论记忆、工具协议、失败重放、沙箱、评测和 trace。
 - [字节 AI 应用岗复盘](https://www.nowcoder.com/discuss/882634966025175040)：社区经验，强调离线评测与在线链路、数据回流和 bad case。
-- [京东大模型应用开发实习面经](https://www.nowcoder.com/feed/main/detail/5ecaca5990d74c94840f01d83835eb69)：社区经验，包含检索准确率、混合检索、向量索引和 RAG 评测追问。
-- [RAG/Agent 项目是否做数据集验证的面经](https://www.nowcoder.com/feed/main/detail/d770696f3495465d9e3d40c3d631d54c)：社区样本，直接出现“是否用数据集验证”的追问。
+- [T 公司 Agent 开发面经](https://www.nowcoder.com/feed/main/detail/aef9769bc0604700bcc8ed4fa8db8377)：社区样本直接追问评测集如何构造、precision/recall、跨场景检索污染和个人贡献。
+- [面试官视角的 AI 项目复盘](https://ac.nowcoder.com/discuss/1652755?channel=-1&source_id=discuss_tag_discuss_hot_nctrack&type=0)：社区观点提醒避免术语堆砌，必须讲清 ownership、真实测试、指标和状态同步。
 
-社区面经只能作为问题样本，不能当作招聘方官方标准；官方岗位描述也只能反映一个岗位。
+社区面经只能作为定性问题样本，不能当作招聘方官方标准或频率统计；官方岗位描述也只能反映一个岗位。遇到来源只给“推荐回答”而没有原始经历时，本手册只把它当准备线索，不把答案本身当事实。
 
 ### 评测与数据集
 
@@ -487,10 +562,11 @@ runner 或外部 webhook 可以保留全网卡监听，但必须有网络隔离�
 - [EduMath/EQGEVAL（ACL 2025）](https://aclanthology.org/2025.acl-long.628/)：16K 数学题和多维教学目标对齐评价。
 - [LearningQ](https://ojs.aaai.org/index.php/ICWSM/article/view/14987)：230K 教育文档—问题对，适合研究长文档问题生成。
 - [C-Eval 官方仓库](https://github.com/hkust-nlp/ceval)：中文多学科基线；数据许可为 CC BY-NC-SA 4.0。
-- [EdNet 论文](https://arxiv.org/abs/1912.03072)：大规模层次化学习交互数据；CC BY-NC 4.0，仅适合作为研究基线。
-- [ASSISTments 数据说明](https://sites.google.com/site/assistmentsdata/home/assistments-problems)：不同数据部分有申请、研究用途和隐私要求，使用前需逐项核验。
+- [EdNet 官方仓库](https://github.com/riiid/ednet)：大规模层次化学习交互数据；数据为 CC BY-NC 4.0，仅适合作为研究基线。
+- [ASSISTments 数据说明](https://sites.google.com/site/assistmentsdata/home/assistments-problems)与[隐私说明](https://www.assistments.org/blog-posts/how-we-protect-data-at-assistments)：不同数据部分有申请、研究用途和隐私要求，使用前需逐项核验。
+- [Google Responsible AI 评测指南](https://ai.google.dev/responsible/docs/evaluation)：除通用 benchmark 外，还应构造贴近真实使用方式的自有评测集，并防止训练/测试泄漏。
 
-## 12. 最后的面试原则
+## 13. 最后的面试原则
 
 面试官真正要确认的是：
 
