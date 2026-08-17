@@ -71,8 +71,8 @@ repos:
         exclude: package-lock.json
         pass_filenames: false
 
-  # Replaced Safety with pip-audit due to version 3.x breakdown
-  # NOTE: pip-audit disabled due to pip-api upstream bug with non-ASCII paths on Windows
+  # Dependency auditing runs in CI after the complete runtime/test environment
+  # is installed. The local hook stays disabled due to pip-api's non-ASCII path bug on Windows.
   # (UnicodeDecodeError when username contains Chinese characters)
   # See: https://github.com/di/pip-api/issues/123
   # - repo: https://github.com/pypa/pip-audit
@@ -86,7 +86,7 @@ repos:
     hooks:
       - id: bandit
         args: [-c, pyproject.toml, -q]
-        exclude: ^tests/
+        exclude: ^(tests/|exam_mem/storage/migrations/versions/0004_lifecycle_audit_contract\.py$|exam_mem/storage/migrations/versions/0005_practice_backend_facts\.py$|exam_mem/storage/migrations/versions/0006_practice_workflow\.py$)
         additional_dependencies: ["bandit[toml]"]
 
   # ============================================

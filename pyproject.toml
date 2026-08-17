@@ -2,7 +2,7 @@
 # This file configures Black, Ruff, and other Python tools
 
 [build-system]
-requires = ["setuptools>=61.0", "wheel"]
+requires = ["setuptools>=77.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -17,7 +17,7 @@ description = "An agent-native intelligent learning companion with multi-agent c
 # readable "Requires a different Python" message instead of a build failure.
 requires-python = ">=3.11,<3.14"
 readme = "README.md"
-license = {text = "Apache-2.0"}
+license = "Apache-2.0"
 dependencies = [
     # Core runtime
     "PyYAML>=6.0",
@@ -60,8 +60,8 @@ dependencies = [
     "python-docx>=1.1.0",
     "openpyxl>=3.1.0",
     "python-pptx>=1.0.0",
-    "pypdf>=4.0.0",
-    "pdfplumber>=0.11.0,<0.11.8",  # 0.11.8+ pins pdfminer.six==20251230, conflicts with mineru (via raganything)
+    "pypdf>=6.15.0,<7.0.0",
+    "pdfplumber>=0.11.10,<0.12.0",
     "reportlab>=4.0.0",
     "defusedxml>=0.7.1",
     "fastapi>=0.100.0",
@@ -107,8 +107,8 @@ cli = [
     "python-docx>=1.1.0",
     "openpyxl>=3.1.0",
     "python-pptx>=1.0.0",
-    "pypdf>=4.0.0",
-    "pdfplumber>=0.11.0,<0.11.8",  # 0.11.8+ pins pdfminer.six==20251230, conflicts with mineru (via raganything)
+    "pypdf>=6.15.0,<7.0.0",
+    "pdfplumber>=0.11.10,<0.12.0",
     "reportlab>=4.0.0",
     "defusedxml>=0.7.1",
 ]
@@ -215,8 +215,8 @@ math-animator = ["manim>=0.19.0"]
 graphrag = ["graphrag>=3.0.1,<4.0.0; python_version < '3.14'"]
 
 # LightRAG knowledge-base engine (HKUDS/LightRAG) with multimodal parsing via
-# RAG-Anything (HKUDS/RAG-Anything). Optional, heavy (pulls MinerU transitively —
-# see the pdfplumber pin above). The pipeline imports lazily and the adapter is
+# RAG-Anything (HKUDS/RAG-Anything). Optional and heavy because it pulls MinerU
+# transitively. The pipeline imports lazily and the adapter is
 # isolated in services/rag/pipelines/lightrag/engine.py. raganything pulls
 # `mineru[core]`, which is capped at python <3.14, so this carries the same
 # `python_version` marker as graphrag to avoid a silent backtrack/downgrade on
@@ -227,17 +227,20 @@ rag-lightrag = ["raganything>=1.0.1,<2.0.0; python_version < '3.14'"]
 # Dev/test tooling. Mirrors requirements/dev.txt.
 dev = [
     "deeptutor[server]",
-    "pytest>=7.0.0",
+    "pytest>=9.0.3,<10.0.0",
     "pytest-asyncio>=0.23.0",
+    # Starlette 1.2+ prefers httpx2 for TestClient; declare the supported
+    # backend explicitly so local and CI test transports stay identical.
+    "httpx2>=2.0.0,<3.0.0",
     "pre-commit>=3.0.0",
-    "safety<3.0.0",
+    "pip-audit>=2.9.0,<3.0.0",
     "bandit>=1.8.0",
     # Test fixture builders for document-loader tests. Runtime pulls these via
     # cli/server, but dev keeps them explicit for pytest collection.
     "python-docx>=1.1.0",
     "openpyxl>=3.1.0",
     "python-pptx>=1.0.0",
-    "pypdf>=4.0.0",
+    "pypdf>=6.15.0,<7.0.0",
     "defusedxml>=0.7.1",
 ]
 
@@ -277,6 +280,11 @@ deeptutor = [
 deeptutor_cli = ["**/*.md"]
 deeptutor_web = ["**/*", ".next/**/*"]
 exam_mem = ["**/*.yaml", "storage/alembic.ini", "storage/migrations/script.py.mako"]
+
+[tool.setuptools.exclude-package-data]
+# Never ship interpreter-local bytecode as Web package data. The broad
+# deeptutor_web pattern is intentional because it also carries built assets.
+deeptutor_web = ["__pycache__/*", "**/__pycache__/*", "*.py[cod]", "**/*.py[cod]"]
 
 # ============================================
 # Black code formatter configuration
@@ -490,7 +498,16 @@ ignore_errors = true  # Some tools may have dynamic imports
 # Bandit security linting configuration
 # ============================================
 [tool.bandit]
-exclude_dirs = ["tests", "scripts"]
+# 0004-0006 are byte-for-byte frozen migrations. Their only f-string value is
+# the internal constant "upgrade"/"downgrade" used in an exception message;
+# exclude the immutable false positives while continuing to scan later revisions.
+exclude_dirs = [
+    "tests",
+    "scripts",
+    "exam_mem/storage/migrations/versions/0004_lifecycle_audit_contract.py",
+    "exam_mem/storage/migrations/versions/0005_practice_backend_facts.py",
+    "exam_mem/storage/migrations/versions/0006_practice_workflow.py",
+]
 # B101=assert, B311=random, B403/B404=pickle/subprocess imports
 # B110=try_except_pass (intentional for non-critical error handling)
 # B104=hardcoded_bind_all_interfaces (required for server binding)

@@ -145,6 +145,32 @@ jobs:
           missing = [name for package, name in required if name not in files[package]]
           if missing:
               raise SystemExit(f"Missing expected distributions: {missing}")
+
+          from zipfile import ZipFile
+
+          wheel = Path("dist/deeptutor") / required[0][1]
+          with ZipFile(wheel) as archive:
+              members = set(archive.namelist())
+          bytecode = sorted(
+              name
+              for name in members
+              if "__pycache__" in name or name.endswith((".pyc", ".pyo"))
+          )
+          if bytecode:
+              raise SystemExit(f"Wheel contains interpreter bytecode: {bytecode[:10]}")
+
+          required_members = {
+              "deeptutor_web/server.js",
+              "deeptutor_plugins/exam_mem/__init__.py",
+              "exam_mem/storage/migrations/versions/0001_learning_memory_schema.py",
+              "exam_mem/storage/migrations/versions/0006_practice_workflow.py",
+              "exam_mem/storage/migrations/versions/0010_learning_observations.py",
+          }
+          missing_members = sorted(required_members - members)
+          if missing_members:
+              raise SystemExit(f"Wheel is missing runtime assets: {missing_members}")
+          if not any(name.startswith("deeptutor_web/.next/static/") for name in members):
+              raise SystemExit("Wheel is missing Next.js static assets")
           PY
 
       - name: Publish deeptutor to PyPI

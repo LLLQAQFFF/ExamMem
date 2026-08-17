@@ -1,8 +1,8 @@
 # DeepTutor + ExamMem 开源发布审计
 
-审计日期：2026-08-16
+审计日期：2026-08-17
 目标分支：`feat/exam-mem-plugin-migration`
-状态：**尚未给出发布 Go；存在需要授权处理的 Python 测试依赖和前端安全门禁**
+状态：**本地发布候选门禁通过；未推送、发布或部署**
 
 本文记录的是当前工作树证据，不等于对未来依赖、模型提供商或部署环境的永久保证。
 
@@ -25,6 +25,7 @@
 | --- | --- |
 | DeepTutor 迁移基线 | `9228d10abc114ec87321c6861e7e384db022e8ce` |
 | 冻结 ExamMem 可执行基线 | `747958725b6e681a3a846a0430b5a21deb163188` |
+| 源仓只读 checkout | `c8512ffff5834198b009833e0228543df69b25cb`；仅比可执行基线多 3 份治理/ADR 文档，无源码差异，工作树 clean |
 | 目标分支 | `feat/exam-mem-plugin-migration` |
 | 源仓库使用方式 | 只读；迁移校验必须引用显式冻结 commit，不能把当前 checkout HEAD 当基线 |
 | 许可证 | 根仓库 Apache-2.0；保留 `THIRD_PARTY_NOTICES.md` 和 `CITATION.cff` |
@@ -153,10 +154,13 @@ head:      0010_learning_observations
 - metadata 包含 SQLAlchemy、Alembic、asyncpg、pgvector；
 - `python -m exam_mem.storage.migrations heads` 返回唯一 head。
 
-本地 `exammem` Python 3.11 环境存在既有工具链冲突：`wheel 0.47.0` 要求
-`packaging>=24`，环境安装的是 `packaging==21.3`。审计使用现有 Python 3.14 构建工具配合
-`--ignore-requires-python --no-build-isolation --no-deps` 只构建、不安装，成功检查 wheel
-内容。发布前仍建议在干净的受支持 Python 3.11 CI 环境执行正式 build。
+最终发布流在受支持的 Python 3.11 环境完成正式 build，并在隔离目录安装 wheel 后验证
+Python import、`deeptutor --help` 和包内 migration 资源。结果如下：
+
+- wheel：3909 个文件，35,482,477 bytes，325 个 Next static assets，0 个 `.pyc`/`__pycache__`；
+- sdist：4754 个文件，33,210,057 bytes，0 个 `.pyc`/`__pycache__`；
+- wheel 同时包含 Web standalone server、ExamMem 插件及 migrations `0001`、`0006`、`0010`；
+- PyPI workflow 增加等价的 wheel 内容断言，防止源码可运行但发布包漏文件。
 
 ### 5.2 Docker
 
@@ -164,7 +168,13 @@ head:      0010_learning_observations
 - ExamMem PostgreSQL 使用单独的 pgvector service/volume；
 - 演示数据库只绑定 `127.0.0.1`；
 - Dockerfile 已包含插件和 migration 资源；
-- 尚需在最终依赖修复后执行完整镜像 build/smoke，当前不能用 compose parse 代替镜像验收。
+- `production` target 从干净基础层构建成功，Next 16.3.1 生成 63 个路由；
+- 临时容器达到 Docker `healthy`，容器内 backend `/` 与 frontend `/` 均返回 200；
+- 镜像内 Web standalone/static、ExamMem plugin 和 migrations `0001`/`0006`/`0010` 通过资源断言；
+- 临时容器无宿主目录挂载、无 ExamMem DSN，验证后已自动删除；只保留本地审计镜像缓存。
+
+首次 build 曾因 Docker 容器访问 Debian 镜像站中途断连失败；复用已成功层重试后通过。
+这是外部下载瞬时故障，不通过修改代码或放宽门禁掩盖。
 
 ### 5.3 生成型 Web 构建目录
 
@@ -178,24 +188,31 @@ head:      0010_learning_observations
 
 | 门禁 | 最近证据 |
 | --- | --- |
-| 全仓 Python + 本地 PostgreSQL | 旧兼容环境证据：`4293 passed, 9 skipped`；当前依赖解析的 `TestClient` 门禁尚未通过 |
-| 当前非 TestClient Python 回归 | 排除 27 个直接使用 `TestClient` 的文件后：`3945 passed, 9 skipped`；专用临时库已删除 |
+| DeepTutor 原生（无 ExamMem DSN） | `3856 passed, 9 skipped, 4 warnings`；排除 `tests/exam_mem` |
+| 全仓 Python + 隔离 PostgreSQL | `4312 passed, 9 skipped, 9 warnings`；无 TestClient 排除 |
+| TestClient 代表性入口 | `104 passed`；FastAPI/Starlette/httpx2 组合通过 |
 | Learning Archive 修复聚焦套件 | `26 passed`（含真实 PostgreSQL、HTTP/SDK/WebSocket） |
 | 知识库删除权限/清理回归 | `3 passed`（`PytestWarning` 提升为错误） |
-| Web Node tests | `65/65` |
+| Web Node tests | `412 passed` |
 | TypeScript | `tsc --noEmit` 通过 |
-| ESLint | 0 errors；56 个既有 warnings |
-| Ruff lint | 通过 |
+| ESLint | 0 errors；58 个既有 warnings |
+| Ruff lint/format | 通过；1346 个文件格式一致 |
 | Python compileall | 通过 |
 | i18n parity | 通过；非严格 literal audit 报告 27 个候选文件 |
-| wheel 内容/迁移 CLI | 通过 |
+| Web production build | 通过；63 个路由 |
+| wheel/sdist 内容与隔离安装 | 通过；无 bytecode 污染 |
+| Docker production build/smoke | 通过；容器 `healthy`，前后端 200 |
 | migration head | `0010_learning_observations` |
-| Bandit 生产代码中高风险 | `0 high / 0 medium`（冻结 migrations 排除；两个有意监听已精确审计） |
+| frozen migrations | `13 passed`；`0001`～`0006` hash/chain 不变 |
+| Bandit | 0 issues（仅精确排除不可修改的 `0004`～`0006`） |
+| detect-secrets | 通过 |
+| pip check | 通过 |
+| npm audit high gate | 通过；保留 2 个已审计 moderate |
 
-这些结果需要在最终依赖调整和文档改动后全部重跑。旧兼容环境的 `4293 passed` 证明
-业务代码曾完成全量回归，当前 `3945 passed` 进一步证明阻塞范围集中在 TestClient 依赖
-边界；但两者都不能证明当前无上限依赖声明可复现，也不能用排除文件或聚焦套件替代最终
-全仓回归和 production build。
+全量 Python 回归使用空白隔离数据库 `exammem_acceptance_20260817_01`：先从 `0001` 升到
+唯一 head `0010_learning_observations`，测试后所有业务表为 0 行、仅保留 Alembic version，
+随后精确删除该临时数据库。现有 `exammem_demo` 保持 head `0010` 和原有 4 条
+`learning_events`，未被测试修改。
 
 ## 7. 静态安全和敏感内容
 
@@ -222,39 +239,31 @@ DeepTutor 上游存在显式可配置的 `verify=False` 路径和沙箱 runner �
 以及演示与 CI 中的隔离 PostgreSQL 假口令；没有发现被跟踪的真实 `.env`、私钥、数据库
 dump 或 API key。演示口令 `exammem-demo-only` 明确只用于回环地址本地库。
 
-当前环境没有 `detect-secrets`/`pip-audit` 可执行文件，不能把“工具未安装”写成“扫描
-通过”。仓库已有 `.secrets.baseline`，最终发布最好在 CI 中恢复对应工具门禁；新增或
-安装工具需要依赖授权。
+`detect-secrets` 按仓库 baseline 执行通过。`pip-audit` 除
+`ecdsa 0.19.2 / PYSEC-2026-1325` 外通过；该公告当前无修复版本，依赖来自
+`python-jose`。项目认证实现只使用 HS256，Teams RS256 使用 PyJWT，没有调用公告影响的
+ECDSA 路径。CI 以漏洞编号做精确例外，不能扩展成忽略整个包或所有审计失败。
 
 ## 8. 依赖门禁
 
 ### 8.1 Python 测试客户端可复现性
 
-当前声明是 `fastapi>=0.100.0`、`pytest>=7.0.0`，没有约束 FastAPI/Starlette 上限，也没有
-声明 Starlette 新版 `TestClient` 所需的 HTTP 客户端。2026-08-16 当前环境解析为：
+升级授权后，开发依赖显式声明 `httpx2>=2.0.0,<3.0.0`，pytest 收敛到
+`>=9.0.3,<10`；CI Python job 安装完整 `requirements/dev.txt`，不再手工拼出一套与本地
+不同的测试客户端组合。2026-08-17 验收环境解析为：
 
 ```text
 fastapi==0.141.1
 starlette==1.4.1
 httpx==0.28.1
-httpx2=MISSING
+httpx2==2.10.0
 ```
 
-在该组合下，最小 FastAPI `TestClient.get("/ping")` 和
-`tests/runtime/test_plugin_manager.py` 都会挂起；Starlette 同时发出“使用 httpx 的
-testclient 已弃用，请安装 httpx2”的警告。仓库有 85 处 `TestClient` 使用，因此这不是
-某个 ExamMem 测试的局部问题，也不能通过跳过一个测试掩盖。
-
-Starlette 官方发布说明显示 1.2.0 开始支持 httpx2；当前 1.4.1 的 test client 会优先使用
-httpx2，缺失时才回退到已弃用的 httpx。干净修复方向是：
-
-- 把 `httpx2` 明确加入 `pyproject.toml` 的 `dev` extra 和 `requirements/dev.txt`；
-- CI Python test job 安装 `requirements/dev.txt`，不再手工拼接无上限的 pytest 依赖；
-- 在受支持 Python 3.11/3.12/3.13 上重跑全部 85 处 `TestClient` 覆盖；
-- 保留运行时 `httpx`，因为业务代码仍直接使用它，不能把测试依赖迁移误做成运行时大改。
-
-新增并安装 `httpx2`、修复本地 `packaging` 工具链都属于依赖变更，按用户约束必须先获
-明确授权。授权前不能把旧兼容环境的全量通过记录当作当前可复现性证明。
+最小 `TestClient` 与 104 个代表性入口在普通宿主进程通过。相同组合在受限命令沙箱内仍
+会卡在线程/IPC 边界；将同一测试移出沙箱立即返回 200，因此这是执行沙箱限制，不是
+FastAPI/Starlette/httpx2 不兼容。最终 4312 项全量测试在允许正常线程 IPC 的隔离执行环境
+完成，没有跳过或排除 TestClient 文件。运行时 `httpx` 继续保留，因为业务代码仍直接
+使用它；测试客户端升级没有被扩大成运行时 HTTP 栈重写。
 
 参考：
 
@@ -263,39 +272,34 @@ httpx2，缺失时才回退到已弃用的 httpx。干净修复方向是：
 
 ### 8.2 前端生产依赖漏洞
 
-2026-08-16 对当前 `web/package-lock.json` 执行：
+2026-08-17 完成 Next、Mermaid、PostCSS 与 lock 的干净升级后执行：
 
 ```bash
 npm audit --omit=dev --json
 ```
 
-结果：409 个生产依赖中，`9` 个 package 级漏洞项，`5 high`、`4 moderate`、`0 critical`。
+结果：`0 critical`、`0 high`、`2 moderate`。CI 使用 `npm audit --audit-level=high` 阻止
+critical/high 回归。
 
 | package | 当前解析版本/来源 | 风险摘要 | 处理方向 |
 | --- | --- | --- | --- |
-| Next.js | `16.2.3`（direct） | middleware/proxy bypass、SSRF、DoS、信息泄露等 | 升级到 `16.3.1`，同时获得框架原生的安全 Sharp 范围，并重跑 auth/proxy/build |
-| Mermaid | `11.14.0`（direct） | HTML/CSS injection、prototype pollution、DoS | 最小升级到已发布的 `11.16.1`，并测试用户生成图 |
-| DOMPurify | `3.4.0`（经 Mermaid/jsPDF） | 多个 sanitizer bypass/XSS | 解析到已发布的 `3.4.13`，并验证 Mermaid/jsPDF 依赖树 |
-| PostCSS | `8.4.31`/`8.5.6` | source map 任意文件读取/信息泄露 | 随 Next/lock 刷新到 `>8.5.22` |
-| nanoid | `3.3.11` | 特定 size 下无限循环 | lock 刷新到 `>=3.3.18` |
-| brace-expansion | `1.1.14`/`2.1.x` | 资源耗尽 DoS | lock 刷新到受修复版本 |
-| sharp | `0.34.5`（经 Next） | libvips 继承漏洞 | 需要 Next 支持的 `>=0.35.0` 或上游修复 |
-| ExcelJS/uuid | ExcelJS `4.4.0` → uuid `8.3.2` | uuid v3/v5/v6 buffer bounds | 当前 ExcelJS 仅调用 uuid v4，初步不可达；不能按 audit 建议倒退到 ExcelJS 3.4.0 |
+| Next.js | `16.3.1` | 已升级并获得 Sharp `0.35.3`；auth/proxy/412 Node tests/build 通过 |
+| Mermaid | `11.16.1` | 已升级；strict security 和 `htmlLabels: false` 保持 |
+| DOMPurify | `3.4.13` | 经 lock 刷新升级 |
+| PostCSS | `8.5.26` | 已升级 |
+| nanoid | `3.3.18` | 已升级 |
+| brace-expansion | `1.1.18` / `2.1.4` | 已升级 |
+| ExcelJS/uuid | ExcelJS `4.4.0` → uuid `8.3.2` | 剩余 2 个 moderate；项目依赖路径仅调用 uuid v4，公告的 v3/v5/v6 buffer 路径不可达 |
 
-Next `16.2.11` 可修复当前 Next 自身公告，但已发布的 `16.2.12` 仍声明
-`sharp ^0.34.5`；强制 override 到 0.35.x 会违反框架自己的依赖范围。Next `16.3.1` 已原生
-声明 `sharp ^0.35.3`，所以干净升级候选应是 16.3.1，而不是给 16.2.x 叠加兼容补丁。
-升级后仍需复核依赖树、reachability 和残余风险，不能运行 `npm audit fix --force` 后直接
-宣称归零。
+没有使用 `npm audit fix --force`。其建议会把 ExcelJS 破坏性降级到 3.4.0，既不能证明
+uuid 公告路径在本项目可达，也会引入无关兼容风险，因此保留上述可达性审计和 high gate，
+不虚构“漏洞归零”。
 
 现有 Mermaid 渲染已设置 `securityLevel: "strict"`、`htmlLabels: false`，降低用户图表内容
 直接执行脚本的风险；但生成 SVG 最终仍通过 `dangerouslySetInnerHTML` 注入，所以这只是
 纵深缓解，不等于修复公告。ExcelJS 源码可达性检查只发现 `uuid.v4()`，没有调用公告
 涉及的 v3/v5/v6 buffer 路径；因此记录为当前不可达残余风险，不采用 audit 建议的破坏性
 降级。
-
-根据用户约束，安装/升级依赖必须先获得明确授权。授权前不修改 `package.json` 或
-`package-lock.json`。这是当前发布 Go 的真实阻塞项。
 
 参考：
 
@@ -317,18 +321,19 @@ Next `16.2.11` 可修复当前 Next 自身公告，但已发布的 `16.2.12` 仍
 
 ## 10. 发布 Go/No-Go 清单
 
-只有以下条件全部满足才可给出 Go：
+本地发布候选清单：
 
-- [ ] 经授权完成前端依赖修复，并复核 `npm audit` 残余项；
-- [ ] 经授权补充 `httpx2` 测试依赖并修复 Python 3.11 打包工具链；
-- [ ] 在干净 Python 3.11 环境完成 wheel build/install/migration smoke；
-- [ ] Docker image build 与无插件/有插件两种启动 smoke 通过；
-- [ ] DeepTutor native 全量测试、ExamMem 全量 PostgreSQL 测试通过；
-- [ ] Ruff lint/format、TypeScript、ESLint、Node tests、i18n、production build 通过；
-- [ ] migrations `0001`～`0006` hash、唯一 head、源仓库只读状态通过；
-- [ ] Core direct-import、secret、diff、敏感数据库副作用和延期边界门禁通过；
-- [ ] 最终 checkpoint 精确提交，不含 `.next-deeptutor` 临时构建差异；
-- [ ] 不自动 push、release 或 deploy。
+- [x] 经授权完成前端依赖修复，并复核 `npm audit` 残余项；
+- [x] 补充 `httpx2` 测试依赖并统一 Python CI 安装路径；
+- [x] 在 Python 3.11 环境完成 wheel/sdist build、隔离 install 和 migration 内容 smoke；
+- [x] Docker production image build 与无 DSN 启动 smoke 通过；
+- [x] DeepTutor native 与 ExamMem PostgreSQL 全仓测试通过；
+- [x] Ruff lint/format、TypeScript、ESLint、Node tests、i18n、production build 通过；
+- [x] migrations `0001`～`0006` hash、唯一 head 通过；
+- [x] Bandit、detect-secrets、pip-audit/npm-audit 分级门禁通过并记录精确例外；
+- [x] 源仓库只读、Core direct-import、diff 与敏感内容门禁通过；
+- [x] 最终 checkpoint 精确提交，不含 `.next-deeptutor` 生成差异；
+- [x] 未 push、release 或 deploy。
 
-在清单完成前，本仓库可以继续本地开发和演示，但不能在审计报告中声称“已通过全部
-开源发布安全门禁”。
+这里的 Go 只表示“本地发布候选工程门禁通过”，不授权远程推送、PyPI/GitHub Release、
+部署或迁移任何真实数据库。

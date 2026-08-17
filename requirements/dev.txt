@@ -9,10 +9,12 @@
 
 -r server.txt
 
-pytest>=7.0.0
+pytest>=9.0.3,<10.0.0
 pytest-asyncio>=0.23.0
+# Starlette 1.2+ TestClient backend; keep runtime httpx in server.txt.
+httpx2>=2.0.0,<3.0.0
 pre-commit>=3.0.0
-safety<3.0.0
+pip-audit>=2.9.0,<3.0.0
 bandit>=1.8.0
 
 # --- Test fixture builders for document-loader tests ---
@@ -21,5 +23,5 @@ bandit>=1.8.0
 python-docx>=1.1.0
 openpyxl>=3.1.0
 python-pptx>=1.0.0
-pypdf>=4.0.0
+pypdf>=6.15.0,<7.0.0
 defusedxml>=0.7.1

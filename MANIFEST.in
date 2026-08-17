@@ -1,2 +1,4 @@
 recursive-include deeptutor_web *
 recursive-include deeptutor_web/.next *
+global-exclude *.py[cod]
+prune deeptutor_web/__pycache__

@@ -383,21 +383,23 @@ npm run test:node
 npm run build
 ```
 
-生产构建可能把 `web/next-env.d.ts` 改成对应构建目录的引用。这是生成物漂移，不要把该
-变化作为功能修改提交。
+生产构建可能把 `web/next-env.d.ts` 改成当前 Next 版本要求的类型引用。升级 Next 时应
+审计并提交稳定的新生成格式；普通重复构建若只产生缓存目录漂移，不要当成功能修改提交。
 
-迁移完成时的验收基线为：
+2026-08-17 依赖升级后的本地验收基线为：
 
-- 禁用 ExamMem 且无 DSN 的 DeepTutor 原生测试：`3593 passed, 9 skipped`；
-- 启用 ExamMem 和隔离 PostgreSQL 的全仓测试：`4293 passed, 9 skipped`；
+- 无 ExamMem DSN、排除 `tests/exam_mem` 的 DeepTutor 原生回归：`3856 passed, 9 skipped`；
+- 启用 ExamMem 和隔离 PostgreSQL 的全仓测试：`4312 passed, 9 skipped`；
 - 五 Backend 专项：`33 passed`；
-- Web Node：`65/65`；
+- Web Node：`412 passed`；
+- TypeScript、Ruff lint/format、i18n parity：通过；
+- ESLint：0 errors（既有 warnings 仍需逐步治理）；
 - Web production build：63 个路由。
 
-这些数字是迁移时兼容依赖环境的历史基线，不是对任意“最新版依赖”组合的永久保证。
-截至 2026-08-16，无上限的 FastAPI 声明会解析到 Starlette 1.4.x；其 `TestClient` 已优先
-使用 `httpx2`。在项目显式补充该测试依赖并完成全量重跑前，干净环境若在首个
-`TestClient` 请求处停住，应按开源审计报告处理，不能跳过测试或把超时当成通过。
+这些数字是已审计 lock/requirements 组合的当前基线，不是对未来任意依赖组合的永久
+保证。开发环境必须安装 `requirements/dev.txt`，其中显式包含 `httpx2`；若受限命令
+沙箱在首个 `TestClient` 请求处停住，应在允许正常线程/IPC 的隔离执行环境重跑，不得
+跳过 TestClient 文件或把超时当成通过。
 
 ## 7. PostgreSQL 备份、停止和清理
 
