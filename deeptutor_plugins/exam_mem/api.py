@@ -2,16 +2,19 @@
 
 from __future__ import annotations
 
+import asyncio
 import base64
 import binascii
 from contextlib import AbstractAsyncContextManager
 from datetime import datetime, timezone
 import hashlib
 import json
+import logging
 from typing import Annotated, Any, Literal, Protocol
 import uuid
 
 from fastapi import APIRouter, HTTPException, Query, status
+from fastapi.responses import StreamingResponse
 from pydantic import (
     AwareDatetime,
     BaseModel,
@@ -80,6 +83,7 @@ from .study_plan import StudyPlanOutlineImporter
 NonEmptyString = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
 _EXAM_ID = "postgraduate_entrance_exam"
 _SUBJECT_ID = "math_1"
+logger = logging.getLogger(__name__)
 
 
 class StrictApiModel(BaseModel):
@@ -286,6 +290,10 @@ class RuntimeProvider(Protocol):
     def open_product(self) -> AbstractAsyncContextManager[Any]: ...
 
 
+class PracticeGenerationProgressSink(Protocol):
+    async def __call__(self, event: dict[str, Any]) -> None: ...
+
+
 def build_router(
     runtime_provider: RuntimeProvider,
     *,
@@ -329,8 +337,16 @@ def build_router(
             context=context,
         )
 
-    @router.post("/practice/generate")
-    async def generate_practice(body: GeneratedPracticeStartBody) -> dict[str, Any]:
+    async def generate_practice_result(
+        body: GeneratedPracticeStartBody,
+        progress: PracticeGenerationProgressSink | None = None,
+    ) -> dict[str, Any]:
+        await _report_generation_progress(
+            progress,
+            stage="scope",
+            completed_questions=0,
+            total_questions=body.num_questions,
+        )
         taxonomy = await _taxonomy_for_scope(
             runtime_provider,
             exam_id=body.exam_id,
@@ -346,6 +362,7 @@ def build_router(
             runtime_host(),
             body=body,
             canonical_knowledge_point_id=canonical_id,
+            progress=progress,
         )
         context = _practice_context_payload(
             practice_session_id=body.practice_session_id,
@@ -358,6 +375,12 @@ def build_router(
         assessment_id = body.assessment_id or uuid.uuid4().hex
         assessment_title = body.assessment_title or f"{body.knowledge_point_name} 专项检测"
         user_id = current_user_id()
+        await _report_generation_progress(
+            progress,
+            stage="persisting",
+            completed_questions=len(questions),
+            total_questions=len(questions),
+        )
         try:
             async with runtime_provider.open_product() as runtime:
                 assessment_version = await runtime.assessments.create_version(
@@ -387,6 +410,12 @@ def build_router(
                 await runtime.connection.commit()
         except AssessmentConflict as exc:
             raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+        await _report_generation_progress(
+            progress,
+            stage="starting",
+            completed_questions=len(questions),
+            total_questions=len(questions),
+        )
         try:
             result = await _run_practice_turn(
                 runtime_host(),
@@ -420,6 +449,61 @@ def build_router(
             "attempt_id": attempt["attempt_id"],
         }
         return result
+
+    @router.post("/practice/generate")
+    async def generate_practice(body: GeneratedPracticeStartBody) -> dict[str, Any]:
+        return await generate_practice_result(body)
+
+    @router.post("/practice/generate/stream")
+    async def stream_generated_practice(body: GeneratedPracticeStartBody) -> StreamingResponse:
+        async def event_stream():
+            queue: asyncio.Queue[dict[str, Any]] = asyncio.Queue()
+
+            async def progress(event: dict[str, Any]) -> None:
+                await queue.put({"type": "progress", **event})
+
+            async def run() -> None:
+                try:
+                    result = await generate_practice_result(body, progress)
+                    await queue.put({"type": "complete", "result": result})
+                except HTTPException as exc:
+                    await queue.put(
+                        {
+                            "type": "error",
+                            "status": exc.status_code,
+                            "detail": exc.detail,
+                        }
+                    )
+                except Exception:
+                    logger.exception("Streamed ExamMem practice generation failed")
+                    await queue.put(
+                        {
+                            "type": "error",
+                            "status": status.HTTP_500_INTERNAL_SERVER_ERROR,
+                            "detail": "Practice generation failed.",
+                        }
+                    )
+
+            task = asyncio.create_task(run())
+            try:
+                while True:
+                    try:
+                        event = await asyncio.wait_for(queue.get(), timeout=15)
+                    except TimeoutError:
+                        yield "\n"
+                        continue
+                    yield json.dumps(event, ensure_ascii=False, separators=(",", ":")) + "\n"
+                    if event["type"] in {"complete", "error"}:
+                        break
+            finally:
+                if not task.done():
+                    await task
+
+        return StreamingResponse(
+            event_stream(),
+            media_type="application/x-ndjson",
+            headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+        )
 
     @router.get("/catalog")
     async def get_catalog() -> dict[str, Any]:
@@ -1699,6 +1783,7 @@ async def _generate_practice_questions(
     *,
     body: GeneratedPracticeStartBody,
     canonical_knowledge_point_id: str,
+    progress: PracticeGenerationProgressSink | None = None,
 ) -> tuple[Question, ...]:
     source_artifacts = []
     for attachment in body.attachments:
@@ -1723,6 +1808,7 @@ async def _generate_practice_questions(
     session: dict[str, Any] | None = None
     pairs: list[dict[str, Any]] = []
     generation_error: dict[str, Any] | None = None
+    completed_questions = 0
     try:
         session, turn = await host.start_turn(
             PluginTurnRequest(
@@ -1743,12 +1829,32 @@ async def _generate_practice_questions(
         )
         async for event in host.stream_turn(turn["id"]):
             metadata = event.get("metadata") or {}
+            if event.get("type") == "stage_start":
+                progress_stage = {
+                    "exploring": "exploring",
+                    "planning": "planning",
+                    "quizzing": "generating",
+                }.get(str(event.get("stage") or ""))
+                if progress_stage is not None:
+                    await _report_generation_progress(
+                        progress,
+                        stage=progress_stage,
+                        completed_questions=completed_questions,
+                        total_questions=body.num_questions,
+                    )
             if event.get("type") == "error":
                 generation_error = event
             if metadata.get("call_kind") == "quiz_question_emitted":
                 pair = metadata.get("qa_pair")
                 if isinstance(pair, dict):
                     pairs.append(pair)
+                    completed_questions += 1
+                    await _report_generation_progress(
+                        progress,
+                        stage="generating",
+                        completed_questions=completed_questions,
+                        total_questions=body.num_questions,
+                    )
             if event.get("type") == "result" and event.get("source") == "deep_question":
                 summary = metadata.get("summary") or {}
                 for item in summary.get("results") or []:
@@ -1844,6 +1950,31 @@ async def _generate_practice_questions(
             }
         )
     return tuple(Question.model_validate(item) for item in questions)
+
+
+async def _report_generation_progress(
+    sink: PracticeGenerationProgressSink | None,
+    *,
+    stage: Literal[
+        "scope",
+        "exploring",
+        "planning",
+        "generating",
+        "persisting",
+        "starting",
+    ],
+    completed_questions: int,
+    total_questions: int,
+) -> None:
+    if sink is None:
+        return
+    await sink(
+        {
+            "stage": stage,
+            "completed_questions": completed_questions,
+            "total_questions": total_questions,
+        }
+    )
 
 
 def _practice_generation_prompt(body: GeneratedPracticeStartBody) -> str:

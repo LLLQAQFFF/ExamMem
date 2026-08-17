@@ -22,7 +22,6 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { extractBase64FromDataUrl, readFileAsDataUrl } from "@/lib/file-attachments";
-import { summarizeLearningPath } from "@/lib/exam-mem-learning-archive";
 import {
   getStudyPlan,
   importStudyPlan,
@@ -183,28 +182,6 @@ export default function LearningPathsWorkbench() {
     }
   };
 
-  const organizeLearningRecord = async (objectiveId: string) => {
-    if (!detail?.published) return;
-    setWorking(true);
-    setError(null);
-    try {
-      await summarizeLearningPath(
-        detail.plan_id,
-        objectiveId,
-        detail.published.version,
-        zh ? "zh" : "en",
-      );
-    } catch (cause) {
-      setError(
-        cause instanceof Error
-          ? cause.message
-          : tr("无法整理本次学习记录。", "Could not organize this learning record."),
-      );
-    } finally {
-      setWorking(false);
-    }
-  };
-
   return (
     <div className="mx-auto flex h-full min-h-0 max-w-7xl flex-col px-4 py-6 sm:px-6 lg:px-10">
       <header className="mb-5 flex flex-wrap items-start justify-between gap-4">
@@ -254,7 +231,6 @@ export default function LearningPathsWorkbench() {
                       return <article key={objective.id} className="flex min-w-0 items-center gap-3 rounded-lg border border-[var(--border)] p-3">
                         <Icon className={`h-4 w-4 shrink-0 ${status === "mastered" ? "text-emerald-500" : status === "learning" ? "text-amber-500" : "text-[var(--muted-foreground)]"}`} />
                         <div className="min-w-0 flex-1"><p className="truncate text-sm">{objective.name}</p><p className="text-xs text-[var(--muted-foreground)]">{Math.round((session?.learning_mastery ?? 0) * 100)}% · {objective.type}</p></div>
-                        {session ? <button type="button" disabled={working} onClick={() => void organizeLearningRecord(objective.id)} title={tr("Agent 整理学习记录", "Agent organizes learning record")} className="rounded-lg border border-[var(--border)] p-2 text-amber-600 hover:bg-[var(--muted)] disabled:opacity-50"><Sparkles className="h-4 w-4" /></button> : null}
                         <button type="button" disabled={working} onClick={() => void continueLearning(objective.id)} title={tr("继续学习", "Continue learning")} className="rounded-lg border border-[var(--border)] p-2 text-teal-600 hover:bg-[var(--muted)] disabled:opacity-50"><MessageSquare className="h-4 w-4" /></button>
                         <Link href={`/exam-mem/practice?${query}`} title={tr("专项练习", "Targeted practice")} className="rounded-lg border border-[var(--border)] p-2 text-[var(--primary)] hover:bg-[var(--muted)]"><BookOpenCheck className="h-4 w-4" /></Link>
                       </article>;

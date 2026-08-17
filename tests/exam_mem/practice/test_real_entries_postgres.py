@@ -356,6 +356,9 @@ class _GeneratedQuestionTurnHost:
 
     async def stream_turn(self, turn_id: str):  # noqa: ANN201
         if turn_id == "generated-turn":
+            yield {"type": "stage_start", "stage": "exploring"}
+            yield {"type": "stage_start", "stage": "planning"}
+            yield {"type": "stage_start", "stage": "quizzing"}
             for index in range(2):
                 yield {
                     "type": "content",
@@ -421,7 +424,7 @@ async def test_generated_questions_are_checkpointed_and_attempts_share_exam_scop
                     transport=ASGITransport(app=api), base_url="http://test"
                 ) as client:
                     generated_response = await client.post(
-                        "/api/v1/exam-mem/practice/generate",
+                        "/api/v1/exam-mem/practice/generate/stream",
                         json={
                             "practice_session_id": "practice:generated:001",
                             "trace_id": "trace:generated:001",
@@ -440,7 +443,34 @@ async def test_generated_questions_are_checkpointed_and_attempts_share_exam_scop
                         },
                     )
                     assert generated_response.status_code == 200, generated_response.text
-                    generated = generated_response.json()
+                    generation_events = [
+                        json.loads(line)
+                        for line in generated_response.text.splitlines()
+                        if line.strip()
+                    ]
+                    progress_events = [
+                        event for event in generation_events if event["type"] == "progress"
+                    ]
+                    assert [event["stage"] for event in progress_events] == [
+                        "scope",
+                        "exploring",
+                        "planning",
+                        "generating",
+                        "generating",
+                        "generating",
+                        "persisting",
+                        "starting",
+                    ]
+                    assert [
+                        event["completed_questions"]
+                        for event in progress_events
+                        if event["stage"] == "generating"
+                    ] == [0, 1, 2]
+                    generated = next(
+                        event["result"]
+                        for event in generation_events
+                        if event["type"] == "complete"
+                    )
                     serialized = generated_response.text
                     assert generated["practice"]["question"]["question_id"].startswith("generated:")
                     assert "reference_answer" not in serialized

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from contextlib import asynccontextmanager, contextmanager
+import json
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -168,6 +169,10 @@ def test_practice_generation_uses_two_explicit_language_prompts() -> None:
 @pytest.mark.asyncio
 async def test_native_quiz_questions_are_versioned_and_server_side() -> None:
     deleted: list[str] = []
+    progress_events: list[dict[str, object]] = []
+
+    async def record_progress(event: dict[str, object]) -> None:
+        progress_events.append(event)
 
     class FakeHost:
         async def start_turn(self, request):
@@ -179,6 +184,9 @@ async def test_native_quiz_questions_are_versioned_and_server_side() -> None:
 
         async def stream_turn(self, turn_id):
             assert turn_id == "generation-turn"
+            yield {"type": "stage_start", "stage": "exploring"}
+            yield {"type": "stage_start", "stage": "planning"}
+            yield {"type": "stage_start", "stage": "quizzing"}
             for index in range(2):
                 yield {
                     "type": "content",
@@ -220,6 +228,7 @@ async def test_native_quiz_questions_are_versioned_and_server_side() -> None:
         FakeHost(),  # type: ignore[arg-type]
         body=body,
         canonical_knowledge_point_id="math1.probability.bayes",
+        progress=record_progress,
     )
 
     assert len(questions) == 2
@@ -240,6 +249,17 @@ async def test_native_quiz_questions_are_versioned_and_server_side() -> None:
         ],
     }
     assert questions[0].grading_rubric["response_language"] == "zh"
+    assert progress_events == [
+        {"stage": "exploring", "completed_questions": 0, "total_questions": 2},
+        {"stage": "planning", "completed_questions": 0, "total_questions": 2},
+        {"stage": "generating", "completed_questions": 0, "total_questions": 2},
+        {"stage": "generating", "completed_questions": 1, "total_questions": 2},
+        {"stage": "generating", "completed_questions": 2, "total_questions": 2},
+    ]
+    serialized_progress = json.dumps(progress_events)
+    assert "correct_answer" not in serialized_progress
+    assert "reference_answer" not in serialized_progress
+    assert "grading_rubric" not in serialized_progress
     assert deleted == ["generation-session"]
 
 

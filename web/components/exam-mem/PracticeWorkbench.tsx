@@ -29,6 +29,7 @@ import {
   submitExamPracticeAnswer,
   repeatAssessmentVersion,
   type PracticeAnswerRequest,
+  type PracticeGenerationProgress,
   type PracticeIdentity,
   type PracticeTurnResponse,
 } from "@/lib/exam-mem-practice";
@@ -50,6 +51,15 @@ function percent(value: number): string {
   return `${Math.round(value * 100)}%`;
 }
 
+const GENERATION_WAIT_STEPS = [
+  { stage: "scope", cn: "校验考试范围与知识点", en: "Validate the exam scope and objective" },
+  { stage: "exploring", cn: "探索出题方向与参考资料", en: "Explore question directions and sources" },
+  { stage: "planning", cn: "规划题型、难度与知识覆盖", en: "Plan question types, difficulty, and coverage" },
+  { stage: "generating", cn: "逐题生成并校验题目与答案", en: "Generate and validate each question and answer" },
+  { stage: "persisting", cn: "固定不可变试卷版本", en: "Freeze the immutable assessment version" },
+  { stage: "starting", cn: "创建作答并启动检测", en: "Create the attempt and start the assessment" },
+] as const;
+
 export default function PracticeWorkbench() {
   const { t, i18n } = useTranslation();
   const zh = i18n.language?.toLowerCase().startsWith("zh");
@@ -62,6 +72,9 @@ export default function PracticeWorkbench() {
   const [pendingRequest, setPendingRequest] =
     useState<PracticeAnswerRequest | null>(null);
   const [loading, setLoading] = useState(false);
+  const [generating, setGenerating] = useState(false);
+  const [generationProgress, setGenerationProgress] =
+    useState<PracticeGenerationProgress | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [history, setHistory] = useState<PracticeHistoryItem[]>([]);
   const [plans, setPlans] = useState<StudyPlan[]>([]);
@@ -131,6 +144,8 @@ export default function PracticeWorkbench() {
     if (!plan?.published || !subject || !knowledgePoint) return;
     const nextIdentity = createPracticeIdentity(crypto.randomUUID(), `plan:${plan.plan_id}`, subject.id);
     setLoading(true);
+    setGenerating(true);
+    setGenerationProgress(null);
     setError(null);
     setTurn(null);
     setAnswer("");
@@ -148,28 +163,36 @@ export default function PracticeWorkbench() {
           base64: extractBase64FromDataUrl(await readFileAsDataUrl(file)),
         };
       }));
-      setTurn(await generateExamPractice({
-        identity: nextIdentity,
-        learningPathId: `${plan.plan_id}:${plan.published.version}:${knowledgePoint.id}`,
-        knowledgePointId: knowledgePoint.id,
-        knowledgePointName: knowledgePoint.name,
-        taxonomyVersion: plan.published.taxonomy_versions[subject.id],
-        numQuestions: questionCount,
-        difficulty,
-        language: zh ? "zh" : "en",
-        attachments,
-        assessmentId: regenerateAssessmentId,
-        assessmentTitle: tr(
-          `${knowledgePoint.name} 专项检测`,
-          `${knowledgePoint.name} assessment`,
+      setTurn(
+        await generateExamPractice(
+          {
+            identity: nextIdentity,
+            learningPathId: `${plan.plan_id}:${plan.published.version}:${knowledgePoint.id}`,
+            knowledgePointId: knowledgePoint.id,
+            knowledgePointName: knowledgePoint.name,
+            taxonomyVersion: plan.published.taxonomy_versions[subject.id],
+            numQuestions: questionCount,
+            difficulty,
+            language: zh ? "zh" : "en",
+            attachments,
+            assessmentId: regenerateAssessmentId,
+            assessmentTitle: tr(
+              `${knowledgePoint.name} 专项检测`,
+              `${knowledgePoint.name} assessment`,
+            ),
+          },
+          setGenerationProgress,
         ),
-      }));
+      );
       setRegenerateAssessmentId(undefined);
       void listAssessments().then(setAssessments);
     } catch (cause) {
       if (cause instanceof PracticeRequestError && cause.partialTurn) setTurn(cause.partialTurn);
       setError(cause instanceof Error ? cause.message : tr("生成练习失败。", "Practice generation failed."));
-    } finally { setLoading(false); }
+    } finally {
+      setGenerating(false);
+      setLoading(false);
+    }
   };
 
   const submit = async () => {
@@ -355,7 +378,13 @@ export default function PracticeWorkbench() {
         </p>
       ) : null}
 
-      {loading ? (
+      {loading && generating ? (
+        <GenerationWaiting
+          questionCount={questionCount}
+          progress={generationProgress}
+          tr={tr}
+        />
+      ) : loading ? (
         <div className="flex min-h-40 items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--card)] text-sm text-[var(--muted-foreground)]">
           <LoaderCircle className="mr-2 h-5 w-5 animate-spin" />
           {t("Running the real exam_practice capability…")}
@@ -474,6 +503,111 @@ export default function PracticeWorkbench() {
         </div>
       ) : null}
     </div>
+  );
+}
+
+function GenerationWaiting({
+  questionCount,
+  progress,
+  tr,
+}: {
+  questionCount: number;
+  progress: PracticeGenerationProgress | null;
+  tr: (cn: string, en: string) => string;
+}) {
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const currentStep = progress
+    ? GENERATION_WAIT_STEPS.findIndex((step) => step.stage === progress.stage)
+    : -1;
+  const generatedQuestions = Math.min(
+    progress?.completed_questions ?? 0,
+    progress?.total_questions ?? questionCount,
+  );
+  const totalQuestions = progress?.total_questions ?? questionCount;
+
+  useEffect(() => {
+    const startedAt = Date.now();
+    const timer = window.setInterval(() => {
+      setElapsedSeconds(Math.floor((Date.now() - startedAt) / 1000));
+    }, 1000);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  return (
+    <section className="rounded-xl border border-[var(--primary)]/30 bg-[var(--card)] p-5">
+      <div className="flex items-start gap-3">
+        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-[var(--primary)]/10 text-[var(--primary)]">
+          <LoaderCircle className="h-5 w-5 animate-spin" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h2 role="status" className="font-semibold">
+              {currentStep >= 0
+                ? tr(
+                    GENERATION_WAIT_STEPS[currentStep].cn,
+                    GENERATION_WAIT_STEPS[currentStep].en,
+                  )
+                : tr("正在连接出题服务", "Connecting to the question service")}
+            </h2>
+            <span className="text-xs tabular-nums text-[var(--muted-foreground)]">{tr(`已等待 ${elapsedSeconds} 秒`, `${elapsedSeconds}s elapsed`)}</span>
+          </div>
+          <p className="mt-1 text-xs text-[var(--muted-foreground)]">
+            {tr("出题 Agent 会依次完成以下流程，全部校验通过后才会固定试卷并开始检测。", "The question agent completes these steps before freezing the assessment and starting the attempt.")}
+          </p>
+        </div>
+      </div>
+
+      {progress?.stage === "generating" ? (
+        <div className="mt-5">
+          <div className="mb-1 flex justify-between text-xs text-[var(--muted-foreground)]">
+            <span>{tr("题目生成进度", "Question generation progress")}</span>
+            <span className="tabular-nums">{generatedQuestions}/{totalQuestions}</span>
+          </div>
+          <div className="h-1.5 overflow-hidden rounded-full bg-[var(--muted)]">
+            <div
+              className="h-full rounded-full bg-[var(--primary)] transition-[width] duration-300"
+              style={{ width: `${totalQuestions > 0 ? (generatedQuestions / totalQuestions) * 100 : 0}%` }}
+            />
+          </div>
+        </div>
+      ) : (
+        <div className="mt-5 h-1.5 overflow-hidden rounded-full bg-[var(--muted)]">
+          <div className="h-full w-1/2 animate-pulse rounded-full bg-[var(--primary)]" />
+        </div>
+      )}
+      <ol className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+        {GENERATION_WAIT_STEPS.map((step, index) => {
+          const completed = currentStep > index;
+          const active = currentStep === index;
+          const marker = completed
+            ? <CheckCircle2 className="h-4 w-4" />
+            : active
+              ? <LoaderCircle className="h-4 w-4 animate-spin" />
+              : index + 1;
+          return (
+            <li
+              key={step.stage}
+              className={`flex items-start gap-2 rounded-lg border p-3 text-xs ${active ? "border-[var(--primary)]/50 bg-[var(--primary)]/5" : "border-[var(--border)] bg-[var(--background)]/50"}`}
+            >
+              <span className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-[var(--primary)]/10 font-medium text-[var(--primary)]">
+                {marker}
+              </span>
+              <span>
+                {tr(step.cn, step.en)}
+                {step.stage === "generating" && progress?.stage === "generating" ? (
+                  <span className="mt-1 block tabular-nums text-[var(--muted-foreground)]">
+                    {generatedQuestions}/{totalQuestions}
+                  </span>
+                ) : null}
+              </span>
+            </li>
+          );
+        })}
+      </ol>
+      <p className="mt-3 text-[11px] text-[var(--muted-foreground)]">
+        {tr("状态来自服务端真实出题事件；参考答案、评分规则和模型内部内容不会进入进度流。", "Status comes from real server-side question events; reference answers, grading rubrics, and internal model content are never sent through the progress stream.")}
+      </p>
+    </section>
   );
 }
 

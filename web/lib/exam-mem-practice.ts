@@ -120,6 +120,20 @@ export interface GeneratedPracticeOptions {
   assessmentTitle?: string;
 }
 
+export type PracticeGenerationStage =
+  | "scope"
+  | "exploring"
+  | "planning"
+  | "generating"
+  | "persisting"
+  | "starting";
+
+export interface PracticeGenerationProgress {
+  stage: PracticeGenerationStage;
+  completed_questions: number;
+  total_questions: number;
+}
+
 export interface PracticeSessionSnapshot {
   identity: PracticeIdentity;
   turn: PracticeTurnResponse;
@@ -136,6 +150,13 @@ export class PracticeRequestError extends Error {
     super(message);
     this.name = "PracticeRequestError";
   }
+}
+
+interface PracticeErrorDetail {
+  message?: string;
+  session_id?: string;
+  turn_id?: string;
+  practice?: PracticeResult | null;
 }
 
 export const PRACTICE_SESSION_STORAGE_KEY = "exam-mem:practice:active-session:v1";
@@ -219,12 +240,7 @@ export function clearPracticeSession(storage: Pick<Storage, "removeItem">): void
 async function parsePracticeResponse(response: Response): Promise<PracticeTurnResponse> {
   const rawPayload = await response.text();
   let payload: PracticeTurnResponse | {
-    detail?: string | {
-      message?: string;
-      session_id?: string;
-      turn_id?: string;
-      practice?: PracticeResult | null;
-    };
+    detail?: string | PracticeErrorDetail;
   };
   try {
     payload = JSON.parse(rawPayload) as typeof payload;
@@ -279,8 +295,9 @@ export async function getExamMemCatalog(): Promise<ExamMemCatalog> {
 
 export async function generateExamPractice(
   options: GeneratedPracticeOptions,
+  onProgress?: (progress: PracticeGenerationProgress) => void,
 ): Promise<PracticeTurnResponse> {
-  const response = await apiFetch(apiUrl("/api/v1/exam-mem/practice/generate"), {
+  const response = await apiFetch(apiUrl("/api/v1/exam-mem/practice/generate/stream"), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -300,7 +317,65 @@ export async function generateExamPractice(
       assessment_title: options.assessmentTitle,
     }),
   });
-  return parsePracticeResponse(response);
+  if (!response.ok || !response.body) return parsePracticeResponse(response);
+
+  type StreamLine =
+    | ({ type: "progress" } & PracticeGenerationProgress)
+    | { type: "complete"; result: PracticeTurnResponse }
+    | { type: "error"; status: number; detail: string | PracticeErrorDetail };
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  let result: PracticeTurnResponse | null = null;
+
+  const consume = (rawLine: string) => {
+    const line = JSON.parse(rawLine) as StreamLine;
+    if (line.type === "progress") {
+      onProgress?.(line);
+      return;
+    }
+    if (line.type === "error") {
+      const message =
+        typeof line.detail === "string"
+          ? line.detail
+          : line.detail.message || `Practice request failed (${line.status}).`;
+      const partialTurn =
+        typeof line.detail === "object" &&
+        line.detail.session_id &&
+        line.detail.turn_id &&
+        line.detail.practice
+          ? {
+              session_id: line.detail.session_id,
+              turn_id: line.detail.turn_id,
+              response: "",
+              practice: line.detail.practice,
+            }
+          : null;
+      throw new PracticeRequestError(message, partialTurn);
+    }
+    result = line.result;
+  };
+
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    let newline = buffer.indexOf("\n");
+    while (newline >= 0) {
+      const line = buffer.slice(0, newline).trim();
+      buffer = buffer.slice(newline + 1);
+      if (line) consume(line);
+      newline = buffer.indexOf("\n");
+    }
+  }
+  buffer += decoder.decode();
+  const tail = buffer.trim();
+  if (tail) consume(tail);
+  if (result === null) {
+    throw new PracticeRequestError("Practice generation stream ended without a result.", null);
+  }
+  return result;
 }
 
 export async function repeatAssessmentVersion(options: {

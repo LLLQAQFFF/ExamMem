@@ -158,6 +158,84 @@ test("practice requests surface a plain-text proxy failure without a JSON parse 
   }
 });
 
+test("generated practice reports real server stages and emitted question counts", async () => {
+  const originalFetch = globalThis.fetch;
+  const requested: string[] = [];
+  const progress: Array<{ stage: string; completed_questions: number }> = [];
+  const result = {
+    session_id: "session:generated",
+    turn_id: "turn:generated",
+    response: "ready",
+    practice: {
+      practice_session_id: "practice:web:stream",
+      trace_id: "trace:web:stream",
+      scope: { exam_id: "plan:test", subject_id: "math", memory_namespace: "learning" },
+      step_state: "QUESTION_PRESENTED",
+      question: {
+        question_id: "generated:q1",
+        stem: "题目一",
+        knowledge_point_ids: ["ptest.s001.m001.k001"],
+        difficulty: 0.5,
+      },
+      grade_result: null,
+      diagnosis_result: null,
+      recommendation: null,
+      resumed_from_state: "QUESTION_PRESENTED",
+      replayed: false,
+    },
+  };
+  const lines = [
+    { type: "progress", stage: "scope", completed_questions: 0, total_questions: 2 },
+    { type: "progress", stage: "exploring", completed_questions: 0, total_questions: 2 },
+    { type: "progress", stage: "planning", completed_questions: 0, total_questions: 2 },
+    { type: "progress", stage: "generating", completed_questions: 1, total_questions: 2 },
+    { type: "progress", stage: "generating", completed_questions: 2, total_questions: 2 },
+    { type: "progress", stage: "persisting", completed_questions: 2, total_questions: 2 },
+    { type: "progress", stage: "starting", completed_questions: 2, total_questions: 2 },
+    { type: "complete", result },
+  ];
+  globalThis.fetch = async (input) => {
+    requested.push(String(input));
+    return new Response(`${lines.map((line) => JSON.stringify(line)).join("\n")}\n`, {
+      headers: { "Content-Type": "application/x-ndjson" },
+    });
+  };
+
+  try {
+    const generated = await generateExamPractice(
+      {
+        identity: createPracticeIdentity("stream", "plan:test", "math"),
+        learningPathId: "plan:test:1:ptest.s001.m001.k001",
+        knowledgePointId: "ptest.s001.m001.k001",
+        knowledgePointName: "知识点一",
+        taxonomyVersion: "ptest_s001_v1",
+        numQuestions: 2,
+        difficulty: "auto",
+        language: "zh",
+        attachments: [],
+      },
+      (event) => progress.push(event),
+    );
+
+    assert.match(requested[0], /\/practice\/generate\/stream$/);
+    assert.deepEqual(
+      progress.map((event) => [event.stage, event.completed_questions]),
+      [
+        ["scope", 0],
+        ["exploring", 0],
+        ["planning", 0],
+        ["generating", 1],
+        ["generating", 2],
+        ["persisting", 2],
+        ["starting", 2],
+      ],
+    );
+    assert.equal(generated.practice.question?.question_id, "generated:q1");
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
 test("browser sends only public question identity and stable retry material", () => {
   const identity = createPracticeIdentity("fixed-uuid");
   const request = buildPracticeAnswerRequest({
@@ -296,5 +374,9 @@ test("smart exam prep owns imported scopes, versioned assessments, and merged me
   assert.match(learning, /publishStudyPlan/);
   assert.match(learning, /openStudyObjective/);
   assert.match(learning, /router\.push\(session\.chat_url\)/);
+  assert.doesNotMatch(learning, /summarizeLearningPath|organizeLearningRecord|Agent 整理学习记录/);
+  assert.match(practice, /GENERATION_WAIT_STEPS/);
+  assert.match(practice, /正在连接出题服务/);
+  assert.match(practice, /状态来自服务端真实出题事件/);
   assert.match(memory, /<MemoryIssuesWorkbench embedded/);
 });

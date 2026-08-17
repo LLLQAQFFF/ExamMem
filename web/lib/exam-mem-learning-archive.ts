@@ -224,23 +224,6 @@ export async function actOnObservation(
   return (await jsonOrError<{ observation: LearningObservation }>(response)).observation;
 }
 
-export async function summarizeLearningPath(
-  planId: string,
-  objectiveId: string,
-  version: number,
-  language: "zh" | "en",
-): Promise<LearningObservation> {
-  const response = await apiFetch(
-    apiUrl(`/api/v1/exam-mem/study-plans/${encodeURIComponent(planId)}/objectives/${encodeURIComponent(objectiveId)}/summarize`),
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ version, language }),
-    },
-  );
-  return (await jsonOrError<{ observation: LearningObservation }>(response)).observation;
-}
-
 function parsed(entries: ParsedDoc["entries"]): ParsedDoc {
   return { title: "", entries };
 }
