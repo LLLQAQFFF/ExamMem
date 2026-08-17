@@ -484,6 +484,7 @@ class PostgresEvaluationSession:
         self.case = case
         self._prefix = f"eval:{run_id}:{mode.value}:"
         self._logical_ids: dict[str, str] = {}
+        self._event_target_ids: dict[str, str] = {}
         self._embedding = DeterministicHashEmbeddingClient()
         self._completion: TrackedRelationCompletion | None = None
         self._relation_mode = "not_used"
@@ -563,15 +564,14 @@ class PostgresEvaluationSession:
         )
 
     def _actual_memory_id(self, logical_id: str) -> str:
-        matches = [actual for actual, logical in self._logical_ids.items() if logical == logical_id]
-        if len(matches) != 1:
-            raise EvaluationBackendError(
-                f"logical memory target does not resolve uniquely: {logical_id}"
-            )
-        return matches[0]
+        actual_id = self._event_target_ids.get(logical_id)
+        if actual_id is None:
+            raise EvaluationBackendError(f"logical memory target does not resolve: {logical_id}")
+        return actual_id
 
     def _runtime_memory(self, memory: LearningMemory) -> LearningMemory:
         actual_id = self._runtime_scalar_id(memory.memory_id)
+        self._event_target_ids[memory.memory_id] = actual_id
         if self.mode is BackendMode.LIFECYCLE:
             self._logical_ids[actual_id] = memory.memory_id
         return memory.model_copy(
@@ -699,6 +699,12 @@ class PostgresEvaluationSession:
                         content_embedding=(await self._embedding.embed([memory.slot_key]))[0],
                     )
             else:
+                shadow_repository = PostgresLearningMemoryRepository(connection)
+                for memory in runtime_memories:
+                    await shadow_repository.insert_version(
+                        memory,
+                        policy_version="evaluation_reference_shadow_v1",
+                    )
                 repository = PostgresBaselineFactRepository(connection)
                 for logical_memory, runtime_memory in zip(
                     case.initial_memory, runtime_memories, strict=True

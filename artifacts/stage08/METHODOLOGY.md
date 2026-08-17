@@ -33,6 +33,8 @@ TutorBench informed the use of fixed learner profiles, multi-turn tasks and mult
 - Test rollout is blocked in code; only schema/count/hash verification is allowed.
 - Provider usage unavailable through the Host interface is not silently estimated.
 
+Append/vector scopes seed the same initial semantics into baseline facts. A typed shadow of each initial row is also inserted solely to satisfy the production L1 correction/plan target foreign-key contract; baseline behavior never reads or updates those shadow rows, and snapshot/growth metrics count only baseline facts.
+
 ## Known comparability limits
 
 Native consolidation owns its internal prompt and temperature settings. The common fairness hash freezes dataset, configured model identity, top-k, timeout and retry policy, but cannot make Native Markdown consolidation and Lifecycle relation classification the same task. This is a structural baseline difference and must remain in report warnings.

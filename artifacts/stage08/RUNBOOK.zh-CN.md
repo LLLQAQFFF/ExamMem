@@ -102,7 +102,7 @@ EXAM_MEM_DATABASE_URL="$EXAM_MEM_DATABASE_URL" \
 
 ## 6. 数据库副作用与清理
 
-PostgreSQL arm 只新增带 `eval:<run_id>:<backend>:` 前缀的事件、baseline facts、Learning Memory、Lifecycle Decision、Change Log 和 projection。Native 每个 case 写到 run 目录下独立文件树，不读取用户 Native Memory。
+PostgreSQL arm 只新增带 `eval:<run_id>:<backend>:` 前缀的事件、baseline facts、Learning Memory、Lifecycle Decision、Change Log 和 projection。append/vector 还会写入仅供 L1 correction/plan target 外键校验的初始 shadow Memory；backend 查询和增长指标不读取这些 shadow 行。Native 每个 case 写到 run 目录下独立文件树，不读取用户 Native Memory。
 
 清理属于破坏性操作，必须先按 run 前缀只读核对行数并备份审计产物；不要对共享库执行。推荐保留专用容器/volume 到报告验收完成，再整体删除专用容器和专用 volume。
 
