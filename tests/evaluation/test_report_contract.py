@@ -55,6 +55,7 @@ def _backend_result(mode: str, index: int) -> dict[str, Any]:
                 "total_tokens": 100,
             },
             "estimated_cost_usd": 0.001,
+            "estimated_cost_reason": None,
             "latency": {"mean_ms": 10.0, "p95_ms": 12.0, "max_ms": 15.0},
             "memory_growth": {
                 "records_before": 0,

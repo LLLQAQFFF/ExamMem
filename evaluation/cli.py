@@ -3,20 +3,25 @@
 from __future__ import annotations
 
 import argparse
+import asyncio
 from collections.abc import Callable, Sequence
 import json
+import os
+from pathlib import Path
 import sys
 from typing import Any
 
-from evaluation.contracts.case import PROTOCOL_SEED, PROTOCOL_VERSION
+from evaluation.contracts.case import PROTOCOL_SEED, PROTOCOL_VERSION, DatasetSplit
 from evaluation.data_builder import DATASET_VERSION, build_formal_dataset
 from evaluation.evaluators.slot import evaluate_slot
+from evaluation.execution import execute_evaluation
 from evaluation.protocols.validation import (
     load_protocol,
     replay_split,
     validate_dataset,
     validate_formal_dataset,
 )
+from exam_mem.backends import BackendMode
 
 CommandHandler = Callable[[argparse.Namespace], dict[str, Any]]
 
@@ -70,6 +75,31 @@ def _gold_replay(args: argparse.Namespace) -> dict[str, Any]:
 def _evaluate_slot(args: argparse.Namespace) -> dict[str, Any]:
     result = evaluate_slot(split=args.split, taxonomy_version=args.taxonomy)
     return {"status": "ok", "command": "evaluate-slot", **result}
+
+
+def _evaluate_run(args: argparse.Namespace) -> dict[str, Any]:
+    modes = [BackendMode(value) for value in args.backend]
+    needs_postgres = any(
+        mode in {BackendMode.APPEND_ONLY, BackendMode.VECTOR, BackendMode.LIFECYCLE}
+        for mode in modes
+    )
+    database_url = os.environ.get("EXAM_MEM_DATABASE_URL")
+    if needs_postgres and not database_url:
+        raise ValueError("EXAM_MEM_DATABASE_URL is required for PostgreSQL evaluation arms")
+    result = asyncio.run(
+        execute_evaluation(
+            experiment_id=args.run_id,
+            split=DatasetSplit(args.split),
+            modes=modes,
+            output_root=Path(args.output_root),
+            database_url=database_url,
+            concurrency=args.concurrency,
+            timeout_seconds=args.timeout_seconds,
+            top_k=args.top_k,
+            resume=args.resume,
+        )
+    )
+    return {"status": "ok", "command": "evaluate run", **result}
 
 
 def _add_version_argument(parser: argparse.ArgumentParser) -> None:
@@ -129,6 +159,28 @@ def build_parser() -> argparse.ArgumentParser:
     evaluate_slot_parser.add_argument("--split", required=True)
     evaluate_slot_parser.add_argument("--taxonomy", required=True)
     evaluate_slot_parser.set_defaults(handler=_evaluate_slot)
+
+    evaluate = commands.add_parser("evaluate", help="Execute reproducible backend rollouts.")
+    evaluate_actions = evaluate.add_subparsers(dest="action", required=True)
+    evaluate_run = evaluate_actions.add_parser("run")
+    evaluate_run.add_argument("--run-id", required=True)
+    evaluate_run.add_argument(
+        "--split",
+        required=True,
+        choices=["protocol_check", "dev", "test"],
+    )
+    evaluate_run.add_argument(
+        "--backend",
+        action="append",
+        required=True,
+        choices=[mode.value for mode in BackendMode],
+    )
+    evaluate_run.add_argument("--output-root", default="artifacts/stage08/runs")
+    evaluate_run.add_argument("--concurrency", type=int, default=1)
+    evaluate_run.add_argument("--timeout-seconds", type=float, default=300.0)
+    evaluate_run.add_argument("--top-k", type=int, default=5)
+    evaluate_run.add_argument("--resume", action="store_true")
+    evaluate_run.set_defaults(handler=_evaluate_run)
     return parser
 
 

@@ -312,3 +312,6 @@ celerybeat.pid
 *.wav
 *.ogg
 !demo/*.mp4
+
+# Local Stage 08 rollout evidence (final audited baseline is committed separately).
+artifacts/stage08/runs/

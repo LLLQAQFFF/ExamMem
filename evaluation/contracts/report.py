@@ -136,9 +136,18 @@ class MemoryGrowthSummary(StrictReportModel):
 class CostSummary(StrictReportModel):
     llm_call_count: Annotated[int, Field(ge=0)]
     tokens: TokenUsage
-    estimated_cost_usd: Annotated[float, Field(ge=0.0)]
+    estimated_cost_usd: Annotated[float, Field(ge=0.0)] | None
+    estimated_cost_reason: NonEmptyString | None = None
     latency: LatencySummary
     memory_growth: MemoryGrowthSummary
+
+    @model_validator(mode="after")
+    def validate_cost_availability(self) -> CostSummary:
+        if self.estimated_cost_usd is None and self.estimated_cost_reason is None:
+            raise ValueError("unavailable estimated cost must explain why")
+        if self.estimated_cost_usd is not None and self.estimated_cost_reason is not None:
+            raise ValueError("measured estimated cost must not contain an unavailable reason")
+        return self
 
 
 class BackendEvaluation(StrictReportModel):
