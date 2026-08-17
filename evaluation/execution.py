@@ -64,6 +64,19 @@ def _code_sha() -> str:
     ).stdout.strip()
 
 
+def _assert_evaluation_sources_clean() -> None:
+    status = subprocess.run(
+        ["git", "status", "--porcelain", "--", "evaluation", "exam_mem", "deeptutor"],
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout.strip()
+    if status:
+        raise ValueError(
+            "evaluation-relevant source trees must be committed before a reproducible run"
+        )
+
+
 def _config(
     *,
     mode: BackendMode,
@@ -201,6 +214,7 @@ def _first_bad_case(case: EvaluationCase, result: RolloutResult) -> dict[str, An
             "message": error.message,
         }
     gold = {operation.operation_id: operation for operation in case.gold_operations}
+    traces = {trace.step_id: trace for trace in result.traces}
     for trace in result.traces:
         operation = gold.get(trace.step_id)
         if operation is None or result.config.backend_mode is not BackendMode.LIFECYCLE:
@@ -215,7 +229,59 @@ def _first_bad_case(case: EvaluationCase, result: RolloutResult) -> dict[str, An
                 "gold": operation.operation.value,
                 "predicted": None if predicted is None else predicted.value,
             }
+    if result.config.backend_mode is not BackendMode.NATIVE:
+        state_by_step = {state.step_id: state for state in case.gold_states}
+        operations_by_step: dict[str, list] = defaultdict(list)
+        for operation in case.gold_operations:
+            operations_by_step[operation.step_id].append(operation)
+        for step_id, operations in operations_by_step.items():
+            trace = traces.get(operations[-1].operation_id)
+            if trace is None or trace.state_after is None:
+                continue
+            predicted = set(trace.state_after.active_memory_ids)
+            expected = set(state_by_step[step_id].active_memory_ids)
+            if predicted != expected:
+                return {
+                    "case_id": case.case_id,
+                    "backend_mode": result.config.backend_mode.value,
+                    "first_error_layer": "state",
+                    "step_id": step_id,
+                    "missing_active_ids": sorted(expected - predicted),
+                    "extra_active_ids": sorted(predicted - expected),
+                }
+    actions = {action.step_id: action for action in case.gold_actions}
+    for operation in case.gold_operations:
+        trace = traces.get(operation.operation_id)
+        if trace is None or trace.recommendation is None:
+            continue
+        expected = set(actions[operation.step_id].knowledge_point_ids)
+        predicted = set(trace.recommendation.knowledge_point_ids)
+        if predicted != expected:
+            return {
+                "case_id": case.case_id,
+                "backend_mode": result.config.backend_mode.value,
+                "first_error_layer": "recommendation",
+                "step_id": operation.step_id,
+                "gold_knowledge_point_ids": sorted(expected),
+                "predicted_knowledge_point_ids": sorted(predicted),
+            }
     return None
+
+
+def _operation_confusion(
+    cases: Sequence[EvaluationCase],
+    results: Sequence[RolloutResult],
+) -> dict[str, dict[str, int]]:
+    counts: dict[str, dict[str, int]] = defaultdict(lambda: defaultdict(int))
+    by_case = {result.case_id: result for result in results}
+    for case in cases:
+        traces = {trace.step_id: trace for trace in by_case[case.case_id].traces}
+        for operation in case.gold_operations:
+            trace = traces.get(operation.operation_id)
+            decision = None if trace is None else trace.lifecycle_decision
+            predicted = "NO_DECISION" if decision is None else decision.operation.value
+            counts[operation.operation.value][predicted] += 1
+    return {gold: dict(sorted(predicted.items())) for gold, predicted in sorted(counts.items())}
 
 
 def _write_jsonl(path: Path, values: Sequence[Any]) -> None:
@@ -262,6 +328,10 @@ def _markdown(report: EvaluationReport, scenario_metrics: dict[str, Any]) -> str
             "",
             "完整机器可读分解见 `scenario_metrics.json`。",
             "",
+            "## Lifecycle 混淆矩阵",
+            "",
+            "完整 Gold×预测操作计数见 `confusion_matrix.json`；无 typed decision 统一记为 `NO_DECISION`。",
+            "",
             "## 局限",
             "",
             "- 输入从结构化 LearningEvent 开始，因此原始文本抽取指标为 N/A。",
@@ -295,6 +365,7 @@ async def execute_evaluation(
         raise ValueError("concurrency must be at least one")
     cases = load_cases(split)
     dataset_hash = _dataset_hash(split, cases)
+    _assert_evaluation_sources_clean()
     code_sha = _code_sha()
     resolved = resolve_llm_runtime_config()
     output = output_root / experiment_id
@@ -403,6 +474,8 @@ async def execute_evaluation(
             for mode in modes
         }
     (output / "scenario_metrics.json").write_bytes(_json_bytes(scenario_metrics))
+    confusion = {mode.value: _operation_confusion(cases, all_results[mode]) for mode in modes}
+    (output / "confusion_matrix.json").write_bytes(_json_bytes(confusion))
 
     if set(all_results) == set(BackendMode):
         protocol = load_protocol("evaluation_protocol_v1")

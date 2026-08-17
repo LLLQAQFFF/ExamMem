@@ -20,6 +20,7 @@ async def test_partial_execution_writes_required_audit_artifacts(
         "evaluation.execution.resolve_llm_runtime_config",
         lambda: SimpleNamespace(provider_name="offline", model="none"),
     )
+    monkeypatch.setattr("evaluation.execution._assert_evaluation_sources_clean", lambda: None)
 
     manifest = await execute_evaluation(
         experiment_id="offline-none",
@@ -40,6 +41,7 @@ async def test_partial_execution_writes_required_audit_artifacts(
     metrics = json.loads((output / "metrics.json").read_text())
     assert len(metrics["none"]) == 25
     assert (output / "metrics.csv").is_file()
+    assert (output / "confusion_matrix.json").is_file()
     assert (output / "bad_cases.jsonl").is_file()
     assert "Partial" in (output / "report.md").read_text()
 

@@ -85,6 +85,7 @@ EXAM_MEM_DATABASE_URL="$EXAM_MEM_DATABASE_URL" \
 - `snapshots/`：每 case 的前后快照；
 - `metrics.json`、`metrics.csv`：25 个注册指标；
 - `scenario_metrics.json`：12 类场景分解；
+- `confusion_matrix.json`：各 backend 的 Gold×预测 Lifecycle 操作计数；
 - `bad_cases.jsonl`：首个失败层、类型和步骤；
 - `report.json`、`report.md`：仅五臂齐全时生成正式对比报告。
 
@@ -111,4 +112,3 @@ PostgreSQL arm 只新增带 `eval:<run_id>:<backend>:` 前缀的事件、baselin
 git diff --check
 git -C /home/lh/code/ExamMem status --short --branch
 ```
-
