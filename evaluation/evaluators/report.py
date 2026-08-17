@@ -190,7 +190,7 @@ def compute_backend_metrics(
     retrieval_total = retrieval_leaks = archived_hits = 0
     weak_gold = weak_hits = 0
     scope_cases = scope_passes = 0
-    recommendation_count = recommendation_correct = over_review = 0
+    recommendation_opportunities = recommendation_emitted = recommendation_correct = over_review = 0
 
     for case in cases:
         result = ordered_results[case.case_id]
@@ -224,6 +224,7 @@ def compute_backend_metrics(
 
         if mode is not BackendMode.NATIVE:
             for step_id, operations in operations_by_step.items():
+                state_steps += 1
                 last_trace = traces.get(operations[-1].operation_id)
                 if last_trace is None or last_trace.state_after is None:
                     continue
@@ -231,7 +232,6 @@ def compute_backend_metrics(
                 predicted_active = set(last_trace.state_after.active_memory_ids)
                 expected_active = set(expected.active_memory_ids)
                 state_exact += predicted_active == expected_active
-                state_steps += 1
                 stale += len(predicted_active - expected_active)
                 active_total += len(predicted_active)
                 counts = Counter(
@@ -280,11 +280,12 @@ def compute_backend_metrics(
                 )
 
         for step_id, operations in operations_by_step.items():
+            recommendation_opportunities += 1
             trace = traces.get(operations[0].operation_id)
             recommendation = None if trace is None else trace.recommendation
             if recommendation is None:
                 continue
-            recommendation_count += 1
+            recommendation_emitted += 1
             action = next(action for action in case.gold_actions if action.step_id == step_id)
             recommendation_correct += set(recommendation.knowledge_point_ids) == set(
                 action.knowledge_point_ids
@@ -390,7 +391,7 @@ def compute_backend_metrics(
     observations["recommendation.knowledge_point_accuracy"] = _ratio(
         "recommendation.knowledge_point_accuracy",
         recommendation_correct,
-        recommendation_count,
+        recommendation_opportunities,
     )
     observations["recommendation.difficulty_match_rate"] = _missing(
         "recommendation.difficulty_match_rate",
@@ -399,7 +400,7 @@ def compute_backend_metrics(
     observations["recommendation.over_review_rate"] = _ratio(
         "recommendation.over_review_rate",
         over_review,
-        recommendation_count,
+        recommendation_emitted,
     )
 
     latencies = [result.latency_ms for result in results]

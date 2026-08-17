@@ -52,7 +52,11 @@ EXAM_MEM_DATABASE_URL="$EXAM_MEM_DATABASE_URL" \
   --top-k 5
 ```
 
-中断后用完全相同的参数追加 `--resume`。缓存的 config hash 或 code SHA 不一致时会拒绝恢复。
+中断后可用完全相同的参数追加 `--resume`；已有 partial 的 case 会校验 config hash
+和 code SHA 后复用。Native 文件型 backend 可安全使用这一路径。PostgreSQL backend
+可能已在某个 case 提交事务、但进程尚未来得及写 partial；这种 case 不能原地重放，
+否则会触发 idempotency/version conflict。遇到这类中断时，必须换新 `run-id` 并使用
+新的隔离数据库从零运行，不得把冲突结果计入正式得分。
 
 ## 4. 运行 dev
 

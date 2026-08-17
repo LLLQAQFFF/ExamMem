@@ -109,3 +109,49 @@ async def test_metric_evaluator_rejects_mixed_fairness_hashes() -> None:
 
     with pytest.raises(ValueError, match="different fairness"):
         compute_backend_metrics([first_case, second_case], [first, second])
+
+
+async def test_failed_rollout_remains_in_state_and_recommendation_denominators() -> None:
+    case = load_cases("protocol_check")[0]
+    config = ExperimentConfig(
+        backend_mode=BackendMode.NONE,
+        policy_version="none_v1",
+        fairness=FairnessConfig(
+            protocol_version="evaluation_protocol_v1",
+            dataset_split="protocol_check",
+            dataset_hash="a" * 64,
+            seed=20260806,
+            model=ModelSettings(
+                provider="offline",
+                model="none",
+                temperature=0.0,
+                top_p=1.0,
+                max_output_tokens=1,
+            ),
+            retrieval_top_k=3,
+            retry=RetrySettings(
+                timeout_seconds=2,
+                max_retries=0,
+                backoff_seconds=[],
+            ),
+        ),
+    )
+    completed = await run_case(
+        run_id="metric-none-failed",
+        case=case,
+        session=NoMemoryEvaluationSession(),
+        config=config,
+        code_sha="1de8ad56",
+    )
+    failed = completed.model_copy(update={"traces": []})
+
+    by_id = {
+        metric.metric_id: metric for metric in compute_backend_metrics([case], [failed])
+    }
+
+    assert by_id["state.active_state_exact_match"].denominator == len(case.gold_states)
+    assert by_id["state.active_state_exact_match"].numerator == 0
+    assert by_id["recommendation.knowledge_point_accuracy"].denominator == len(
+        case.gold_actions
+    )
+    assert by_id["recommendation.knowledge_point_accuracy"].numerator == 0
