@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import asyncio
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 
 import pytest
@@ -8,6 +10,7 @@ import pytest
 from evaluation.backend_adapters import (
     DeterministicHashEmbeddingClient,
     NativeEvaluationSession,
+    TrackedRelationCompletion,
 )
 from evaluation.materializer import materialize_case
 from evaluation.protocols.validation import load_cases
@@ -69,3 +72,32 @@ async def test_feature_hash_embedding_is_frozen_normalized_and_local() -> None:
     assert len(first) == 1024
     assert sum(value * value for value in first) == pytest.approx(1.0)
     assert client.call_count == 1
+
+
+async def test_relation_call_preserves_cancellation_as_failed_trace(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        "evaluation.backend_adapters.resolve_llm_runtime_config",
+        lambda: SimpleNamespace(provider_name="fake", model="fake"),
+    )
+
+    async def cancelled(**kwargs):  # noqa: ANN003, ANN202
+        raise asyncio.CancelledError
+
+    monkeypatch.setattr("evaluation.backend_adapters.complete", cancelled)
+    completion = TrackedRelationCompletion("cancel-test")
+
+    with pytest.raises(asyncio.CancelledError):
+        await completion(
+            prompt="synthetic",
+            system_prompt="synthetic",
+            response_format={"type": "json_object"},
+            temperature=0,
+        )
+
+    calls = completion.take_calls()
+    assert len(calls) == 1
+    assert calls[0].succeeded is False
+    assert calls[0].error is not None
+    assert calls[0].error.error_type == "CancelledError"

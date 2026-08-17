@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from collections.abc import Sequence
 from dataclasses import asdict
 from datetime import timedelta
@@ -374,6 +375,7 @@ class TrackedRelationCompletion:
         self._counter += 1
         started = monotonic()
         error: TraceError | None = None
+        succeeded = False
         try:
             result = await complete(
                 prompt=prompt,
@@ -384,12 +386,20 @@ class TrackedRelationCompletion:
             succeeded = True
             return result
         except Exception as exc:
-            succeeded = False
             error = TraceError(
                 stage=TraceStage.DECIDE,
                 error_type=type(exc).__name__,
                 message=str(exc) or type(exc).__name__,
                 retryable=True,
+                attempt=self._counter,
+            )
+            raise
+        except BaseException as exc:
+            error = TraceError(
+                stage=TraceStage.DECIDE,
+                error_type=type(exc).__name__,
+                message=str(exc) or type(exc).__name__,
+                retryable=isinstance(exc, asyncio.CancelledError),
                 attempt=self._counter,
             )
             raise
