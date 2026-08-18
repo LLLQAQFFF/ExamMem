@@ -36,7 +36,7 @@ def test_packaged_migration_entrypoint_resolves_the_single_head() -> None:
         text=True,
     )
     assert result.returncode == 0, result.stderr
-    assert result.stdout.strip() == "0011_assessment_archival (head)"
+    assert result.stdout.strip() == "0012_study_plan_archival (head)"
 
 
 def test_public_ci_runs_exam_mem_changes_against_postgresql() -> None:

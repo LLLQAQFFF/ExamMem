@@ -89,7 +89,7 @@ export default function LearningMemoryWorkbench() {
   }, [requestedView]);
 
   useEffect(() => {
-    void listStudyPlans()
+    void listStudyPlans("all")
       .then((items) => {
         const published = items.filter((item) => item.versions.length > 0);
         const requestedPlanId = searchParams.get("plan_id");

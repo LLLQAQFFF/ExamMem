@@ -77,7 +77,8 @@ class PostgresStudyPlanRepository:
         source_kind: str,
         source_metadata: dict[str, Any],
     ) -> dict[str, Any]:
-        await self._owned_plan(user_id=user_id, plan_id=plan_id, for_update=True)
+        plan = await self._owned_plan(user_id=user_id, plan_id=plan_id, for_update=True)
+        self._require_active(plan)
         now = datetime.now(timezone.utc)
         payload = tree.model_dump(mode="json")
         values = {
@@ -104,6 +105,7 @@ class PostgresStudyPlanRepository:
 
     async def publish(self, *, user_id: str, plan_id: str) -> dict[str, Any]:
         plan = await self._owned_plan(user_id=user_id, plan_id=plan_id, for_update=True)
+        self._require_active(plan)
         draft = (
             (
                 await self._connection.execute(
@@ -144,19 +146,46 @@ class PostgresStudyPlanRepository:
         )
         return await self.get(user_id=user_id, plan_id=plan_id)
 
-    async def list(self, *, user_id: str) -> list[dict[str, Any]]:
+    async def list(
+        self, *, user_id: str, archived: bool | None = False
+    ) -> list[dict[str, Any]]:
+        statement = select(study_plans).where(study_plans.c.user_id == user_id)
+        if archived is True:
+            statement = statement.where(study_plans.c.archived_at.is_not(None))
+        elif archived is False:
+            statement = statement.where(study_plans.c.archived_at.is_(None))
         rows = (
             (
                 await self._connection.execute(
-                    select(study_plans)
-                    .where(study_plans.c.user_id == user_id)
-                    .order_by(study_plans.c.updated_at.desc(), study_plans.c.plan_id)
+                    statement.order_by(study_plans.c.updated_at.desc(), study_plans.c.plan_id)
                 )
             )
             .mappings()
             .all()
         )
         return [await self._hydrate(row) for row in rows]
+
+    async def archive(self, *, user_id: str, plan_id: str) -> dict[str, Any]:
+        plan = await self._owned_plan(user_id=user_id, plan_id=plan_id, for_update=True)
+        archived_at = plan["archived_at"]
+        if archived_at is None:
+            archived_at = datetime.now(timezone.utc)
+            await self._connection.execute(
+                update(study_plans)
+                .where(study_plans.c.plan_id == plan_id)
+                .values(archived_at=archived_at, updated_at=archived_at)
+            )
+        return {"plan_id": plan_id, "archived_at": archived_at.isoformat()}
+
+    async def restore(self, *, user_id: str, plan_id: str) -> dict[str, Any]:
+        plan = await self._owned_plan(user_id=user_id, plan_id=plan_id, for_update=True)
+        if plan["archived_at"] is not None:
+            await self._connection.execute(
+                update(study_plans)
+                .where(study_plans.c.plan_id == plan_id)
+                .values(archived_at=None, updated_at=datetime.now(timezone.utc))
+            )
+        return {"plan_id": plan_id, "archived_at": None}
 
     async def get(self, *, user_id: str, plan_id: str) -> dict[str, Any]:
         return await self._hydrate(await self._owned_plan(user_id=user_id, plan_id=plan_id))
@@ -183,6 +212,9 @@ class PostgresStudyPlanRepository:
         if row is None:
             raise StudyPlanNotFound("study plan version not found")
         return _version_payload(row)
+
+    async def require_active(self, *, user_id: str, plan_id: str) -> None:
+        self._require_active(await self._owned_plan(user_id=user_id, plan_id=plan_id))
 
     async def taxonomy(
         self,
@@ -361,6 +393,11 @@ class PostgresStudyPlanRepository:
             raise StudyPlanNotFound("study plan not found")
         return row
 
+    @staticmethod
+    def _require_active(plan: Any) -> None:
+        if plan["archived_at"] is not None:
+            raise StudyPlanConflict("archived study plan cannot be changed or opened")
+
     async def _hydrate(self, plan: Any) -> dict[str, Any]:
         draft = (
             (
@@ -390,6 +427,9 @@ class PostgresStudyPlanRepository:
             "plan_id": plan["plan_id"],
             "name": plan["name"],
             "active_version": plan["active_version"],
+            "archived_at": (
+                None if plan["archived_at"] is None else plan["archived_at"].isoformat()
+            ),
             "created_at": plan["created_at"].isoformat(),
             "updated_at": plan["updated_at"].isoformat(),
             "draft": None if draft is None else _draft_payload(draft),

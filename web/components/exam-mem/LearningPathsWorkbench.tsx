@@ -1,6 +1,8 @@
 "use client";
 
 import {
+  Archive,
+  ArchiveRestore,
   BookOpenCheck,
   Check,
   Circle,
@@ -23,17 +25,20 @@ import { useTranslation } from "react-i18next";
 
 import { extractBase64FromDataUrl, readFileAsDataUrl } from "@/lib/file-attachments";
 import {
+  archiveStudyPlan,
   getStudyPlan,
   importStudyPlan,
   listStudyPlans,
   openStudyObjective,
   publishStudyPlan,
+  restoreStudyPlan,
   saveStudyPlanDraft,
   type StudyPlan,
   type StudyPlanTree,
 } from "@/lib/exam-mem-study-plans";
 
 type ImportKind = "file" | "url" | "generated";
+type ArchiveFilter = "active" | "archived";
 
 const STATUS_ICON = {
   mastered: CircleCheck,
@@ -48,6 +53,7 @@ export default function LearningPathsWorkbench() {
   const zh = i18n.language?.toLowerCase().startsWith("zh");
   const tr = useCallback((cn: string, en: string) => (zh ? cn : en), [zh]);
   const [plans, setPlans] = useState<StudyPlan[]>([]);
+  const [archiveFilter, setArchiveFilter] = useState<ArchiveFilter>("active");
   const [selectedPlanId, setSelectedPlanId] = useState("");
   const [selectedSubjectId, setSelectedSubjectId] = useState("");
   const [detail, setDetail] = useState<StudyPlan | null>(null);
@@ -63,11 +69,16 @@ export default function LearningPathsWorkbench() {
   const [importRequest, setImportRequest] = useState("");
 
   const refresh = useCallback(async (preferPlanId?: string) => {
-    const items = await listStudyPlans();
+    const items = await listStudyPlans(archiveFilter);
     setPlans(items);
-    setSelectedPlanId((current) => preferPlanId || current || items[0]?.plan_id || "");
+    setSelectedPlanId((current) => {
+      const candidate = preferPlanId || current;
+      return items.some((item) => item.plan_id === candidate)
+        ? candidate
+        : items[0]?.plan_id || "";
+    });
     return items;
-  }, []);
+  }, [archiveFilter]);
 
   useEffect(() => {
     void refresh()
@@ -182,6 +193,21 @@ export default function LearningPathsWorkbench() {
     }
   };
 
+  const toggleArchive = async () => {
+    if (!detail) return;
+    setWorking(true);
+    setError(null);
+    try {
+      if (detail.archived_at) await restoreStudyPlan(detail.plan_id);
+      else await archiveStudyPlan(detail.plan_id);
+      await refresh();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : tr("无法更新归档状态。", "Could not update archive state."));
+    } finally {
+      setWorking(false);
+    }
+  };
+
   return (
     <div className="mx-auto flex h-full min-h-0 max-w-7xl flex-col px-4 py-6 sm:px-6 lg:px-10">
       <header className="mb-5 flex flex-wrap items-start justify-between gap-4">
@@ -198,6 +224,13 @@ export default function LearningPathsWorkbench() {
       {error ? <p className="mb-4 rounded-lg bg-red-500/10 px-3 py-2 text-sm text-red-600">{error}</p> : null}
       <div className="grid min-h-0 flex-1 gap-4 lg:grid-cols-[280px_minmax(0,1fr)]">
         <aside className="overflow-y-auto rounded-xl border border-[var(--border)] bg-[var(--card)] p-2">
+          <div className="mb-2 grid grid-cols-2 gap-1 rounded-lg bg-[var(--muted)]/40 p-1">
+            {(["active", "archived"] as const).map((value) => (
+              <button key={value} type="button" onClick={() => setArchiveFilter(value)} className={`rounded-md px-2 py-1.5 text-xs ${archiveFilter === value ? "bg-[var(--background)] font-medium shadow-sm" : "text-[var(--muted-foreground)]"}`}>
+                {value === "active" ? tr("当前计划", "Current") : tr("已归档", "Archived")}
+              </button>
+            ))}
+          </div>
           <p className="px-3 pb-2 pt-1 text-xs font-semibold uppercase tracking-wide text-[var(--muted-foreground)]">{tr("已发布科目", "Published subjects")}</p>
           {publishedSubjects.map(({ plan, subject }) => (
             <button key={`${plan.plan_id}:${subject.id}`} type="button" onClick={() => { setSelectedPlanId(plan.plan_id); setSelectedSubjectId(subject.id); }} className={`mb-1 w-full rounded-lg px-3 py-2 text-left ${selectedPlanId === plan.plan_id && selectedSubjectId === subject.id ? "bg-[var(--primary)]/10 ring-1 ring-[var(--primary)]/30" : "hover:bg-[var(--muted)]/50"}`}>
@@ -212,12 +245,13 @@ export default function LearningPathsWorkbench() {
 
         <section className="min-h-0 overflow-y-auto rounded-xl border border-[var(--border)] bg-[var(--card)] p-5">
           {loading ? <div className="grid h-48 place-items-center"><Loader2 className="h-5 w-5 animate-spin" /></div> : null}
-          {!loading && detail?.draft && draftTree ? <DraftEditor tree={draftTree} setTree={setDraftTree} tr={tr} working={working} onSave={saveDraft} onPublish={publish} /> : null}
+          {!loading && detail ? <div className="mb-4 flex justify-end"><button type="button" disabled={working} onClick={() => void toggleArchive()} className="inline-flex items-center gap-2 rounded-lg border border-[var(--border)] px-3 py-2 text-xs disabled:opacity-50">{detail.archived_at ? <ArchiveRestore className="h-4 w-4" /> : <Archive className="h-4 w-4" />}{detail.archived_at ? tr("恢复学习计划", "Restore study plan") : tr("归档学习计划", "Archive study plan")}</button></div> : null}
+          {!loading && detail?.draft && draftTree && !detail.archived_at ? <DraftEditor tree={draftTree} setTree={setDraftTree} tr={tr} working={working} onSave={saveDraft} onPublish={publish} /> : null}
           {!loading && detail?.published && !detail.draft && selectedSubject ? (
             <div className="space-y-5">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div><h2 className="font-serif text-xl font-semibold">{selectedSubject.name}</h2><p className="mt-1 text-xs text-[var(--muted-foreground)]">{tr(`${detail.name} · 版本 ${detail.published.version} · 已发布考试范围`, `${detail.name} · v${detail.published.version} · published exam scope`)}</p></div>
-                <span className="rounded-full bg-emerald-500/10 px-3 py-1 text-xs text-emerald-600"><Check className="mr-1 inline h-3 w-3" />{tr("结构已锁定", "Structure locked")}</span>
+                <span className={`rounded-full px-3 py-1 text-xs ${detail.archived_at ? "bg-amber-500/10 text-amber-600" : "bg-emerald-500/10 text-emerald-600"}`}><Check className="mr-1 inline h-3 w-3" />{detail.archived_at ? tr("已归档，只读", "Archived, read-only") : tr("结构已锁定", "Structure locked")}</span>
               </div>
               {selectedSubject.modules.map((module) => (
                 <div key={module.id}>
@@ -231,8 +265,8 @@ export default function LearningPathsWorkbench() {
                       return <article key={objective.id} className="flex min-w-0 items-center gap-3 rounded-lg border border-[var(--border)] p-3">
                         <Icon className={`h-4 w-4 shrink-0 ${status === "mastered" ? "text-emerald-500" : status === "learning" ? "text-amber-500" : "text-[var(--muted-foreground)]"}`} />
                         <div className="min-w-0 flex-1"><p className="truncate text-sm">{objective.name}</p><p className="text-xs text-[var(--muted-foreground)]">{Math.round((session?.learning_mastery ?? 0) * 100)}% · {objective.type}</p></div>
-                        <button type="button" disabled={working} onClick={() => void continueLearning(objective.id)} title={tr("继续学习", "Continue learning")} className="rounded-lg border border-[var(--border)] p-2 text-teal-600 hover:bg-[var(--muted)] disabled:opacity-50"><MessageSquare className="h-4 w-4" /></button>
-                        <Link href={`/exam-mem/practice?${query}`} title={tr("专项练习", "Targeted practice")} className="rounded-lg border border-[var(--border)] p-2 text-[var(--primary)] hover:bg-[var(--muted)]"><BookOpenCheck className="h-4 w-4" /></Link>
+                        {!detail.archived_at ? <button type="button" disabled={working} onClick={() => void continueLearning(objective.id)} title={tr("继续学习", "Continue learning")} className="rounded-lg border border-[var(--border)] p-2 text-teal-600 hover:bg-[var(--muted)] disabled:opacity-50"><MessageSquare className="h-4 w-4" /></button> : null}
+                        {!detail.archived_at ? <Link href={`/exam-mem/practice?${query}`} title={tr("专项练习", "Targeted practice")} className="rounded-lg border border-[var(--border)] p-2 text-[var(--primary)] hover:bg-[var(--muted)]"><BookOpenCheck className="h-4 w-4" /></Link> : null}
                       </article>;
                     })}
                   </div>

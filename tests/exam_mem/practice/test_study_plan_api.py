@@ -14,6 +14,7 @@ from deeptutor.multi_user.models import CurrentUser, UserScope
 from deeptutor_plugins.exam_mem.api import StudyPlanImportBody, build_router
 from deeptutor_plugins.exam_mem.study_plan import ImportedStudyPlan
 from exam_mem.practice.learning_observation import LearningObservationDraft
+from exam_mem.storage import StudyPlanConflict
 from exam_mem.study import ImportedOutline, StudyPlanTree, materialize_outline
 
 pytestmark = pytest.mark.asyncio
@@ -73,6 +74,7 @@ class FakeStudyPlans:
         self.plan_id = ""
         self.tree: StudyPlanTree | None = None
         self.published = False
+        self.archived_at = None
         self.link = None
 
     async def create_draft(self, *, user_id, plan_id, tree, source_kind, source_metadata):  # noqa: ANN001, ANN201
@@ -81,9 +83,25 @@ class FakeStudyPlans:
         self.tree = tree
         return self._payload()
 
-    async def list(self, *, user_id):  # noqa: ANN001, ANN201
+    async def list(self, *, user_id, archived=False):  # noqa: ANN001, ANN201, FBT002
         assert user_id == "study-user"
-        return [self._payload()]
+        matches = archived is None or bool(self.archived_at) is archived
+        return [self._payload()] if matches else []
+
+    async def archive(self, *, user_id, plan_id):  # noqa: ANN001, ANN201
+        assert user_id == "study-user" and plan_id == self.plan_id
+        self.archived_at = NOW.isoformat()
+        return {"plan_id": plan_id, "archived_at": self.archived_at}
+
+    async def restore(self, *, user_id, plan_id):  # noqa: ANN001, ANN201
+        assert user_id == "study-user" and plan_id == self.plan_id
+        self.archived_at = None
+        return {"plan_id": plan_id, "archived_at": None}
+
+    async def require_active(self, *, user_id, plan_id):  # noqa: ANN001, ANN201
+        assert user_id == "study-user" and plan_id == self.plan_id
+        if self.archived_at:
+            raise StudyPlanConflict("archived study plan cannot be changed or opened")
 
     async def get(self, *, user_id, plan_id):  # noqa: ANN001, ANN201
         assert user_id == "study-user" and plan_id == self.plan_id
@@ -147,6 +165,7 @@ class FakeStudyPlans:
             "plan_id": self.plan_id,
             "name": self.tree.name,
             "active_version": 1 if self.published else None,
+            "archived_at": self.archived_at,
             "created_at": NOW.isoformat(),
             "updated_at": NOW.isoformat(),
             "draft": None if self.published else {**source, "updated_at": NOW.isoformat()},
@@ -291,6 +310,16 @@ async def test_import_publish_and_open_objective_restores_one_host_session() -> 
                 f"/api/v1/exam-mem/study-plans/{plan_id}/objectives/{objective_id}/summarize",
                 json={"version": 1, "language": "zh"},
             )
+            archived = await client.post(f"/api/v1/exam-mem/study-plans/{plan_id}/archive")
+            active_list = await client.get("/api/v1/exam-mem/study-plans")
+            archived_list = await client.get(
+                "/api/v1/exam-mem/study-plans?archival=archived"
+            )
+            blocked = await client.post(
+                f"/api/v1/exam-mem/study-plans/{plan_id}/objectives/{objective_id}/open",
+                json={"version": 1, "language": "zh"},
+            )
+            restored = await client.post(f"/api/v1/exam-mem/study-plans/{plan_id}/restore")
 
     assert first.status_code == 200
     assert first.json()["created"] is True
@@ -305,6 +334,11 @@ async def test_import_publish_and_open_objective_restores_one_host_session() -> 
     assert summarized.status_code == 200
     assert summarized.json()["observation"]["status"] == "confirmed"
     assert summarized.json()["observation"]["knowledge_point_ids"] == [objective_id]
+    assert archived.status_code == 200
+    assert active_list.json()["plans"] == []
+    assert archived_list.json()["plans"][0]["plan_id"] == plan_id
+    assert blocked.status_code == 409
+    assert restored.json()["plan"]["archived_at"] is None
 
 
 async def test_study_plan_file_contract_rejects_unplanned_ingestion_formats() -> None:

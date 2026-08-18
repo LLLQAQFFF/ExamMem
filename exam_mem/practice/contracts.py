@@ -78,6 +78,15 @@ class GradeResult(StrictPracticeModel):
     evidence: list[NonEmptyString]
     grader_version: NonEmptyString
 
+    @model_validator(mode="after")
+    def validate_score_scale(self) -> GradeResult:
+        # answer_grader_v1 did not constrain the scale. Keep those persisted
+        # artifacts readable for audit, but require every new contract to use
+        # the canonical probability scale.
+        if self.grader_version != "answer_grader_v1" and not 0.0 <= self.score <= 1.0:
+            raise ValueError("grade score must be between 0.0 and 1.0")
+        return self
+
 
 class GradeArtifactIdentity(StrictPracticeModel):
     """Strict identity for reusing grading computation across exam instances."""

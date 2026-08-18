@@ -67,7 +67,7 @@ def _grade_result() -> GradeResult:
         matched_rubric_items=["identify_prior"],
         missed_rubric_items=["apply_bayes"],
         evidence=["The final conditional direction is reversed."],
-        grader_version="answer_grader_v1",
+        grader_version="answer_grader_v2",
     )
 
 
@@ -117,6 +117,20 @@ async def test_grader_uses_separated_untrusted_answer_and_strict_schema() -> Non
     assert "grader_version" not in prompt["output_json_schema"]["properties"]
     assert prompt["output_language"] == "en"
     assert "Write every grading reason" in str(call["system_prompt"])
+    assert prompt["output_json_schema"]["properties"]["score"]["maximum"] == 1.0
+    assert "Never use a 0-to-100" in str(call["system_prompt"])
+
+
+@pytest.mark.asyncio
+async def test_grader_rejects_percentage_scale_scores() -> None:
+    payload = _grade_result().model_dump(mode="json", exclude={"grader_version"})
+    payload["score"] = 100
+    grader = DeepTutorAnswerGraderAdapter(
+        completion=RecordingCompletion(response=json.dumps(payload), calls=[])
+    )
+
+    with pytest.raises(ValidationError):
+        await grader.grade(_question(), _submission())
 
 
 @pytest.mark.asyncio

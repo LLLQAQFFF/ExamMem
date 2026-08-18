@@ -37,6 +37,7 @@ study_plans = Table(
     Column("user_id", Text, nullable=False),
     Column("name", Text, nullable=False),
     Column("active_version", Integer, nullable=True),
+    Column("archived_at", DateTime(timezone=True), nullable=True),
     Column("created_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
     Column("updated_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
     PrimaryKeyConstraint("plan_id", name="pk_study_plans"),

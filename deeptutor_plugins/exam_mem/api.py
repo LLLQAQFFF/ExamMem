@@ -341,6 +341,17 @@ def build_router(
         body: GeneratedPracticeStartBody,
         progress: PracticeGenerationProgressSink | None = None,
     ) -> dict[str, Any]:
+        if body.exam_id.startswith("plan:"):
+            try:
+                async with runtime_provider.open_product() as runtime:
+                    await runtime.study_plans.require_active(
+                        user_id=current_user_id(),
+                        plan_id=body.exam_id.removeprefix("plan:"),
+                    )
+            except StudyPlanConflict as exc:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT, detail=str(exc)
+                ) from exc
         await _report_generation_progress(
             progress,
             stage="scope",
@@ -530,11 +541,38 @@ def build_router(
         }
 
     @router.get("/study-plans")
-    async def list_study_plans() -> dict[str, Any]:
+    async def list_study_plans(
+        archival: Literal["active", "archived", "all"] = "active",
+    ) -> dict[str, Any]:
         user_id = current_user_id()
+        archived = {"active": False, "archived": True, "all": None}[archival]
         async with runtime_provider.open_product() as runtime:
-            plans = await runtime.study_plans.list(user_id=user_id)
+            plans = await runtime.study_plans.list(user_id=user_id, archived=archived)
         return {"plans": plans}
+
+    @router.post("/study-plans/{plan_id}/archive")
+    async def archive_study_plan(plan_id: NonEmptyString) -> dict[str, Any]:
+        try:
+            async with runtime_provider.open_product() as runtime:
+                plan = await runtime.study_plans.archive(
+                    user_id=current_user_id(), plan_id=plan_id
+                )
+                await runtime.connection.commit()
+        except StudyPlanNotFound as exc:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+        return {"plan": plan}
+
+    @router.post("/study-plans/{plan_id}/restore")
+    async def restore_study_plan(plan_id: NonEmptyString) -> dict[str, Any]:
+        try:
+            async with runtime_provider.open_product() as runtime:
+                plan = await runtime.study_plans.restore(
+                    user_id=current_user_id(), plan_id=plan_id
+                )
+                await runtime.connection.commit()
+        except StudyPlanNotFound as exc:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+        return {"plan": plan}
 
     @router.get("/assessments")
     async def list_assessments(
@@ -745,6 +783,7 @@ def build_router(
         created_session_id: str | None = None
         try:
             async with runtime_provider.open_product() as runtime:
+                await runtime.study_plans.require_active(user_id=user_id, plan_id=plan_id)
                 version = await runtime.study_plans.get_version(
                     user_id=user_id,
                     plan_id=plan_id,
@@ -914,6 +953,7 @@ def build_router(
         user_id = current_user_id()
         try:
             async with runtime_provider.open_product() as runtime:
+                await runtime.study_plans.require_active(user_id=user_id, plan_id=plan_id)
                 version = await runtime.study_plans.get_version(
                     user_id=user_id,
                     plan_id=plan_id,
@@ -971,6 +1011,8 @@ def build_router(
             )
         except StudyPlanNotFound as exc:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+        except StudyPlanConflict as exc:
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
         return {"observation": observation}
 
     @router.get("/learning-observations")

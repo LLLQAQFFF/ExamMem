@@ -14,6 +14,7 @@ from exam_mem.storage import (
     AssessmentNotFound,
     PostgresAssessmentRepository,
     PostgresStudyPlanRepository,
+    StudyPlanConflict,
     load_database_settings,
 )
 from exam_mem.storage.models import assessment_versions, study_plan_versions
@@ -127,6 +128,18 @@ async def test_study_plan_publish_taxonomy_and_session_link_are_transactional() 
                 assert inserted is True
                 assert replay_inserted is False
                 assert replay["link_id"] == link["link_id"]
+
+                archived = await repository.archive(user_id=user_id, plan_id=plan_id)
+                assert archived["archived_at"] is not None
+                assert await repository.list(user_id=user_id) == []
+                [archived_plan] = await repository.list(user_id=user_id, archived=True)
+                assert archived_plan["archived_at"] == archived["archived_at"]
+                with pytest.raises(StudyPlanConflict, match="archived study plan"):
+                    await repository.require_active(user_id=user_id, plan_id=plan_id)
+                restored = await repository.restore(user_id=user_id, plan_id=plan_id)
+                assert restored["archived_at"] is None
+                [active_plan] = await repository.list(user_id=user_id)
+                assert active_plan["archived_at"] is None
 
                 with pytest.raises(DBAPIError):
                     async with connection.begin_nested():

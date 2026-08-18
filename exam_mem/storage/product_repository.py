@@ -43,6 +43,7 @@ class PostgresExamProductRepository:
             latest_checkpoint = checkpoints[0]
             answer_count = sum(item.context.submitted_answer is not None for item in checkpoints)
             grades = [item.grade_result for item in checkpoints if item.grade_result is not None]
+            score, score_invalid = _grade_summary(grades)
             sessions.append(
                 {
                     "practice_session_id": practice_session_id,
@@ -51,9 +52,8 @@ class PostgresExamProductRepository:
                     "step_state": latest["step_state"],
                     "updated_at": latest["updated_at"].isoformat(),
                     "answer_count": answer_count,
-                    "score": (
-                        None if not grades else sum(grade.score for grade in grades) / len(grades)
-                    ),
+                    "score": score,
+                    "score_invalid": score_invalid,
                     "correct_count": sum(grade.correct for grade in grades),
                     "current_checkpoint": _public_checkpoint(latest_checkpoint),
                     "runtime": (
@@ -403,18 +403,28 @@ def _attempt_summary(checkpoints: list[PracticeWorkflowCheckpoint]) -> dict[str,
         for item in answered
         if item.recommendation is not None
     ]
+    score, score_invalid = _grade_summary(grades)
     return {
         "question_count": max(
             (len(item.context.question_catalog) for item in checkpoints), default=0
         ),
         "answered_count": len(answered),
         "correct_count": sum(grade.correct for grade in grades),
-        "score": None if not grades else sum(grade.score for grade in grades) / len(grades),
+        "score": score,
+        "score_invalid": score_invalid,
         "strengths": strengths,
         "weak_points": weak_points,
         "error_patterns": error_patterns,
         "next_actions": next_actions,
     }
+
+
+def _grade_summary(grades: list[Any]) -> tuple[float | None, bool]:
+    if not grades:
+        return None, False
+    if any(not 0.0 <= grade.score <= 1.0 for grade in grades):
+        return None, True
+    return sum(grade.score for grade in grades) / len(grades), False
 
 
 def _trace_payload(row: Any) -> dict[str, Any]:

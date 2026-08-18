@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import {
+  Archive,
+  ArchiveRestore,
   ArrowRight,
   BookOpenCheck,
   Brain,
@@ -16,7 +18,7 @@ import {
   GraduationCap,
   Sparkles,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import {
@@ -36,12 +38,15 @@ import {
 import { extractBase64FromDataUrl, readFileAsDataUrl } from "@/lib/file-attachments";
 import { useAttachmentLimits } from "@/lib/attachment-limits";
 import {
+  archiveAssessment,
   listAssessments,
   listStudyPlans,
+  restoreAssessment,
   type Assessment,
   type StudyPlan,
 } from "@/lib/exam-mem-study-plans";
 import {
+  formatExamScore,
   listPracticeHistory,
   resumePractice,
   type PracticeHistoryItem,
@@ -83,10 +88,14 @@ export default function PracticeWorkbench() {
   const [selectedSubject, setSelectedSubject] = useState("");
   const [selectedKnowledgePoint, setSelectedKnowledgePoint] = useState("");
   const [assessments, setAssessments] = useState<Assessment[]>([]);
+  const [archiveFilter, setArchiveFilter] = useState<"active" | "archived">("active");
   const [regenerateAssessmentId, setRegenerateAssessmentId] = useState<string | undefined>();
   const [questionCount, setQuestionCount] = useState(4);
   const [difficulty, setDifficulty] = useState<"auto" | "easy" | "medium" | "hard">("auto");
   const [sourceFiles, setSourceFiles] = useState<File[]>([]);
+  const refreshAssessments = useCallback(async () => {
+    setAssessments(await listAssessments("all"));
+  }, []);
 
   useEffect(() => {
     const restored = loadPracticeSession(window.sessionStorage);
@@ -107,8 +116,8 @@ export default function PracticeWorkbench() {
       setSelectedSubject(params.get("subject") || "");
       setSelectedKnowledgePoint(params.get("kp") || "");
     }).catch(() => undefined);
-    void listAssessments().then(setAssessments).catch(() => undefined);
-  }, []);
+    void refreshAssessments().catch(() => undefined);
+  }, [refreshAssessments]);
 
   useEffect(() => {
     const plan = plans.find((item) => item.plan_id === selectedPlan);
@@ -186,7 +195,7 @@ export default function PracticeWorkbench() {
         ),
       );
       setRegenerateAssessmentId(undefined);
-      void listAssessments().then(setAssessments);
+      void refreshAssessments();
     } catch (cause) {
       if (cause instanceof PracticeRequestError && cause.partialTurn) setTurn(cause.partialTurn);
       setError(cause instanceof Error ? cause.message : tr("生成练习失败。", "Practice generation failed."));
@@ -215,7 +224,7 @@ export default function PracticeWorkbench() {
       setAnswer("");
       setAttemptNumber((value) => value + 1);
       setPendingRequest(null);
-      void listAssessments().then(setAssessments);
+      void refreshAssessments();
     } catch (cause) {
       if (cause instanceof PracticeRequestError && cause.partialTurn) {
         setTurn(cause.partialTurn);
@@ -265,17 +274,37 @@ export default function PracticeWorkbench() {
       setAnswer("");
       setAttemptNumber(1);
       setPendingRequest(null);
-      void listAssessments().then(setAssessments);
+      void refreshAssessments();
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : tr("重考失败。", "Could not repeat the assessment."));
     } finally { setLoading(false); }
+  };
+
+  const toggleAssessmentArchive = async (assessment: Assessment) => {
+    setLoading(true);
+    setError(null);
+    try {
+      if (assessment.archived_at) await restoreAssessment(assessment.assessment_id);
+      else await archiveAssessment(assessment.assessment_id);
+      await refreshAssessments();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : tr("无法更新练习归档状态。", "Could not update practice archive state."));
+    } finally {
+      setLoading(false);
+    }
   };
 
   const plan = plans.find((item) => item.plan_id === selectedPlan);
   const subjects = plan?.published?.tree.subjects ?? [];
   const subject = subjects.find((item) => item.id === selectedSubject) ?? subjects[0];
   const objectives = subject?.modules.flatMap((item) => item.knowledge_points) ?? [];
-  const scopedAssessments = assessments.filter((item) => item.exam_id === `plan:${selectedPlan}` && item.subject_id === subject?.id);
+  const allScopedAssessments = assessments.filter((item) => item.exam_id === `plan:${selectedPlan}` && item.subject_id === subject?.id);
+  const scopedAssessments = allScopedAssessments.filter((item) => archiveFilter === "archived" ? item.archived_at !== null : item.archived_at === null);
+  const archivedPracticeSessions = useMemo(
+    () => new Set(assessments.filter((item) => item.archived_at).flatMap((item) => item.attempts.map((attempt) => attempt.practice_session_id))),
+    [assessments],
+  );
+  const visibleHistory = history.filter((item) => archiveFilter === "archived" ? archivedPracticeSessions.has(item.practice_session_id) : !archivedPracticeSessions.has(item.practice_session_id));
 
   const practice = turn?.practice;
   const question = practice?.question;
@@ -331,23 +360,29 @@ export default function PracticeWorkbench() {
         </div>
       </section>
 
-      {scopedAssessments.length ? (
+      {allScopedAssessments.length ? (
         <section className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-4">
-          <div className="flex items-center gap-2 text-sm font-semibold"><History className="h-4 w-4 text-[var(--primary)]" />{tr("考试版本与多次作答", "Assessment versions and attempts")}</div>
-          <div className="mt-3 grid gap-2 md:grid-cols-2">
-            {scopedAssessments.map((assessment) => <article key={assessment.assessment_id} className="rounded-lg border border-[var(--border)] p-3"><p className="text-sm font-medium">{assessment.title}</p><p className="mt-1 text-xs text-[var(--muted-foreground)]">{tr(`当前 v${assessment.latest_version} · ${assessment.attempts.length} 次作答`, `Current v${assessment.latest_version} · ${assessment.attempts.length} attempts`)}</p><div className="mt-3 flex flex-wrap gap-2"><button type="button" disabled={loading} onClick={() => void repeatAssessment(assessment, assessment.latest_version)} className="rounded-lg border border-[var(--border)] px-3 py-1.5 text-xs">{tr("重考当前版本", "Repeat current version")}</button><button type="button" disabled={loading} onClick={() => { setRegenerateAssessmentId(assessment.assessment_id); setSelectedKnowledgePoint(assessment.knowledge_point_ids[0] || ""); }} className="rounded-lg border border-[var(--border)] px-3 py-1.5 text-xs text-[var(--primary)]">{tr("基于同一考试生成新版", "Generate a new version")}</button></div></article>)}
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-2 text-sm font-semibold"><History className="h-4 w-4 text-[var(--primary)]" />{tr("考试版本与多次作答", "Assessment versions and attempts")}</div>
+            <div className="flex rounded-lg bg-[var(--muted)]/40 p-1">
+              {(["active", "archived"] as const).map((value) => <button key={value} type="button" onClick={() => setArchiveFilter(value)} className={`rounded-md px-3 py-1 text-xs ${archiveFilter === value ? "bg-[var(--background)] font-medium shadow-sm" : "text-[var(--muted-foreground)]"}`}>{value === "active" ? tr("当前练习", "Current") : tr("已归档", "Archived")}</button>)}
+            </div>
           </div>
+          <div className="mt-3 grid gap-2 md:grid-cols-2">
+            {scopedAssessments.map((assessment) => <article key={assessment.assessment_id} className="rounded-lg border border-[var(--border)] p-3"><p className="text-sm font-medium">{assessment.title}</p><p className="mt-1 text-xs text-[var(--muted-foreground)]">{tr(`当前 v${assessment.latest_version} · ${assessment.attempts.length} 次作答`, `Current v${assessment.latest_version} · ${assessment.attempts.length} attempts`)}</p><div className="mt-3 flex flex-wrap gap-2">{!assessment.archived_at ? <button type="button" disabled={loading} onClick={() => void repeatAssessment(assessment, assessment.latest_version)} className="rounded-lg border border-[var(--border)] px-3 py-1.5 text-xs">{tr("重考当前版本", "Repeat current version")}</button> : null}{!assessment.archived_at ? <button type="button" disabled={loading} onClick={() => { setRegenerateAssessmentId(assessment.assessment_id); setSelectedKnowledgePoint(assessment.knowledge_point_ids[0] || ""); }} className="rounded-lg border border-[var(--border)] px-3 py-1.5 text-xs text-[var(--primary)]">{tr("基于同一考试生成新版", "Generate a new version")}</button> : null}<button type="button" disabled={loading} onClick={() => void toggleAssessmentArchive(assessment)} className="inline-flex items-center gap-1 rounded-lg border border-[var(--border)] px-3 py-1.5 text-xs">{assessment.archived_at ? <ArchiveRestore className="h-3.5 w-3.5" /> : <Archive className="h-3.5 w-3.5" />}{assessment.archived_at ? tr("恢复", "Restore") : tr("归档", "Archive")}</button></div></article>)}
+          </div>
+          {!scopedAssessments.length ? <p className="mt-3 rounded-lg border border-dashed border-[var(--border)] p-5 text-center text-sm text-[var(--muted-foreground)]">{archiveFilter === "archived" ? tr("没有已归档练习。", "No archived practices.") : tr("没有当前练习。", "No current practices.")}</p> : null}
         </section>
       ) : null}
 
-      {history.length ? (
+      {visibleHistory.length ? (
         <section className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-4">
           <div className="flex items-center gap-2 text-sm font-semibold">
             <History className="h-4 w-4 text-[var(--primary)]" />
             {t("Practice history and server recovery")}
           </div>
           <div className="mt-3 grid gap-2 md:grid-cols-2">
-            {history.slice(0, 6).map((item) => (
+            {visibleHistory.slice(0, 6).map((item) => (
               <button
                 key={item.practice_session_id}
                 type="button"
@@ -359,7 +394,7 @@ export default function PracticeWorkbench() {
                   {tr(`第 ${item.attempt_number} 次练习`, `Practice #${item.attempt_number}`)} · {item.current_checkpoint.question?.stem ?? t("Practice session")}
                 </span>
                 <span className="mt-1 block text-xs text-[var(--muted-foreground)]">
-                  {item.current_checkpoint.grade_result ? `${tr("得分", "Score")} ${item.current_checkpoint.grade_result.score} · ` : ""}{item.step_state} · {item.answer_count} {t("answers")} · {item.runtime?.backend_mode ?? t("legacy configuration")}
+                  {item.current_checkpoint.grade_result ? `${tr("得分", "Score")} ${formatExamScore(item.current_checkpoint.grade_result.score, tr("评分数据异常", "Invalid score data"))} · ` : ""}{item.step_state} · {item.answer_count} {t("answers")} · {item.runtime?.backend_mode ?? t("legacy configuration")}
                 </span>
               </button>
             ))}
@@ -416,7 +451,7 @@ export default function PracticeWorkbench() {
                 <div className="flex items-center gap-2">
                   {grade.correct ? <CheckCircle2 className="h-5 w-5 text-emerald-500" /> : <CircleAlert className="h-5 w-5 text-amber-500" />}
                   <h2 className="font-semibold">
-                    {grade.correct ? t("Correct") : t("Needs review")} · {t("Score")} {grade.score}
+                    {grade.correct ? t("Correct") : t("Needs review")} · {t("Score")} {formatExamScore(grade.score, tr("评分数据异常", "Invalid score data"))}
                   </h2>
                 </div>
                 <ExamMemMarkdown

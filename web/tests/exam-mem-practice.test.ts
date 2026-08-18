@@ -15,13 +15,23 @@ import {
   savePracticeSession,
 } from "../lib/exam-mem-practice";
 import {
+  formatExamScore,
   groupExamReviewHistory,
   listExamReviewHistory,
 } from "../lib/exam-mem-product";
+
+test("exam scores fail closed outside the canonical probability scale", () => {
+  assert.equal(formatExamScore(0.5), "50.0%");
+  assert.equal(formatExamScore(100, "评分数据异常"), "评分数据异常");
+  assert.equal(formatExamScore(null), "—");
+});
 import {
   archiveAssessment,
+  archiveStudyPlan,
   listAssessments,
+  listStudyPlans,
   restoreAssessment,
+  restoreStudyPlan,
   type Assessment,
 } from "../lib/exam-mem-study-plans";
 
@@ -55,6 +65,36 @@ test("assessment archive client uses explicit list, archive, and restore endpoin
   }
 });
 
+test("study-plan archive client uses explicit list, archive, and restore endpoints", async () => {
+  const originalFetch = globalThis.fetch;
+  const requested: Array<{ url: string; method: string }> = [];
+  globalThis.fetch = async (input, init) => {
+    const url = String(input);
+    requested.push({ url, method: init?.method ?? "GET" });
+    return Response.json(
+      url.includes("?archival=")
+        ? { plans: [] }
+        : { plan: { plan_id: "plan:test", archived_at: null } },
+    );
+  };
+
+  try {
+    await listStudyPlans("archived");
+    await archiveStudyPlan("plan:test");
+    await restoreStudyPlan("plan:test");
+    assert.match(requested[0].url, /\/study-plans\?archival=archived$/);
+    assert.deepEqual(
+      requested.slice(1).map(({ url, method }) => [url.split("/api/v1")[1], method]),
+      [
+        ["/exam-mem/study-plans/plan%3Atest/archive", "POST"],
+        ["/exam-mem/study-plans/plan%3Atest/restore", "POST"],
+      ],
+    );
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
 test("exam review history includes completed attempts from imported scopes", async () => {
   const originalFetch = globalThis.fetch;
   const requested: string[] = [];
@@ -74,6 +114,7 @@ test("exam review history includes completed attempts from imported scopes", asy
               attempt_number: 1,
               answer_count: 4,
               score: 0.75,
+              score_invalid: false,
               correct_count: 3,
               current_checkpoint: {
                 checkpoint_key: "answer:4",
@@ -98,6 +139,7 @@ test("exam review history includes completed attempts from imported scopes", asy
               attempt_number: 2,
               answer_count: 4,
               score: 1,
+              score_invalid: false,
               correct_count: 4,
               current_checkpoint: {
                 checkpoint_key: "answer:4",

@@ -222,7 +222,7 @@ class FakeGrader:
             matched_rubric_items=[],
             missed_rubric_items=["apply_bayes"],
             evidence=["The conditional direction was reversed."],
-            grader_version="answer_grader_v1",
+            grader_version="answer_grader_v2",
         )
 
 
@@ -451,7 +451,7 @@ async def test_grade_artifact_reuses_only_grading_across_exam_instances() -> Non
     assert second.checkpoint.grade_artifact_identity == grade_artifact_identity(
         second_context.current_question,
         second_context.submitted_answer,
-        grader_contract_version="answer_grader_v1",
+        grader_contract_version="answer_grader_v2",
         config_revision="exam_mem_default_v1",
     )
     assert second.checkpoint.grade_reused_from_checkpoint == (

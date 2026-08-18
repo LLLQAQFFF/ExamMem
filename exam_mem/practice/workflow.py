@@ -146,7 +146,7 @@ class ExamPracticeWorkflow:
         memory_writer: PracticeMemoryWriter,
         recommendation_tool: PracticeRecommendationTool,
         taxonomy_version: str = "math1_v1",
-        grader_contract_version: str = "answer_grader_v1",
+        grader_contract_version: str = "answer_grader_v2",
         config_revision: str = "exam_mem_default_v1",
         runtime_snapshot: PracticeRuntimeSnapshot | None = None,
     ) -> None:

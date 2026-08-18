@@ -18,6 +18,7 @@ import { useTranslation } from "react-i18next";
 
 import {
   disputeGrade,
+  formatExamScore,
   getExamReview,
   groupExamReviewHistory,
   listExamReviewHistory,
@@ -122,7 +123,7 @@ export default function ExamReviewWorkbench() {
     try {
       const [assessments, plans] = await Promise.all([
         listAssessments("all"),
-        listStudyPlans(),
+        listStudyPlans("all"),
       ]);
       const sessions = await listExamReviewHistory(assessments);
       const loadedGroups = groupExamReviewHistory(sessions);
@@ -445,7 +446,7 @@ export default function ExamReviewWorkbench() {
             <>
               <section className="grid gap-3 sm:grid-cols-4">
                 <Fact label={t("State")} value={review.step_state} />
-                <Fact label={t("Score")} value={formatScore(review.score)} />
+                <Fact label={t("Score")} value={review.score_invalid ? t("Invalid score data") : formatExamScore(review.score, t("Invalid score data"))} />
                 <Fact
                   label={t("Correct answers")}
                   value={`${review.correct_count ?? 0}/${review.answer_count}`}
@@ -492,7 +493,7 @@ export default function ExamReviewWorkbench() {
                   {checkpoint.grade_result ? (
                     <div className="mt-3 text-sm">
                       <p className="font-medium">
-                        {t("Grade")}: {formatScore(checkpoint.grade_result.score)}
+                        {t("Grade")}: {formatExamScore(checkpoint.grade_result.score, t("Invalid score data"))}
                       </p>
                       <ExamMemMarkdown
                         content={checkpoint.grade_result.evidence.join("\n\n")}
@@ -770,7 +771,7 @@ function VersionScores({
                             attempt.assessment_attempt_number ?? attempt.attempt_number,
                         })}
                       </span>
-                      <span>{formatScore(attempt.score)}</span>
+                      <span>{attempt.score_invalid ? t("Invalid score data") : formatExamScore(attempt.score, t("Invalid score data"))}</span>
                     </span>
                     <span className="mt-1 block text-xs text-[var(--muted-foreground)]">
                       {statusLabel(t, attempt.attempt_status)} · {attempt.correct_count ?? 0}/
@@ -801,10 +802,6 @@ function Fact({ label, value }: { label: string; value: string }) {
 
 function scopeKey(group: Pick<ExamReviewGroup, "exam_id" | "subject_id">): string {
   return `${group.exam_id}\u001f${group.subject_id}`;
-}
-
-function formatScore(score: number | null | undefined): string {
-  return score === null || score === undefined ? "—" : `${(score * 100).toFixed(1)}%`;
 }
 
 function statusLabel(

@@ -38,6 +38,7 @@ export interface PracticeHistoryItem {
   attempt_number: number;
   answer_count: number;
   score: number | null;
+  score_invalid: boolean;
   correct_count: number;
   current_checkpoint: PracticeCheckpointSummary;
   runtime: RuntimeSnapshot | null;
@@ -98,6 +99,7 @@ export interface ExamReview extends PracticeHistoryItem {
     answered_count: number;
     correct_count: number;
     score: number | null;
+    score_invalid: boolean;
     strengths: string[];
     weak_points: string[];
     error_patterns: string[];
@@ -135,6 +137,16 @@ export interface ConfigurationState {
     capabilities: { exam_practice: boolean };
   };
   side_effects: string[];
+}
+
+export function formatExamScore(
+  score: number | null | undefined,
+  invalidLabel = "Invalid score data",
+): string {
+  if (score === null || score === undefined) return "—";
+  return Number.isFinite(score) && score >= 0 && score <= 1
+    ? `${(score * 100).toFixed(1)}%`
+    : invalidLabel;
 }
 
 async function jsonOrThrow<T>(response: Response): Promise<T> {

@@ -57,6 +57,7 @@ export interface StudyPlan {
   plan_id: string;
   name: string;
   active_version: number | null;
+  archived_at: string | null;
   created_at: string;
   updated_at: string;
   draft: (StudyPlanSource & { updated_at: string }) | null;
@@ -105,9 +106,28 @@ async function jsonOrError<T>(response: Response): Promise<T> {
   return payload;
 }
 
-export async function listStudyPlans(): Promise<StudyPlan[]> {
-  const response = await apiFetch(apiUrl("/api/v1/exam-mem/study-plans"));
+export async function listStudyPlans(
+  archival: "active" | "archived" | "all" = "active",
+): Promise<StudyPlan[]> {
+  const query = new URLSearchParams({ archival });
+  const response = await apiFetch(apiUrl(`/api/v1/exam-mem/study-plans?${query}`));
   return (await jsonOrError<{ plans: StudyPlan[] }>(response)).plans;
+}
+
+export async function archiveStudyPlan(planId: string): Promise<void> {
+  const response = await apiFetch(
+    apiUrl(`/api/v1/exam-mem/study-plans/${encodeURIComponent(planId)}/archive`),
+    { method: "POST" },
+  );
+  await jsonOrError<{ plan: Pick<StudyPlan, "plan_id" | "archived_at"> }>(response);
+}
+
+export async function restoreStudyPlan(planId: string): Promise<void> {
+  const response = await apiFetch(
+    apiUrl(`/api/v1/exam-mem/study-plans/${encodeURIComponent(planId)}/restore`),
+    { method: "POST" },
+  );
+  await jsonOrError<{ plan: Pick<StudyPlan, "plan_id" | "archived_at"> }>(response);
 }
 
 export async function getStudyPlan(planId: string): Promise<StudyPlan> {

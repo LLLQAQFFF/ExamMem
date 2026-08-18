@@ -29,7 +29,7 @@ def test_alembic_configuration_does_not_store_a_database_url() -> None:
 def test_migration_chain_has_one_linear_head() -> None:
     scripts = _script_directory()
 
-    assert scripts.get_heads() == ["0011_assessment_archival"]
+    assert scripts.get_heads() == ["0012_study_plan_archival"]
     assert scripts.get_revision("0001_learning_memory_schema").down_revision is None
     assert (
         scripts.get_revision("0002_append_only_records").down_revision
@@ -58,6 +58,10 @@ def test_migration_chain_has_one_linear_head() -> None:
     assert (
         scripts.get_revision("0011_assessment_archival").down_revision
         == "0010_learning_observations"
+    )
+    assert (
+        scripts.get_revision("0012_study_plan_archival").down_revision
+        == "0011_assessment_archival"
     )
 
 
@@ -211,6 +215,15 @@ def test_assessment_archival_downgrade_refuses_to_discard_archive_state() -> Non
 
     assert "cannot downgrade assessment archival" in downgrade_source
     assert 'op.drop_column("assessments", "archived_at")' in downgrade_source
+
+
+def test_study_plan_archival_downgrade_refuses_to_discard_archive_state() -> None:
+    revision = _script_directory().get_revision("0012_study_plan_archival")
+    migration_source = Path(revision.path).read_text(encoding="utf-8")
+    downgrade_source = migration_source.split("def downgrade() -> None:", maxsplit=1)[1]
+
+    assert "cannot downgrade study plan archival" in downgrade_source
+    assert 'op.drop_column("study_plans", "archived_at")' in downgrade_source
 
 
 def test_downgrade_keeps_the_shared_vector_extension() -> None:

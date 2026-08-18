@@ -34,6 +34,15 @@ EXPECTED_TABLES = {
 }
 
 EXPECTED_COLUMNS = {
+    "study_plans": {
+        "plan_id",
+        "user_id",
+        "name",
+        "active_version",
+        "archived_at",
+        "created_at",
+        "updated_at",
+    },
     "assessments": {
         "assessment_id",
         "user_id",

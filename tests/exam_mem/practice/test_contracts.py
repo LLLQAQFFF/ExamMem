@@ -80,6 +80,20 @@ def test_tool_contracts_accept_documented_fields_and_serialize_to_json() -> None
     assert recommendation.model_dump(mode="json")["source_memory_ids"] == []
 
 
+def test_grade_contract_reads_v1_history_but_rejects_invalid_new_scores() -> None:
+    payload = {
+        "correct": True,
+        "score": 100,
+        "matched_rubric_items": [],
+        "missed_rubric_items": [],
+        "evidence": ["Legacy score."],
+    }
+
+    assert GradeResult.model_validate({**payload, "grader_version": "answer_grader_v1"}).score == 100
+    with pytest.raises(ValidationError):
+        GradeResult.model_validate({**payload, "grader_version": "answer_grader_v2"})
+
+
 @pytest.mark.parametrize(
     ("model", "payload"),
     [

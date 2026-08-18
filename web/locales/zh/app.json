@@ -3012,6 +3012,7 @@
   "Save for controlled restart": "保存，待受控重启后生效",
   "Saved applies after restart to new exams; Effective is this process; Pinned remains fixed per exam.": "已保存配置会在重启后用于新考试；当前生效配置属于本进程；每场考试的固定配置始终保持不变。",
   "Score": "得分",
+  "Invalid score data": "评分数据异常",
   "Search exams": "搜索考试",
   "Select a study plan": "选择学习计划",
   "All subjects": "全部科目",
