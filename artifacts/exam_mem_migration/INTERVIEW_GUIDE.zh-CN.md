@@ -1,6 +1,6 @@
 # ExamMem 智能备考项目面试手册
 
-更新时间：2026-08-17
+更新时间：2026-08-18
 适用方向：大模型应用开发、Agent/RAG、AI 后端、Python/FastAPI、教育科技
 
 ## 1. 先确定你能诚实声称什么
@@ -15,7 +15,9 @@
 - Taxonomy、四维 Scope、`slot_key`、L1 append-only、L2 CAS/provenance、L3 可重建、Lifecycle、Trace、checkpoint 和幂等契约受到测试保护；
 - 同一考试可有不可变题集版本和多次 attempt；
 - DeepTutor 原生 Chat/Quiz/Mastery Path 与 ExamMem 领域边界清楚；
-- 外部 LLM 在自动化测试中使用确定性替身，所以测试证明系统契约，不证明真实模型质量。
+- 五臂受控 Memory 评测已运行 40 条 dev 和一次性 80 条冻结 test；test 上 Lifecycle
+  operation accuracy 95.73%、macro-F1 82.49%、active-state exact 90.42%，但推荐准确率
+  仅 30.83%，且 80 个 Lifecycle case 有 1 个严格契约失败。
 
 当前不能声称：
 
@@ -24,6 +26,7 @@
 - 已完成多源 RAG、教材知识库、图片/视频/PPT 摄取；
 - 公共数据集上的准确率就是考研场景效果；
 - LLM Judge 的分数等同于教师评价。
+- 受控合成 Memory 轨迹的 95.73% 等同于出题、判题或真实学习增益准确率。
 
 面试时主动讲清边界，可信度通常比堆砌未经验证的指标更高。
 
@@ -61,7 +64,7 @@
 | 真实调用链 | 不是背框架名，能画出输入、编排、工具、状态和输出 | Browser HTTP、Python App、WebSocket 汇入同一 `exam_practice` workflow 的 PostgreSQL E2E | Browser HTTP 先经过插件 Router；仓库没有专用 `exam_mem/sdk.py` |
 | Agent/工作流取舍 | 为什么某些步骤允许模型自治，某些步骤必须确定 | 辅导复用 Agent loop；评分、记忆和审计使用显式状态机与严格契约 | 不把固定工作流包装成“多 Agent 自主规划” |
 | 状态、失败与并发 | 断线是否重复写，状态放哪，如何恢复和纠错 | checkpoint、append-only Trace、幂等键、Grade Artifact 复用、L2 CAS、Review/Correction | 没有线上流量就不声称经过高 QPS 验证 |
-| 数据与效果评测 | 数据从哪来，怎么切分，有什么 baseline，数字为何可信 | 确定性工程回归 + 待建设的领域金标方案；按来源/章节隔离 | 当前测试不证明真实模型出题、判题或学习增益 |
+| 数据与效果评测 | 数据从哪来，怎么切分，有什么 baseline，数字为何可信 | 120 条受控 Memory 轨迹、40 dev/80 一次性 test、五臂消融；另有工程回归 | 当前数据不证明真实模型出题、判题或学习增益 |
 | RAG 与模型基础 | chunk、召回、rerank、幻觉、结构化输出是否理解 | 能说明 DeepTutor RAG 与当前 ExamMem 闭环边界，模型边界使用 schema/版本 | 当前没有完成教材级多源 RAG，不报 Recall@5 |
 | 后端与生产化 | AI 应用是否仍有扎实的存储、事务、API 和运维能力 | FastAPI、PostgreSQL、Alembic、事务、CAS、隔离库、构建和安全门禁 | 熔断、限流、线上告警和 A/B 仍是生产化后续项 |
 
@@ -107,7 +110,7 @@
 4. 核心闭环：大纲 → Taxonomy → 辅导/出题 → Grade → L1/L2/L3 → 推荐/恢复/复盘。
 5. 最难问题：LLM 输出不稳定、断线重试、并发写 L2、历史纠错、跨 Scope 泄漏。
 6. 证据：真实入口和 PostgreSQL 测试、迁移 hash、Core import gate、生产构建。
-7. 限制和下一步：金标数据集、真实模型评测、成本/延迟、在线学习效果。
+7. 证据和限制：报告冻结 test 的真实数字，同时说明教师金标、出题判题和在线学习效果仍未覆盖。
 
 ## 5. 架构与真实调用链
 
@@ -395,11 +398,21 @@ runner 或外部 webhook 可以保留全网卡监听，但必须有网络隔离�
 
 #### Q33：你的评测集多大，为什么是这个规模？
 
-当前真实答案是：还没有完成正式模型效果金标集，不能虚报。计划先用 30～50 条分层 case 做快速开发冒烟，确保评测管线和 rubric 可用；再扩成 200～500 条冻结金标，用于模型/prompt/baseline 对比。规模不是越大越好，要同时报告知识点、题型、难度、异常类型覆盖和置信区间；若要支撑上线级结论，还需更大样本、时间切片和真实 bad case 回流。
+当前有 120 条 `exam_mem_controlled_v1` 受控多轮 Memory 轨迹，覆盖 12 类生命周期
+场景；40 条 dev 用于修正，80 条 test 通过一次性 release 冻结运行。这个规模适合验证
+状态机、关系决策、污染、Scope 和检索的早期消融，不足以代表中国考研题目分布，也
+没有教师双标。下一步仍需 200～500 条按来源/章节隔离的领域金标，分别评估大纲、
+出题、判题和推荐；有真实用户后再建立时间切片 bad-case 集。
 
 #### Q34：你拿什么做 baseline，提升从何而来？
 
-按子系统比较，不报一个混合总分：出题比较直接 LLM 与结构化 objective/rubric；判题比较不同模型/prompt/grader version；记忆比较 `none/native/append_only/vector/lifecycle`；可靠性比较无 checkpoint 与 checkpoint/replay。每次只改变一个变量，在同一冻结切分上报告指标、延迟和成本。没有跑出的数字只说实验设计，不提前声称提升。
+Memory 子系统使用 `none/native/append_only/vector/lifecycle` 五臂同 harness 消融。
+冻结 test 上，Lifecycle 的 active-state exact 为 90.42%，比 none 的 7.50% 高 82.92
+个百分点；stale rate 为 3.32%，比 append-only/vector 的 89.28% 低 85.96 个百分点；
+推荐准确率 30.83%，比 baseline 的 3.75% 高 27.08 个百分点。代价是完成率 79/80、
+Weak Recall@5 低 10 个百分点、平均延迟是 vector 的 1.49 倍。operation accuracy
+95.73% 只能与 Gold 比，其他 backend 不暴露 typed operation，所以不能伪造这一项的
+baseline。出题和判题的数据集尚未完成，不能借用 Memory 分数。
 
 #### Q35：这是 AI 项目，为什么还会问数据库、Redis、Python 和网络？
 
@@ -407,9 +420,15 @@ runner 或外部 webhook 可以保留全网卡监听，但必须有网络隔离�
 
 ## 8. 到底需不需要数据集
 
-结论：如果要声称“模型效果好”或比较方案优劣，就需要数据集；如果只演示工程闭环，可以暂时没有正式金标，但必须明确尚未证明效果。两者都要分清“工程回归集”和“模型效果集”。
+结论：如果要声称“模型效果好”或比较方案优劣，就需要数据集。当前必须区分三层证据：
+工程回归证明契约；`exam_mem_controlled_v1` 证明结构化 Memory 生命周期在受控场景的
+效果；教师标注的考研领域金标和真实用户实验仍未完成。
 
-截至 2026-08-17 的验收快照是：无 ExamMem DSN 的 DeepTutor 原生回归 `3856 passed, 9 skipped`；启用隔离 PostgreSQL 的全仓回归 `4312 passed, 9 skipped`；Web Node `412 passed`，production build 生成 63 个路由。这些数字主要证明状态机、事务、迁移、Scope、幂等、恢复、接口和构建没有退化。测试中的确定性 fake LLM 不能回答：生成题是否正确、难度是否合适、评分理由是否可靠、推荐是否真的帮助学习。
+截至 2026-08-18，除工程回归外，Memory 评测的冻结 test 已在真实 PostgreSQL、Host
+LLM 和本地 Qwen embedding 上完成五臂比较。它从结构化 LearningEvent 开始，不能
+回答：聊天抽取是否正确、生成题是否正确、难度是否合适、评分理由是否可靠、推荐是否
+真的帮助学习。完整数字和防泄漏方法见
+[Stage09 报告](../stage09/STAGE09_REPORT.zh-CN.md)。
 
 ### 8.1 公共数据集能做什么
 
@@ -503,9 +522,13 @@ runner 或外部 webhook 可以保留全网卡监听，但必须有网络隔离�
 - 不同模型、prompt、温度和 grader version；
 - 有/无来源上下文，但必须在合法授权的同一数据切分上比较。
 
-面试时若还没做完数据集，可以这样回答：
+面试时应该这样回答当前证据边界：
 
-> 当前阶段我已经用确定性替身把工程不变量和真实数据库闭环测全，但这不能代表模型效果。我设计的下一阶段是 200～500 条考研金标集，按来源和章节隔离切分，教师双标；分别评估大纲、出题、评分、推荐和记忆，公共 C-Eval/QGEval 只做外部基线，不直接作为产品结论。这个缺口我会明确写在报告里，而不是报一个无法复现的“准确率”。
+> 当前我完成了两层评测：工程回归验证真实数据库闭环；120 条受控 Memory 轨迹用
+> 40 dev/80 一次性 test 比较五个 backend，冻结 test 的 Lifecycle operation accuracy
+> 是 95.73%、state exact 是 90.42%。这只说明结构化 LearningEvent 之后的记忆治理，
+> 不代表出题、判题或提分效果。下一步是 200～500 条按来源和章节隔离、教师双标的考研
+> 金标；公共 C-Eval/QGEval 只作外部参考，不偷换成产品结论。
 
 ## 9. 面试演示脚本
 
@@ -530,6 +553,9 @@ runner 或外部 webhook 可以保留全网卡监听，但必须有网络隔离�
 - 实现“版本化大纲 → 叶子知识点辅导 → 不可变题集版本/多次检测 → 评分诊断 → Learning Memory → 推荐恢复复盘”闭环，并用独立 PostgreSQL 隔离业务真值。
 - 设计 L1 append-only、L2 CAS/provenance/Lifecycle、L3 可重建投影，以及 checkpoint、Trace、幂等和补偿机制，覆盖五种 Memory Backend。
 - 建立真实 Browser HTTP/Python App/unified WebSocket/PostgreSQL 回归与 migration hash 门禁；明确区分确定性工程测试和待建设的模型效果金标集。
+- 构建 `none/native/append-only/vector/lifecycle` 五臂受控评测，在 80 条一次性冻结
+  test 上取得 95.73% Lifecycle operation accuracy 和 90.42% active-state exact；相对
+  none 提升 82.92 个百分点，同时保留 1/80 执行失败和推荐准确率 30.83% 的限制。
 
 如果必须量化，只使用可以从当前测试日志复现的数字，并注明它是“测试数量/入口覆盖”，不是“模型准确率”。
 

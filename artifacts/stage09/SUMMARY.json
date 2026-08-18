@@ -1,0 +1,52 @@
+{
+  "protocol_version": "evaluation_protocol_v1",
+  "dataset_version": "exam_mem_controlled_v1",
+  "test_run_id": "stage09-test-258e4456-configured-final",
+  "code_sha": "258e4456018fdd00abf31ce090457a2c4f8d071a",
+  "test_dataset_sha256": "fd01c3a2eb910ad0476e82e54eacc593d44d867d37c812b69f1a99e8a8553011",
+  "selected_case_count": 80,
+  "backend_modes": [
+    "none",
+    "native",
+    "append_only",
+    "vector",
+    "lifecycle"
+  ],
+  "embedding_model": "ollama:qwen3-embedding:0.6b:1024",
+  "lifecycle_outcomes": {
+    "completed": 79,
+    "failed": 1,
+    "partial": 0,
+    "timeout": 0
+  },
+  "lifecycle_metrics": {
+    "operation_accuracy": 0.957286432160804,
+    "operation_macro_f1": 0.8248723753320033,
+    "active_state_exact_match": 0.9041666666666667,
+    "stale_rate": 0.033210332103321034,
+    "duplicate_rate": 0.033210332103321034,
+    "false_merge_rate": 0.05970149253731343,
+    "false_supersede_rate": 0.0,
+    "cross_scope_leakage_rate": 0.0,
+    "scope_test_pass_rate": 1.0,
+    "weak_recall_at_5": 0.8125,
+    "archived_hit_at_5": 0.0,
+    "recommendation_knowledge_point_accuracy": 0.30833333333333335,
+    "recommendation_over_review_rate": 0.13924050632911392,
+    "mean_latency_ms": 2225.226882674906,
+    "p95_latency_ms": 6397.243534040172,
+    "llm_call_count": 37
+  },
+  "same_test_baseline_deltas_percentage_points": {
+    "active_state_exact_vs_none": 82.91666666666667,
+    "recommendation_accuracy_vs_all_baselines": 27.083333333333336,
+    "stale_rate_vs_append_only_and_vector": -85.95771922631403,
+    "weak_recall_at_5_vs_append_only_and_vector": -10.0
+  },
+  "frozen_test_used_for_further_tuning": false,
+  "limitations": [
+    "Structured LearningEvent input; raw-text extraction is not evaluated.",
+    "Controlled synthetic memory trajectories; not a teacher-labelled exam benchmark.",
+    "Question generation, grading quality, difficulty calibration, and learning gain are not evaluated."
+  ]
+}

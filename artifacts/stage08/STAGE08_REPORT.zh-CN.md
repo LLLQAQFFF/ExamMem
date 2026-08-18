@@ -1,5 +1,9 @@
 # ExamMem 阶段 08：评测体系、Baseline 与真实结果
 
+> 历史说明：本文保留 Stage08 在 dev 上的原始混合/负面 baseline，不回写优化后数字。
+> Stage09 的 dev 修正与一次性冻结 test 结果见
+> [Stage09 报告](../stage09/STAGE09_REPORT.zh-CN.md)。
+
 ## 1. 结论
 
 本阶段已经完成可复现的 `Dataset → Rollout → Trace → Judge → Report` 流水线，
