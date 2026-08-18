@@ -14,7 +14,12 @@ from exam_mem.backends.baseline import (
     VectorMemoryBackend,
 )
 from exam_mem.backends.lifecycle import LifecycleMemoryBackend
-from exam_mem.contracts import LearningEvent, MemoryScope, MemoryUpdateCandidate
+from exam_mem.contracts import (
+    LearningEvent,
+    LifecycleOperation,
+    MemoryScope,
+    MemoryUpdateCandidate,
+)
 from exam_mem.lifecycle import LifecycleApplier, PostCommitProjectionRefresher
 from exam_mem.practice import MemoryWriter
 from exam_mem.storage import (
@@ -60,7 +65,12 @@ def _database_url_or_skip() -> str:
     return load_database_settings().sqlalchemy_url()
 
 
-def _event(event_id: str) -> LearningEvent:
+def _event(
+    event_id: str,
+    *,
+    knowledge_point_id: str = "math1.linear_algebra.matrix_rank",
+    answer_correct: bool = False,
+) -> LearningEvent:
     return LearningEvent.model_validate(
         {
             "event_id": event_id,
@@ -69,22 +79,28 @@ def _event(event_id: str) -> LearningEvent:
             "context": SCOPE.model_dump(exclude={"memory_namespace"}),
             "session_id": f"session:{event_id}",
             "question_id": f"question:{event_id}",
-            "knowledge_point_ids": ["math1.linear_algebra.matrix_rank"],
+            "knowledge_point_ids": [knowledge_point_id],
             "difficulty": 0.5,
-            "answer_correct": False,
-            "error_type": "concept_confusion",
-            "error_detail": "rank conditions were confused",
+            "answer_correct": answer_correct,
+            "error_type": None if answer_correct else "concept_confusion",
+            "error_detail": None if answer_correct else "rank conditions were confused",
             "occurred_at": NOW,
         }
     )
 
 
-def _candidate(event_id: str) -> MemoryUpdateCandidate:
+def _candidate(
+    event_id: str,
+    *,
+    knowledge_point_id: str = "math1.linear_algebra.matrix_rank",
+    score: float = 0.0,
+) -> MemoryUpdateCandidate:
+    level = "high" if score == 1.0 else "low"
     return MemoryUpdateCandidate(
         event_id=event_id,
         scope=SCOPE,
-        slot_key=SLOT_KEY,
-        proposed_value={"type": "mastery", "level": "low", "score": 0.0},
+        slot_key=f"mastery:{knowledge_point_id}",
+        proposed_value={"type": "mastery", "level": level, "score": score},
         evidence={"source": "stage07_backend_postgres"},
     )
 
@@ -255,6 +271,80 @@ async def test_lifecycle_backend_reaches_real_l1_l2_provenance_and_audit_chain()
                         .where(baseline_memory_facts.c.event_id == event_id)
                     )
                     == 0
+                )
+            finally:
+                await transaction.rollback()
+    finally:
+        await engine.dispose()
+
+
+async def test_lifecycle_backend_keeps_mastery_evidence_isolated_by_slot() -> None:
+    other_knowledge_point_id = "math1.probability.bayes"
+    writes = (
+        (
+            _event("multi_kp_a_correct_1", answer_correct=True),
+            _candidate("multi_kp_a_correct_1", score=1.0),
+        ),
+        (
+            _event("multi_kp_a_incorrect"),
+            _candidate("multi_kp_a_incorrect"),
+        ),
+        (
+            _event(
+                "multi_kp_b_correct",
+                knowledge_point_id=other_knowledge_point_id,
+                answer_correct=True,
+            ),
+            _candidate(
+                "multi_kp_b_correct",
+                knowledge_point_id=other_knowledge_point_id,
+                score=1.0,
+            ),
+        ),
+        (
+            _event("multi_kp_a_correct_2", answer_correct=True),
+            _candidate("multi_kp_a_correct_2", score=1.0),
+        ),
+    )
+    engine = create_async_engine(_database_url_or_skip())
+    try:
+        async with engine.connect() as connection:
+            transaction = await connection.begin()
+            try:
+                events = PostgresLearningEventRepository(connection)
+                memories = PostgresLearningMemoryRepository(connection)
+                backend = LifecycleMemoryBackend(
+                    event_repository=events,
+                    memory_repository=memories,
+                    student_model_repository=PostgresStudentModelRepository(connection),
+                    relation_classifier=FailingRelationClassifier(),
+                    applier=LifecycleApplier(
+                        connection,
+                        memory_repository=memories,
+                        audit_repository=PostgresLifecycleAuditRepository(connection),
+                        event_repository=events,
+                    ),
+                    trace_id="multi_kp_lifecycle_backend_trace",
+                )
+
+                operations = []
+                for event, candidate in writes:
+                    result = await MemoryWriter(backend).write(event, [candidate])
+                    operations.append(result.decisions[0].operation)
+
+                assert operations == [
+                    LifecycleOperation.ADD,
+                    LifecycleOperation.CONTESTED,
+                    LifecycleOperation.ADD,
+                    LifecycleOperation.MERGE,
+                ]
+                assert (
+                    await connection.scalar(
+                        select(func.count())
+                        .select_from(learning_events)
+                        .where(learning_events.c.user_id == SCOPE.user_id)
+                    )
+                    == 4
                 )
             finally:
                 await transaction.rollback()

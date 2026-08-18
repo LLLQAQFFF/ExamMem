@@ -349,12 +349,27 @@ def evaluate_mastery_policy(policy_input: LifecyclePolicyInput) -> MasteryPolicy
         raise ValueError(
             "historical events missing authoritative provenance: " + ", ".join(missing_provenance)
         )
+    invalid_provenance = sorted(
+        event_id
+        for event_id in required_provenance
+        if canonical_id not in historical_by_id[event_id].knowledge_point_ids
+    )
+    if invalid_provenance:
+        raise ValueError(
+            "authoritative mastery provenance must include the canonical slot knowledge point: "
+            + ", ".join(invalid_provenance)
+        )
+    if canonical_id not in policy_input.event.knowledge_point_ids:
+        raise ValueError("mastery evidence must include the canonical slot knowledge point")
 
-    all_events = [*policy_input.historical_events, policy_input.event]
+    all_events = [
+        event
+        for event in policy_input.historical_events
+        if canonical_id in event.knowledge_point_ids
+    ]
+    all_events.append(policy_input.event)
     scored_events: list[ScoredMasteryEvidence] = []
     for event in all_events:
-        if canonical_id not in event.knowledge_point_ids:
-            raise ValueError("mastery evidence must include the canonical slot knowledge point")
         direction = resolve_mastery_evidence_direction(
             event,
             current=current_value,

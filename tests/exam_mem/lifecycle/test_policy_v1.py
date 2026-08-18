@@ -51,6 +51,7 @@ def _answer_event(
     error_type: str | None = None,
     confidence: float = 1.0,
     is_temporary_exception: bool = False,
+    knowledge_point_id: str = "math1.probability.bayes",
 ) -> LearningEvent:
     quality_reasons: list[str] = []
     if confidence < 1.0:
@@ -70,7 +71,7 @@ def _answer_event(
             },
             "session_id": session_id,
             "question_id": f"question:{event_id}",
-            "knowledge_point_ids": ["math1.probability.bayes"],
+            "knowledge_point_ids": [knowledge_point_id],
             "difficulty": difficulty,
             "answer_correct": answer_correct,
             "error_type": error_type,
@@ -968,6 +969,97 @@ def test_s09_current_direction_rewins_and_closes_contested_branch_with_merge() -
         "s09_high_v6": 12,
         "s09_low_v7": 13,
     }
+
+
+def test_mastery_policy_ignores_other_knowledge_points_in_scope_history() -> None:
+    group_id = "multi_knowledge_point_contested_group"
+    current_events = _answer_events(
+        prefix="multi_kp_current",
+        count=2,
+        session_ids=("multi_kp_session_1", "multi_kp_session_2"),
+        answer_correct=True,
+    )
+    candidate_events = _answer_events(
+        prefix="multi_kp_candidate",
+        count=1,
+        session_ids=("multi_kp_candidate_session",),
+        answer_correct=False,
+        age_days=60,
+    )
+    unrelated_event = _answer_event(
+        event_id="other_knowledge_point_event",
+        knowledge_point_id="math1.calculus.derivative",
+    )
+    current = _mastery_snapshot(
+        memory_id="multi_kp_high_v1",
+        value=_mastery_value(level="high", score=0.9),
+        provenance=[event.event_id for event in current_events],
+        state="active",
+        version=1,
+        row_version=10,
+        contested_group_id=group_id,
+    )
+    contested = _mastery_snapshot(
+        memory_id="multi_kp_low_v2",
+        value=_mastery_value(level="low", score=0.2),
+        provenance=[event.event_id for event in candidate_events],
+        state="contested",
+        version=2,
+        row_version=11,
+        contested_group_id=group_id,
+    )
+    event = _answer_event(
+        event_id="multi_kp_current_2",
+        session_id="multi_kp_session_1",
+        answer_correct=True,
+    )
+
+    evaluation = evaluate_mastery_policy(
+        _mastery_policy_input(
+            event=event,
+            current=current,
+            contested=contested,
+            candidate_value=_mastery_value(level="high", score=0.9),
+            historical_events=[*current_events, *candidate_events, unrelated_event],
+        )
+    )
+
+    assert evaluation.result.decision.operation is LifecycleOperation.MERGE
+    assert evaluation.result.decision.reason_code == "current_direction_rewon"
+    assert {scored.event_id for scored in evaluation.scored_events} == {
+        event.event_id,
+        *(historical.event_id for historical in [*current_events, *candidate_events]),
+    }
+
+
+def test_mastery_policy_rejects_cross_slot_authoritative_provenance() -> None:
+    unrelated_event = _answer_event(
+        event_id="cross_slot_authoritative_event",
+        knowledge_point_id="math1.calculus.derivative",
+    )
+    current = _mastery_snapshot(
+        memory_id="cross_slot_provenance_high_v1",
+        value=_mastery_value(level="high", score=0.9),
+        provenance=[unrelated_event.event_id],
+        state="active",
+        version=1,
+        row_version=1,
+    )
+    event = _answer_event(
+        event_id="cross_slot_candidate_event",
+        answer_correct=False,
+        error_type="concept_confusion",
+    )
+
+    with pytest.raises(ValueError, match="authoritative mastery provenance"):
+        evaluate_mastery_policy(
+            _mastery_policy_input(
+                event=event,
+                current=current,
+                candidate_value=_mastery_value(level="low", score=0.2),
+                historical_events=[unrelated_event],
+            )
+        )
 
 
 def test_mastery_policy_rejects_incomplete_authoritative_provenance_window() -> None:
