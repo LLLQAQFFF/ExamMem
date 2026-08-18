@@ -294,6 +294,23 @@ class PracticeGenerationProgressSink(Protocol):
     async def __call__(self, event: dict[str, Any]) -> None: ...
 
 
+async def _complete_attempt_if_finished(
+    runtime_provider: RuntimeProvider,
+    *,
+    completed: bool,
+    user_id: str,
+    practice_session_id: str,
+) -> None:
+    if not completed:
+        return
+    async with runtime_provider.open_product() as runtime:
+        await runtime.assessments.complete_attempt(
+            user_id=user_id,
+            practice_session_id=practice_session_id,
+        )
+        await runtime.connection.commit()
+
+
 def build_router(
     runtime_provider: RuntimeProvider,
     *,
@@ -1158,13 +1175,12 @@ def build_router(
             session_id=body.session_id,
             context=context,
         )
-        if result["practice"]["completed"]:
-            async with runtime_provider.open_product() as runtime:
-                await runtime.assessments.complete_attempt(
-                    user_id=learning_context.user_id,
-                    practice_session_id=body.practice_session_id,
-                )
-                await runtime.connection.commit()
+        await _complete_attempt_if_finished(
+            runtime_provider,
+            completed=result["practice"]["completed"],
+            user_id=learning_context.user_id,
+            practice_session_id=body.practice_session_id,
+        )
         return result
 
     @router.get("/practice/sessions")
@@ -1221,6 +1237,12 @@ def build_router(
             ),
             session_id=None,
             context=latest.checkpoint.context.model_dump(mode="json"),
+        )
+        await _complete_attempt_if_finished(
+            runtime_provider,
+            completed=result["practice"]["completed"],
+            user_id=context.user_id,
+            practice_session_id=practice_session_id,
         )
         return result
 

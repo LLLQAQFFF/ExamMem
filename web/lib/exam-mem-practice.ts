@@ -153,7 +153,7 @@ export class PracticeRequestError extends Error {
 }
 
 interface PracticeErrorDetail {
-  message?: string;
+  message?: unknown;
   session_id?: string;
   turn_id?: string;
   practice?: PracticeResult | null;
@@ -253,10 +253,7 @@ async function parsePracticeResponse(response: Response): Promise<PracticeTurnRe
   }
   if (!response.ok) {
     const detail = "detail" in payload ? payload.detail : undefined;
-    const message =
-      typeof detail === "string"
-        ? detail
-        : detail?.message || `Practice request failed (${response.status}).`;
+    const message = practiceErrorMessage(detail, response.status);
     const partialTurn =
       typeof detail === "object" && detail?.session_id && detail.turn_id && detail.practice
         ? {
@@ -336,10 +333,7 @@ export async function generateExamPractice(
       return;
     }
     if (line.type === "error") {
-      const message =
-        typeof line.detail === "string"
-          ? line.detail
-          : line.detail.message || `Practice request failed (${line.status}).`;
+      const message = practiceErrorMessage(line.detail, line.status);
       const partialTurn =
         typeof line.detail === "object" &&
         line.detail.session_id &&
@@ -376,6 +370,22 @@ export async function generateExamPractice(
     throw new PracticeRequestError("Practice generation stream ended without a result.", null);
   }
   return result;
+}
+
+function practiceErrorMessage(
+  detail: string | PracticeErrorDetail | undefined,
+  status: number,
+): string {
+  if (typeof detail === "string" && detail.trim()) return detail;
+  if (
+    detail &&
+    typeof detail === "object" &&
+    typeof detail.message === "string" &&
+    detail.message.trim()
+  ) {
+    return detail.message;
+  }
+  return `Practice request failed (${status}).`;
 }
 
 export async function repeatAssessmentVersion(options: {

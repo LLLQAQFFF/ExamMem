@@ -149,6 +149,20 @@ export function formatExamScore(
     : invalidLabel;
 }
 
+export function selectVisiblePracticeHistory<
+  T extends Pick<PracticeHistoryItem, "practice_session_id">,
+>(
+  history: T[],
+  archivedPracticeSessionIds: ReadonlySet<string>,
+  archival: "active" | "archived",
+): T[] {
+  return history.filter((item) =>
+    archival === "archived"
+      ? archivedPracticeSessionIds.has(item.practice_session_id)
+      : !archivedPracticeSessionIds.has(item.practice_session_id),
+  );
+}
+
 async function jsonOrThrow<T>(response: Response): Promise<T> {
   if (!response.ok) {
     const payload = (await response.json().catch(() => ({}))) as { detail?: string };

@@ -15,6 +15,7 @@ from deeptutor.plugins import SettingsContribution
 from deeptutor_plugins.exam_mem.api import (
     GeneratedPracticeStartBody,
     _canonical_knowledge_point,
+    _complete_attempt_if_finished,
     _generate_practice_questions,
     _practice_generation_prompt,
     _practice_response_language,
@@ -23,6 +24,47 @@ from deeptutor_plugins.exam_mem.api import (
 from exam_mem.config import ExamMemSettings
 from exam_mem.domain import load_taxonomy
 from exam_mem.storage import AppendStatus
+
+
+@pytest.mark.asyncio
+async def test_completed_recovery_idempotently_finishes_assessment_attempt() -> None:
+    completed_sessions = []
+    commit_count = 0
+
+    class Assessments:
+        async def complete_attempt(self, *, user_id, practice_session_id):
+            completed_sessions.append((user_id, practice_session_id))
+            return None
+
+    class Connection:
+        async def commit(self):
+            nonlocal commit_count
+            commit_count += 1
+
+    class Provider:
+        @asynccontextmanager
+        async def open_product(self):
+            yield SimpleNamespace(
+                assessments=Assessments(),
+                connection=Connection(),
+            )
+
+    provider = Provider()
+    await _complete_attempt_if_finished(
+        provider,  # type: ignore[arg-type]
+        completed=False,
+        user_id="learner",
+        practice_session_id="practice:recovery",
+    )
+    await _complete_attempt_if_finished(
+        provider,  # type: ignore[arg-type]
+        completed=True,
+        user_id="learner",
+        practice_session_id="practice:recovery",
+    )
+
+    assert completed_sessions == [("learner", "practice:recovery")]
+    assert commit_count == 1
 
 
 @contextmanager

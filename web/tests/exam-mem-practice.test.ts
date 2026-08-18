@@ -13,11 +13,13 @@ import {
   PracticeRequestError,
   preparePracticeAnswerRequest,
   savePracticeSession,
+  submitExamPracticeAnswer,
 } from "../lib/exam-mem-practice";
 import {
   formatExamScore,
   groupExamReviewHistory,
   listExamReviewHistory,
+  selectVisiblePracticeHistory,
 } from "../lib/exam-mem-product";
 
 test("exam scores fail closed outside the canonical probability scale", () => {
@@ -237,6 +239,63 @@ test("practice requests surface a plain-text proxy failure without a JSON parse 
   }
 });
 
+test("practice requests never render a structured error as object Object", async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => Response.json(
+    {
+      detail: {
+        error_code: "memory_writer_failed",
+        message: { internal: "not public" },
+      },
+    },
+    { status: 409 },
+  );
+  try {
+    await assert.rejects(
+      submitExamPracticeAnswer({
+        practice_session_id: "practice:web:retry",
+        trace_id: "trace:web:retry",
+        session_id: "session:retry",
+        question_id: "question:retry",
+        answer: "retry answer",
+        submitted_at: "2026-08-18T12:00:00.000Z",
+        idempotency_key: "answer:web:retry:1",
+        exam_id: "plan:test",
+        subject_id: "subject:test",
+      }),
+      (error: unknown) =>
+        error instanceof PracticeRequestError &&
+        error.message === "Practice request failed (409).",
+    );
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("practice history keeps stable attempt numbers across archive views", () => {
+  const history = [
+    { practice_session_id: "practice:3", attempt_number: 3 },
+    { practice_session_id: "practice:2", attempt_number: 2 },
+    { practice_session_id: "practice:1", attempt_number: 1 },
+  ];
+  const archived = new Set(["practice:2"]);
+
+  assert.deepEqual(
+    selectVisiblePracticeHistory(history, archived, "active").map((item) => [
+      item.practice_session_id,
+      item.attempt_number,
+    ]),
+    [["practice:3", 3], ["practice:1", 1]],
+  );
+  assert.deepEqual(
+    selectVisiblePracticeHistory(history, archived, "archived").map((item) => [
+      item.practice_session_id,
+      item.attempt_number,
+    ]),
+    [["practice:2", 2]],
+  );
+});
+
 test("generated practice reports real server stages and emitted question counts", async () => {
   const originalFetch = globalThis.fetch;
   const requested: string[] = [];
@@ -446,6 +505,8 @@ test("smart exam prep owns imported scopes, versioned assessments, and merged me
   assert.match(practice, /listStudyPlans/);
   assert.match(practice, /taxonomyVersion:/);
   assert.match(practice, /repeatAssessmentVersion/);
+  assert.match(practice, /refreshPracticeHistory/);
+  assert.match(practice, /selectVisiblePracticeHistory/);
   assert.doesNotMatch(practice, /fetchAllProgress|fetchMasteryMap/);
   assert.match(practice, /accept="\.pdf,\.txt,\.md"/);
   assert.doesNotMatch(practice, /\.pptx|\.docx/);

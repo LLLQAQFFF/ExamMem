@@ -49,6 +49,7 @@ import {
   formatExamScore,
   listPracticeHistory,
   resumePractice,
+  selectVisiblePracticeHistory,
   type PracticeHistoryItem,
 } from "@/lib/exam-mem-product";
 import ExamMemMarkdown from "@/components/exam-mem/ExamMemMarkdown";
@@ -96,6 +97,9 @@ export default function PracticeWorkbench() {
   const refreshAssessments = useCallback(async () => {
     setAssessments(await listAssessments("all"));
   }, []);
+  const refreshPracticeHistory = useCallback(async (examId: string, subjectId: string) => {
+    setHistory(await listPracticeHistory(examId, subjectId));
+  }, []);
 
   useEffect(() => {
     const restored = loadPracticeSession(window.sessionStorage);
@@ -129,8 +133,8 @@ export default function PracticeWorkbench() {
     if (!objectives.some((item) => item.id === selectedKnowledgePoint)) {
       setSelectedKnowledgePoint(objectives[0]?.id || "");
     }
-    void listPracticeHistory(`plan:${plan.plan_id}`, subject.id).then(setHistory).catch(() => undefined);
-  }, [plans, selectedKnowledgePoint, selectedPlan, selectedSubject]);
+    void refreshPracticeHistory(`plan:${plan.plan_id}`, subject.id).catch(() => undefined);
+  }, [plans, refreshPracticeHistory, selectedKnowledgePoint, selectedPlan, selectedSubject]);
 
   useEffect(() => {
     if (!identity || !turn) return;
@@ -196,6 +200,7 @@ export default function PracticeWorkbench() {
       );
       setRegenerateAssessmentId(undefined);
       void refreshAssessments();
+      void refreshPracticeHistory(nextIdentity.examId, nextIdentity.subjectId);
     } catch (cause) {
       if (cause instanceof PracticeRequestError && cause.partialTurn) setTurn(cause.partialTurn);
       setError(cause instanceof Error ? cause.message : tr("生成练习失败。", "Practice generation failed."));
@@ -225,6 +230,7 @@ export default function PracticeWorkbench() {
       setAttemptNumber((value) => value + 1);
       setPendingRequest(null);
       void refreshAssessments();
+      void refreshPracticeHistory(identity.examId, identity.subjectId);
     } catch (cause) {
       if (cause instanceof PracticeRequestError && cause.partialTurn) {
         setTurn(cause.partialTurn);
@@ -253,6 +259,8 @@ export default function PracticeWorkbench() {
       setAnswer("");
       setAttemptNumber(item.answer_count + 1);
       setPendingRequest(null);
+      void refreshAssessments();
+      void refreshPracticeHistory(`plan:${plan.plan_id}`, subject.id);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : t("Practice recovery failed."));
     } finally {
@@ -275,6 +283,7 @@ export default function PracticeWorkbench() {
       setAttemptNumber(1);
       setPendingRequest(null);
       void refreshAssessments();
+      void refreshPracticeHistory(nextIdentity.examId, nextIdentity.subjectId);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : tr("重考失败。", "Could not repeat the assessment."));
     } finally { setLoading(false); }
@@ -304,7 +313,14 @@ export default function PracticeWorkbench() {
     () => new Set(assessments.filter((item) => item.archived_at).flatMap((item) => item.attempts.map((attempt) => attempt.practice_session_id))),
     [assessments],
   );
-  const visibleHistory = history.filter((item) => archiveFilter === "archived" ? archivedPracticeSessions.has(item.practice_session_id) : !archivedPracticeSessions.has(item.practice_session_id));
+  const visibleHistory = useMemo(
+    () => selectVisiblePracticeHistory(history, archivedPracticeSessions, archiveFilter),
+    [archiveFilter, archivedPracticeSessions, history],
+  );
+  const archivedHistoryCount = useMemo(
+    () => history.filter((item) => archivedPracticeSessions.has(item.practice_session_id)).length,
+    [archivedPracticeSessions, history],
+  );
 
   const practice = turn?.practice;
   const question = practice?.question;
@@ -381,6 +397,14 @@ export default function PracticeWorkbench() {
             <History className="h-4 w-4 text-[var(--primary)]" />
             {t("Practice history and server recovery")}
           </div>
+          {archiveFilter === "active" && archivedHistoryCount > 0 ? (
+            <p className="mt-2 text-xs text-[var(--muted-foreground)]">
+              {tr(
+                `当前列表保留原始练习序号；缺少的 ${archivedHistoryCount} 次记录在“已归档”中。`,
+                `Original attempt numbers are preserved; ${archivedHistoryCount} hidden record(s) are under Archived.`,
+              )}
+            </p>
+          ) : null}
           <div className="mt-3 grid gap-2 md:grid-cols-2">
             {visibleHistory.slice(0, 6).map((item) => (
               <button
