@@ -101,6 +101,7 @@ def _evaluate_run(args: argparse.Namespace) -> dict[str, Any]:
             case_ids=args.case_id,
             scenarios=args.scenario,
             embedding_mode=args.embedding_mode,
+            allow_frozen_test=args.allow_frozen_test,
         )
     )
     return {"status": "ok", "command": "evaluate run", **result}
@@ -190,6 +191,11 @@ def build_parser() -> argparse.ArgumentParser:
         default="feature_hash_embedding_v1",
     )
     evaluate_run.add_argument("--resume", action="store_true")
+    evaluate_run.add_argument(
+        "--allow-frozen-test",
+        action="store_true",
+        help="Stage09 only: claim or resume the one-time unfiltered five-arm frozen test run.",
+    )
     evaluate_run.add_argument("--case-id", action="append", default=[])
     evaluate_run.add_argument("--scenario", action="append", default=[])
     evaluate_run.set_defaults(handler=_evaluate_run)

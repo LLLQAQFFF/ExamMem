@@ -7,7 +7,7 @@ from types import SimpleNamespace
 import pytest
 
 from evaluation.contracts.case import DatasetSplit
-from evaluation.execution import execute_evaluation
+from evaluation.execution import _claim_frozen_test_release, execute_evaluation
 from exam_mem.backends import BackendMode
 
 pytestmark = pytest.mark.asyncio
@@ -56,6 +56,38 @@ async def test_execution_refuses_frozen_test_rollout(tmp_path: Path) -> None:
             output_root=tmp_path,
             database_url=None,
         )
+
+
+async def test_frozen_test_release_requires_complete_unfiltered_five_arm_run(
+    tmp_path: Path,
+) -> None:
+    with pytest.raises(ValueError, match="all five backends"):
+        await execute_evaluation(
+            experiment_id="incomplete-test-release",
+            split=DatasetSplit.TEST,
+            modes=[BackendMode.NONE],
+            output_root=tmp_path,
+            database_url=None,
+            allow_frozen_test=True,
+        )
+
+
+def test_frozen_test_release_is_single_run_and_resume_only(tmp_path: Path) -> None:
+    release = {
+        "dataset_hash": "frozen-hash",
+        "experiment_id": "stage09-test-final",
+        "code_sha": "code-sha",
+        "embedding_mode": "configured",
+    }
+
+    _claim_frozen_test_release(tmp_path, release, resume=False)
+    _claim_frozen_test_release(tmp_path, release, resume=True)
+
+    changed_run = {**release, "experiment_id": "another-test-run"}
+    with pytest.raises(ValueError, match="already claimed"):
+        _claim_frozen_test_release(tmp_path, changed_run, resume=False)
+    with pytest.raises(ValueError, match="does not match"):
+        _claim_frozen_test_release(tmp_path, changed_run, resume=True)
 
 
 async def test_execution_rejects_unknown_case_filter(tmp_path: Path) -> None:

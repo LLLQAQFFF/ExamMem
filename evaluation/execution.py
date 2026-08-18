@@ -81,6 +81,29 @@ def _assert_evaluation_sources_clean() -> None:
         )
 
 
+def _claim_frozen_test_release(
+    output_root: Path,
+    release: dict[str, Any],
+    *,
+    resume: bool,
+) -> None:
+    """Bind the one-time frozen test release to one resumable run identity."""
+    output_root.mkdir(parents=True, exist_ok=True)
+    release_path = output_root / f".{DATASET_VERSION}.frozen_test_release.json"
+    if resume:
+        if not release_path.is_file():
+            raise ValueError("frozen test resume has no prior release claim")
+        existing = json.loads(release_path.read_text(encoding="utf-8"))
+        if existing != release:
+            raise ValueError("frozen test resume identity does not match the release claim")
+        return
+    try:
+        with release_path.open("xb") as stream:
+            stream.write(_json_bytes(release))
+    except FileExistsError as exc:
+        raise ValueError("frozen test was already claimed by another run") from exc
+
+
 def _config(
     *,
     mode: BackendMode,
@@ -383,10 +406,16 @@ async def execute_evaluation(
     case_ids: Sequence[str] = (),
     scenarios: Sequence[str] = (),
     embedding_mode: str = "feature_hash_embedding_v1",
+    allow_frozen_test: bool = False,
 ) -> dict[str, Any]:
     """Run selected arms; finalize a report only after all five exist."""
-    if split is DatasetSplit.TEST:
+    if split is DatasetSplit.TEST and not allow_frozen_test:
         raise ValueError("frozen test may only be schema/hash verified in Stage 08")
+    if split is DatasetSplit.TEST:
+        if len(modes) != len(BackendMode) or set(modes) != set(BackendMode):
+            raise ValueError("frozen test release requires all five backends exactly once")
+        if case_ids or scenarios:
+            raise ValueError("frozen test release forbids case and scenario filters")
     if concurrency < 1:
         raise ValueError("concurrency must be at least one")
     if embedding_mode not in {"feature_hash_embedding_v1", "configured"}:
@@ -426,6 +455,21 @@ async def execute_evaluation(
     output = output_root / experiment_id
     if output.exists() and not resume:
         raise ValueError(f"immutable run directory already exists: {output}")
+    if split is DatasetSplit.TEST:
+        _claim_frozen_test_release(
+            output_root,
+            {
+                "protocol_version": "evaluation_protocol_v1",
+                "dataset_version": DATASET_VERSION,
+                "dataset_hash": dataset_hash,
+                "experiment_id": experiment_id,
+                "code_sha": code_sha,
+                "backend_modes": [mode.value for mode in modes],
+                "embedding_mode": embedding_mode,
+                "embedding_model": embedding_model,
+            },
+            resume=resume,
+        )
     output.mkdir(parents=True, exist_ok=True)
     engine = create_async_engine(database_url) if database_url else None
     all_results: dict[BackendMode, list[RolloutResult]] = {}
@@ -473,6 +517,7 @@ async def execute_evaluation(
         "complete_five_arm_report": set(all_results) == set(BackendMode),
         "embedding_mode": embedding_mode,
         "embedding_model": embedding_model,
+        "frozen_test_released": split is DatasetSplit.TEST,
     }
     (output / "manifest.json").write_bytes(_json_bytes(manifest))
     configs = [results[0].config.model_dump(mode="json") for results in all_results.values()]
