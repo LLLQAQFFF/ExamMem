@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+from contextlib import asynccontextmanager
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
@@ -8,6 +9,7 @@ from typing import Any
 import pytest
 
 from evaluation.backend_adapters import (
+    ConfiguredHostEmbeddingClient,
     DeterministicHashEmbeddingClient,
     NativeEvaluationSession,
     PostgresEvaluationSession,
@@ -77,6 +79,32 @@ async def test_feature_hash_embedding_is_frozen_normalized_and_local() -> None:
     assert client.call_count == 1
 
 
+async def test_configured_embedding_records_safe_identity_and_delegates(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class _Client:
+        async def embed(self, texts, *, input_type=None):  # noqa: ANN001, ANN201
+            assert texts == ["query"]
+            assert input_type == "search_query"
+            return [[1.0, *([0.0] * 1023)]]
+
+    monkeypatch.setattr(
+        "evaluation.backend_adapters.resolve_embedding_runtime_config",
+        lambda: SimpleNamespace(provider_name="ollama", model="local-model", dimension=1024),
+    )
+    monkeypatch.setattr(
+        "evaluation.backend_adapters.get_embedding_client",
+        lambda: _Client(),
+    )
+
+    client = ConfiguredHostEmbeddingClient()
+    vectors = await client.embed(["query"], input_type="search_query")
+
+    assert client.version == "ollama:local-model:1024"
+    assert client.call_count == 1
+    assert len(vectors[0]) == 1024
+
+
 async def test_relation_call_preserves_cancellation_as_failed_trace(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -138,3 +166,39 @@ async def test_low_mastery_seed_event_is_valid_incorrect_evidence() -> None:
     assert event.answer_correct is False
     assert event.error_type is not None
     assert event.error_detail is not None
+
+
+async def test_postgres_retrieval_preserves_the_natural_language_query() -> None:
+    case = next(case for case in load_cases("protocol_check") if case.queries)
+    query = case.queries[0]
+
+    class _Engine:
+        @asynccontextmanager
+        async def connect(self):
+            yield object()
+
+    class _Backend:
+        def __init__(self) -> None:
+            self.query: str | None = None
+
+        async def retrieve(self, scope, text, top_k):  # noqa: ANN001, ANN201
+            del scope, top_k
+            self.query = text
+            return []
+
+    backend = _Backend()
+    session = PostgresEvaluationSession(
+        engine=_Engine(),  # type: ignore[arg-type]
+        mode=BackendMode.VECTOR,
+        run_id="natural-query",
+        case=case,
+    )
+
+    async def resolve_backend(connection):  # noqa: ANN001, ANN202
+        del connection
+        return backend
+
+    session._backend = resolve_backend  # type: ignore[method-assign]
+
+    assert await session.retrieve(query) == []
+    assert backend.query == query.text

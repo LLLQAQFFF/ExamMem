@@ -27,6 +27,7 @@ from exam_mem.lifecycle import (
     LifecycleApplier,
     LifecycleCandidateSnapshot,
     LifecyclePolicyInput,
+    LifecyclePolicyV1Config,
     MemoryRelation,
     ProjectionRefreshRequest,
     RelationClassifier,
@@ -36,6 +37,7 @@ from exam_mem.lifecycle import (
     decide_lifecycle,
     resolve_validated_relation_output,
 )
+from exam_mem.lifecycle.state_machine import non_mutating_answer_reason
 from exam_mem.storage.event_repository import AppendStatus, LearningEventRepository
 from exam_mem.storage.memory_repository import LearningMemoryRepository
 from exam_mem.storage.student_model_repository import StudentModelRepository
@@ -150,6 +152,16 @@ class LifecycleMemoryBackend:
         snapshots: tuple[LifecycleCandidateSnapshot, ...],
     ) -> ResolvedRelationClassification | None:
         if not snapshots:
+            return None
+        if (
+            non_mutating_answer_reason(
+                event,
+                candidate,
+                has_candidate_snapshots=True,
+                minimum_confidence=LifecyclePolicyV1Config().minimum_candidate_confidence,
+            )
+            is not None
+        ):
             return None
         if event.event_type is LearningEventType.EXPLICIT_CORRECTION:
             return await self._relation_classifier.classify(candidate, snapshots)

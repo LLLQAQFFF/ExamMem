@@ -4,7 +4,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime
-from typing import TYPE_CHECKING, NoReturn
+import json
+from typing import TYPE_CHECKING, NoReturn, Protocol
 
 from sqlalchemy.ext.asyncio import AsyncConnection
 
@@ -45,6 +46,15 @@ class LifecycleApplicationConflict(RuntimeError):
     """Raised when an audit identity or validated decision is inconsistent."""
 
 
+class LifecycleMemoryEmbeddingClient(Protocol):
+    async def embed(
+        self,
+        texts: list[str],
+        *,
+        input_type: str | None = None,
+    ) -> list[list[float]]: ...
+
+
 @dataclass(frozen=True)
 class LifecycleApplicationResult:
     """The persisted Decision plus terminal Change observations."""
@@ -81,11 +91,13 @@ class LifecycleApplier:
         memory_repository: LearningMemoryRepository,
         audit_repository: LifecycleAuditRepository,
         event_repository: LearningEventRepository,
+        embedding_client: LifecycleMemoryEmbeddingClient | None = None,
     ) -> None:
         self._connection = connection
         self._memory_repository = memory_repository
         self._audit_repository = audit_repository
         self._event_repository = event_repository
+        self._embedding_client = embedding_client
 
     async def apply(
         self,
@@ -379,7 +391,7 @@ class LifecycleApplier:
             applied_at=applied_at,
             provenance=(policy_input.event.event_id,),
         )
-        after = await self._memory_repository.insert_version(
+        after = await self._insert_version(
             memory,
             policy_version=decision.policy_result.decision.policy_version,
         )
@@ -483,7 +495,7 @@ class LifecycleApplier:
                 )
             )
 
-        after = await self._memory_repository.insert_version(
+        after = await self._insert_version(
             memory,
             policy_version=decision.policy_result.decision.policy_version,
             contested_group_id=group_id,
@@ -578,7 +590,7 @@ class LifecycleApplier:
             applied_at=applied_at,
             provenance=(policy_input.event.event_id,),
         )
-        branch_after = await self._memory_repository.insert_version(
+        branch_after = await self._insert_version(
             branch,
             policy_version=decision.policy_result.decision.policy_version,
             contested_group_id=group_id,
@@ -605,6 +617,31 @@ class LifecycleApplier:
                 after_state=branch_after,
                 actual_row_version=branch_after.row_version,
             ),
+        )
+
+    async def _insert_version(
+        self,
+        memory: LearningMemory,
+        *,
+        policy_version: str,
+        contested_group_id: str | None = None,
+        provenance_relations: dict[str, str] | None = None,
+    ) -> LifecycleMemorySnapshot:
+        content_embedding = None
+        if self._embedding_client is not None:
+            embeddings = await self._embedding_client.embed(
+                [_memory_embedding_text(memory)],
+                input_type="search_document",
+            )
+            if len(embeddings) != 1:
+                raise ValueError("embedding client must return exactly one memory vector")
+            content_embedding = embeddings[0]
+        return await self._memory_repository.insert_version(
+            memory,
+            policy_version=policy_version,
+            content_embedding=content_embedding,
+            contested_group_id=contested_group_id,
+            provenance_relations=provenance_relations,
         )
 
     @staticmethod
@@ -786,6 +823,14 @@ def _new_memory(
 
 def _new_memory_id(decision_id: str, version: int) -> str:
     return f"{decision_id}:memory:v{version}"
+
+
+def _memory_embedding_text(memory: LearningMemory) -> str:
+    payload = {
+        "slot_key": memory.slot_key,
+        "value": memory.value.model_dump(mode="json"),
+    }
+    return json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
 
 
 def _rebase_policy_input(

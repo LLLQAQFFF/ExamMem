@@ -6,12 +6,15 @@ from collections.abc import Iterable
 
 from exam_mem.contracts import (
     ErrorPatternValue,
+    ErrorType,
+    LearningEvent,
     LearningEventType,
     LifecycleDecision,
     LifecycleOperation,
     LifecycleState,
     MasteryValue,
     MemoryNamespace,
+    MemoryUpdateCandidate,
     PlanStatus,
     PlanTransitionSource,
     PlanValue,
@@ -43,6 +46,22 @@ def decide_lifecycle(policy_input: LifecyclePolicyInput) -> LifecyclePolicyResul
     if policy_input.event.event_type is LearningEventType.PLAN_TRANSITION:
         return _decide_plan(policy_input)
 
+    no_change_reason = non_mutating_answer_reason(
+        policy_input.event,
+        policy_input.candidate,
+        has_candidate_snapshots=bool(policy_input.candidate_snapshots),
+        minimum_confidence=policy_input.config.minimum_candidate_confidence,
+    )
+    if no_change_reason is not None:
+        return _result(
+            policy_input,
+            operation=LifecycleOperation.NO_OP,
+            reason_code=no_change_reason,
+            confidence=policy_input.event.evidence_quality.confidence,
+            targets=tuple(policy_input.candidate_snapshots),
+            include_expected_versions=False,
+        )
+
     if not policy_input.candidate_snapshots:
         return _result(
             policy_input,
@@ -62,6 +81,32 @@ def decide_lifecycle(policy_input: LifecyclePolicyInput) -> LifecyclePolicyResul
     if namespace is MemoryNamespace.PLAN:
         raise ValueError("existing plan changes require a plan_transition event")
     raise ValueError(f"lifecycle_policy_v1 has no update rule for {namespace.value!r}")
+
+
+def non_mutating_answer_reason(
+    event: LearningEvent,
+    candidate: MemoryUpdateCandidate,
+    *,
+    has_candidate_snapshots: bool,
+    minimum_confidence: float,
+) -> str | None:
+    """Return the frozen S05 reason when answer evidence must remain L1-only."""
+    if event.event_type is not LearningEventType.ANSWER_ATTEMPT:
+        return None
+    if event.evidence_quality.is_temporary_exception:
+        return "temporary_exception_no_change"
+    if event.evidence_quality.confidence < minimum_confidence:
+        return "isolated_low_confidence_no_change"
+    namespace = candidate.scope.memory_namespace
+    if namespace is MemoryNamespace.MASTERY and event.error_type is ErrorType.CARELESS_ERROR:
+        return "careless_error_does_not_change_mastery"
+    if (
+        namespace is MemoryNamespace.ERROR_PATTERN
+        and event.error_type is ErrorType.CARELESS_ERROR
+        and not has_candidate_snapshots
+    ):
+        return "isolated_careless_error_no_pattern"
+    return None
 
 
 def _decide_same_mastery_evidence(

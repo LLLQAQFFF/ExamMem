@@ -41,7 +41,15 @@ def _answer_event(
     *,
     event_id: str = "stage06_state_event_002",
     idempotency_key: str | None = None,
+    error_type: str = "concept_confusion",
+    confidence: float = 1.0,
+    is_temporary_exception: bool = False,
 ) -> LearningEvent:
+    reasons = []
+    if is_temporary_exception:
+        reasons.append(EvidenceQualityReason.EXTERNAL_DISRUPTION)
+    elif confidence < 1.0:
+        reasons.append(EvidenceQualityReason.AMBIGUOUS_RESPONSE)
     return LearningEvent.model_validate(
         {
             "event_id": event_id,
@@ -53,8 +61,13 @@ def _answer_event(
             "knowledge_point_ids": ["math1.probability.bayes"],
             "difficulty": 0.6,
             "answer_correct": False,
-            "error_type": "concept_confusion",
+            "error_type": error_type,
             "error_detail": "reverses the conditional direction",
+            "evidence_quality": {
+                "confidence": confidence,
+                "is_temporary_exception": is_temporary_exception,
+                "reasons": reasons,
+            },
             "occurred_at": NOW,
         }
     )
@@ -261,6 +274,63 @@ def test_s01_new_slot_adds_without_target_or_expected_version() -> None:
     assert result.decision.operation is LifecycleOperation.ADD
     assert result.decision.target_memory_ids == []
     assert result.expected_row_versions == {}
+
+
+@pytest.mark.parametrize(
+    ("event", "candidate", "reason_code"),
+    [
+        (
+            _answer_event(is_temporary_exception=True),
+            None,
+            "temporary_exception_no_change",
+        ),
+        (
+            _answer_event(confidence=0.32),
+            None,
+            "isolated_low_confidence_no_change",
+        ),
+        (
+            _answer_event(error_type="careless_error"),
+            None,
+            "isolated_careless_error_no_pattern",
+        ),
+    ],
+)
+def test_s05_low_quality_new_slot_remains_l1_only(
+    event: LearningEvent,
+    candidate: MemoryUpdateCandidate | None,
+    reason_code: str,
+) -> None:
+    result = decide_lifecycle(_policy_input(event, candidate=candidate))
+
+    assert result.decision.operation is LifecycleOperation.NO_OP
+    assert result.decision.reason_code == reason_code
+    assert result.decision.target_memory_ids == []
+    assert result.expected_row_versions == {}
+
+
+def test_careless_error_does_not_change_mastery() -> None:
+    event = _answer_event(error_type="careless_error")
+    mastery_scope = ERROR_SCOPE.model_copy(update={"memory_namespace": "mastery"})
+    mastery_slot = "mastery:math1.probability.bayes"
+    candidate = _candidate(
+        event,
+        scope=mastery_scope,
+        slot_key=mastery_slot,
+        value={"type": "mastery", "level": "low", "score": 0.0},
+    )
+    current = _snapshot(
+        scope=mastery_scope,
+        slot_key=mastery_slot,
+        value={"type": "mastery", "level": "high", "score": 1.0},
+    )
+
+    result = decide_lifecycle(
+        _policy_input(event, candidate=candidate, snapshots=(current,))
+    )
+
+    assert result.decision.operation is LifecycleOperation.NO_OP
+    assert result.decision.reason_code == "careless_error_does_not_change_mastery"
 
 
 def test_s02_same_event_replay_wins_before_aggressive_relation() -> None:

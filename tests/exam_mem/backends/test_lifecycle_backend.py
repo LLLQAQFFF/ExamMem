@@ -165,6 +165,45 @@ class ExistingMasteryMemoryRepository(FakeMemoryRepository):
         return [self.snapshot]
 
 
+class ExistingErrorMemoryRepository(FakeMemoryRepository):
+    def __init__(self) -> None:
+        super().__init__()
+        memory = LearningMemory.model_validate(
+            {
+                "memory_id": "existing_error_v1",
+                "scope": SCOPE.model_copy(
+                    update={"memory_namespace": "error_pattern"}
+                ).model_dump(mode="json"),
+                "slot_key": (
+                    "error_pattern:math1.linear_algebra.matrix_rank:concept_confusion"
+                ),
+                "value": {
+                    "type": "error_pattern",
+                    "error_type": "concept_confusion",
+                    "summary": "confuses matrix rank conditions",
+                    "details": ["confuses matrix rank conditions"],
+                },
+                "confidence": 0.9,
+                "evidence_count": 1,
+                "lifecycle_state": "active",
+                "version": 1,
+                "valid_from": NOW,
+                "valid_to": None,
+                "superseded_by": None,
+                "provenance": ["prior_error_event"],
+            }
+        )
+        self.snapshot = LifecycleCandidateSnapshot(
+            memory=memory,
+            row_version=1,
+            policy_version="lifecycle_policy_v1",
+        )
+
+    async def find_candidate_snapshots(self, query, *, for_update=False):  # noqa: ANN001, ANN201
+        del query, for_update
+        return [self.snapshot]
+
+
 class ExistingCorrectionEventRepository(FakeEventRepository):
     async def append(
         self,
@@ -372,6 +411,46 @@ async def test_existing_opposite_mastery_uses_typed_contradiction_without_llm() 
     relation = applier.policy_inputs[0].relation
     assert relation is not None
     assert relation.classification.relation is MemoryRelation.CONTRADICTORY
+
+
+async def test_temporary_error_evidence_bypasses_semantic_relation_classifier() -> None:
+    event_payload = _event().model_dump(mode="json")
+    event_payload["evidence_quality"] = {
+        "confidence": 0.1,
+        "is_temporary_exception": True,
+        "reasons": ["external_disruption"],
+    }
+    event = LearningEvent.model_validate(event_payload)
+    scope = SCOPE.model_copy(update={"memory_namespace": "error_pattern"})
+    candidate = MemoryUpdateCandidate.model_validate(
+        {
+            "event_id": event.event_id,
+            "scope": scope.model_dump(mode="json"),
+            "slot_key": "error_pattern:math1.linear_algebra.matrix_rank:concept_confusion",
+            "proposed_value": {
+                "type": "error_pattern",
+                "error_type": "concept_confusion",
+                "summary": "temporary interrupted answer",
+                "details": ["temporary interrupted answer"],
+            },
+            "evidence": {"source": "lifecycle_backend_test"},
+        }
+    )
+    memories = ExistingErrorMemoryRepository()
+    applier = FakeApplier(memories)
+    backend = LifecycleMemoryBackend(
+        event_repository=FakeEventRepository(),
+        memory_repository=memories,
+        student_model_repository=FakeStudentModelRepository(),
+        relation_classifier=FailingRelationClassifier(),
+        applier=applier,
+    )
+
+    await backend.record_event(event)
+    decisions = await backend.update(event, [candidate])
+
+    assert decisions[0].operation is LifecycleOperation.NO_OP
+    assert applier.policy_inputs[0].relation is None
 
 
 async def test_lifecycle_exact_retrieval_uses_active_candidate_query() -> None:

@@ -17,8 +17,11 @@ from typing import Any
 from pydantic import JsonValue
 from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine
 
-from deeptutor.plugins.host_services import complete
-from deeptutor.services.config import resolve_llm_runtime_config
+from deeptutor.plugins.host_services import complete, get_embedding_client
+from deeptutor.services.config import (
+    resolve_embedding_runtime_config,
+    resolve_llm_runtime_config,
+)
 from deeptutor.services.memory import MemoryStore, memory_path_service_override
 from deeptutor.services.memory.paths import L3_SLOTS
 from deeptutor.services.memory.trace import TraceEvent, iter_by_ids, iter_since
@@ -354,6 +357,30 @@ class DeterministicHashEmbeddingClient:
         return [value / norm for value in vector]
 
 
+class ConfiguredHostEmbeddingClient:
+    """Tracked access to the explicitly configured Host embedding model."""
+
+    def __init__(self) -> None:
+        resolved = resolve_embedding_runtime_config()
+        if resolved.dimension != _EMBEDDING_DIMENSION:
+            raise ValueError(
+                "configured evaluation embedding must have exactly "
+                f"{_EMBEDDING_DIMENSION} dimensions; received {resolved.dimension}"
+            )
+        self.version = f"{resolved.provider_name}:{resolved.model}:{resolved.dimension}"
+        self.call_count = 0
+        self._client = get_embedding_client()
+
+    async def embed(
+        self,
+        texts: list[str],
+        *,
+        input_type: str | None = None,
+    ) -> list[list[float]]:
+        self.call_count += 1
+        return await self._client.embed(texts, input_type=input_type)
+
+
 class TrackedRelationCompletion:
     """Observe real relation-classifier calls without reading credentials."""
 
@@ -484,6 +511,9 @@ class PostgresEvaluationSession:
         run_id: str,
         case: EvaluationCase,
         relation_classifier: RelationClassifier | None = None,
+        embedding_client: DeterministicHashEmbeddingClient
+        | ConfiguredHostEmbeddingClient
+        | None = None,
     ) -> None:
         if mode not in {BackendMode.APPEND_ONLY, BackendMode.VECTOR, BackendMode.LIFECYCLE}:
             raise ValueError("PostgresEvaluationSession requires a PostgreSQL backend mode")
@@ -496,7 +526,7 @@ class PostgresEvaluationSession:
         self._prefix = f"eval:{run_id}:{mode.value}:"
         self._logical_ids: dict[str, str] = {}
         self._event_target_ids: dict[str, str] = {}
-        self._embedding = DeterministicHashEmbeddingClient()
+        self._embedding = embedding_client or DeterministicHashEmbeddingClient()
         self._completion: TrackedRelationCompletion | None = None
         self._relation_mode = "not_used"
         self._relation: RelationClassifier | None = relation_classifier
@@ -680,6 +710,7 @@ class PostgresEvaluationSession:
                 memory_repository=memories,
                 audit_repository=PostgresLifecycleAuditRepository(connection),
                 event_repository=events,
+                embedding_client=self._embedding,
             ),
             trace_id=f"{self._prefix}trace",
             embedding_client=self._embedding,
@@ -910,27 +941,9 @@ class PostgresEvaluationSession:
 
     async def retrieve(self, query: EvaluationQuery) -> list[LearningMemory]:
         scope = self._runtime_scope(query.scope)
-        target_ids = next(
-            action.knowledge_point_ids
-            for action in self.case.gold_actions
-            if action.step_id == query.after_step_id
-        )
-        knowledge_point_id = target_ids[0] if target_ids else ""
-        if scope.memory_namespace is MemoryNamespace.MASTERY:
-            layer_query = f"mastery:{knowledge_point_id}"
-        elif scope.memory_namespace is MemoryNamespace.ERROR_PATTERN:
-            matching_slots = [
-                operation.slot_key
-                for operation in self.case.gold_operations
-                if operation.step_id == query.after_step_id
-                and operation.slot_key.startswith(f"error_pattern:{knowledge_point_id}:")
-            ]
-            layer_query = matching_slots[0] if matching_slots else query.text
-        else:
-            layer_query = query.text
         async with self.engine.connect() as connection:
             backend = await self._backend(connection)
-            memories = await backend.retrieve(scope, layer_query, query.top_k)
+            memories = await backend.retrieve(scope, query.text, query.top_k)
         return [
             memory.model_copy(
                 update={
@@ -1042,6 +1055,7 @@ class NoMemoryEvaluationSession:
 
 __all__ = [
     "DeepTutorNativeEvaluationClient",
+    "ConfiguredHostEmbeddingClient",
     "DeterministicHashEmbeddingClient",
     "EvaluationBackendError",
     "NativeEvaluationSession",

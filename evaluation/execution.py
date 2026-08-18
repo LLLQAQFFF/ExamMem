@@ -14,8 +14,12 @@ from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
 
-from deeptutor.services.config import resolve_llm_runtime_config
+from deeptutor.services.config import (
+    resolve_embedding_runtime_config,
+    resolve_llm_runtime_config,
+)
 from evaluation.backend_adapters import (
+    ConfiguredHostEmbeddingClient,
     NativeEvaluationSession,
     NoMemoryEvaluationSession,
     PostgresEvaluationSession,
@@ -87,6 +91,7 @@ def _config(
     timeout_seconds: float,
     top_k: int,
     max_llm_calls_per_case: int,
+    embedding_model: str,
 ) -> ExperimentConfig:
     policy_versions = {
         BackendMode.NONE: "none_v1",
@@ -96,8 +101,9 @@ def _config(
         BackendMode.LIFECYCLE: "lifecycle_policy_v1",
     }
     options: dict[str, Any] = {}
-    if mode is BackendMode.VECTOR:
-        options["embedding_model"] = "feature_hash_embedding_v1"
+    if mode in {BackendMode.VECTOR, BackendMode.LIFECYCLE}:
+        options["embedding_model"] = embedding_model
+        options["retrieval_query"] = "natural_language_v1"
     if mode is BackendMode.NATIVE:
         options["typed_lifecycle_available"] = False
     return ExperimentConfig(
@@ -135,6 +141,7 @@ def _session(
     native_root: Path,
     run_id: str,
     case: EvaluationCase,
+    embedding_mode: str,
 ) -> EvaluationBackendSession:
     if mode is BackendMode.NONE:
         return NoMemoryEvaluationSession()
@@ -146,7 +153,18 @@ def _session(
         )
     if engine is None:
         raise ValueError(f"{mode.value} requires an isolated PostgreSQL database URL")
-    return PostgresEvaluationSession(engine=engine, mode=mode, run_id=run_id, case=case)
+    embedding_client = (
+        ConfiguredHostEmbeddingClient()
+        if embedding_mode == "configured" and mode in {BackendMode.VECTOR, BackendMode.LIFECYCLE}
+        else None
+    )
+    return PostgresEvaluationSession(
+        engine=engine,
+        mode=mode,
+        run_id=run_id,
+        case=case,
+        embedding_client=embedding_client,
+    )
 
 
 async def _run_mode(
@@ -160,6 +178,7 @@ async def _run_mode(
     code_sha: str,
     concurrency: int,
     resume: bool,
+    embedding_mode: str,
 ) -> list[RolloutResult]:
     partial_dir = output / "partial" / mode.value
     partial_dir.mkdir(parents=True, exist_ok=True)
@@ -192,6 +211,7 @@ async def _run_mode(
                         native_root=output / "native",
                         run_id=run_id,
                         case=case,
+                        embedding_mode=embedding_mode,
                     ),
                     config=config,
                     code_sha=code_sha,
@@ -339,7 +359,7 @@ def _markdown(report: EvaluationReport, scenario_metrics: dict[str, Any]) -> str
             "- 输入从结构化 LearningEvent 开始，因此原始文本抽取指标为 N/A。",
             "- Native Memory 不暴露 ExamMem typed lifecycle，相关指标为 N/A。",
             "- RecommendationPolicyV1 的知识点与过度复习指标已测量；Gold 未定义难度区间，因此难度匹配为 N/A。",
-            "- Vector 使用冻结的本地 1024 维 feature-hash，仅是可复现基线，不代表生产 embedding。",
+            "- Vector/Lifecycle 的 embedding 身份与自然语言检索口径记录在 `config.json`。",
             "- Host LLM 未返回 token usage 时，token 与美元成本为 N/A，不做静默估算。",
             "",
             f"场景分组数：{len(scenario_metrics)}。",
@@ -362,12 +382,15 @@ async def execute_evaluation(
     resume: bool = False,
     case_ids: Sequence[str] = (),
     scenarios: Sequence[str] = (),
+    embedding_mode: str = "feature_hash_embedding_v1",
 ) -> dict[str, Any]:
     """Run selected arms; finalize a report only after all five exist."""
     if split is DatasetSplit.TEST:
         raise ValueError("frozen test may only be schema/hash verified in Stage 08")
     if concurrency < 1:
         raise ValueError("concurrency must be at least one")
+    if embedding_mode not in {"feature_hash_embedding_v1", "configured"}:
+        raise ValueError("embedding_mode must be feature_hash_embedding_v1 or configured")
     all_cases = load_cases(split)
     dataset_hash = _dataset_hash(split, all_cases)
     requested_case_ids = set(case_ids)
@@ -393,6 +416,13 @@ async def execute_evaluation(
     _assert_evaluation_sources_clean()
     code_sha = _code_sha()
     resolved = resolve_llm_runtime_config()
+    embedding_model = "feature_hash_embedding_v1"
+    if embedding_mode == "configured":
+        resolved_embedding = resolve_embedding_runtime_config()
+        embedding_model = (
+            f"{resolved_embedding.provider_name}:{resolved_embedding.model}:"
+            f"{resolved_embedding.dimension}"
+        )
     output = output_root / experiment_id
     if output.exists() and not resume:
         raise ValueError(f"immutable run directory already exists: {output}")
@@ -410,6 +440,7 @@ async def execute_evaluation(
                 timeout_seconds=timeout_seconds,
                 top_k=top_k,
                 max_llm_calls_per_case=max_llm_calls_per_case,
+                embedding_model=embedding_model,
             )
             all_results[mode] = await _run_mode(
                 experiment_id=experiment_id,
@@ -421,6 +452,7 @@ async def execute_evaluation(
                 code_sha=code_sha,
                 concurrency=concurrency,
                 resume=resume,
+                embedding_mode=embedding_mode,
             )
     finally:
         if engine is not None:
@@ -439,6 +471,8 @@ async def execute_evaluation(
         "case_id_filters": sorted(requested_case_ids),
         "scenario_filters": sorted(requested_scenarios),
         "complete_five_arm_report": set(all_results) == set(BackendMode),
+        "embedding_mode": embedding_mode,
+        "embedding_model": embedding_model,
     }
     (output / "manifest.json").write_bytes(_json_bytes(manifest))
     configs = [results[0].config.model_dump(mode="json") for results in all_results.values()]

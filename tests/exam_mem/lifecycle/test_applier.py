@@ -110,6 +110,7 @@ class _FakeMemoryRepository:
     def __init__(self, authoritative: Sequence[LifecycleMemorySnapshot] = ()) -> None:
         self.snapshots = {snapshot.memory.memory_id: snapshot for snapshot in authoritative}
         self.provenance_relations: dict[str, dict[str, str]] = {}
+        self.content_embeddings: dict[str, tuple[float, ...] | None] = {}
 
     async def next_version(self, scope: MemoryScope, slot_key: str) -> int:
         versions = [
@@ -156,7 +157,6 @@ class _FakeMemoryRepository:
         contested_group_id: str | None = None,
         provenance_relations: Mapping[str, str] | None = None,
     ) -> LifecycleMemorySnapshot:
-        del content_embedding
         snapshot = LifecycleMemorySnapshot(
             memory=memory,
             row_version=1,
@@ -165,6 +165,9 @@ class _FakeMemoryRepository:
         )
         self.snapshots[memory.memory_id] = snapshot
         self.provenance_relations[memory.memory_id] = dict(provenance_relations or {})
+        self.content_embeddings[memory.memory_id] = (
+            None if content_embedding is None else tuple(content_embedding)
+        )
         return snapshot
 
     async def get_lifecycle_snapshot(
@@ -380,6 +383,43 @@ async def test_add_creates_version_one_with_new_event_and_audit() -> None:
         LifecycleApplyState.APPLIED,
     }
     assert connection.savepoint_count == 2
+
+
+async def test_add_embeds_the_final_memory_before_insert() -> None:
+    class _EmbeddingClient:
+        def __init__(self) -> None:
+            self.calls: list[tuple[list[str], str | None]] = []
+
+        async def embed(self, texts, *, input_type=None):  # noqa: ANN001, ANN201
+            self.calls.append((texts, input_type))
+            return [[1.0, *([0.0] * 1023)]]
+
+    policy_input, policy_result = _case(LifecycleOperation.ADD)
+    memory_repository = _FakeMemoryRepository()
+    connection = _FakeConnection()
+    audit = _FakeAuditRepository()
+    embedding = _EmbeddingClient()
+    applier = LifecycleApplier(
+        connection,  # type: ignore[arg-type]
+        memory_repository=memory_repository,
+        audit_repository=audit,
+        event_repository=None,  # type: ignore[arg-type]
+        embedding_client=embedding,
+    )
+
+    result = await applier.apply(
+        policy_input,
+        policy_result,
+        decision_id="stage06_embedded_add_decision",
+        trace_id="stage06_embedded_add_trace",
+        applied_at=NOW,
+    )
+
+    memory_id = result.changes[0].memory_id
+    assert memory_id is not None
+    assert memory_repository.content_embeddings[memory_id] == (1.0, *([0.0] * 1023))
+    assert embedding.calls[0][1] == "search_document"
+    assert policy_input.candidate.slot_key in embedding.calls[0][0][0]
 
 
 async def test_replay_no_op_is_idempotent_and_reuses_terminal_audit() -> None:

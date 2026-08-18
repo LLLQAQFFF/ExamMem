@@ -100,6 +100,7 @@ def _evaluate_run(args: argparse.Namespace) -> dict[str, Any]:
             resume=args.resume,
             case_ids=args.case_id,
             scenarios=args.scenario,
+            embedding_mode=args.embedding_mode,
         )
     )
     return {"status": "ok", "command": "evaluate run", **result}
@@ -183,6 +184,11 @@ def build_parser() -> argparse.ArgumentParser:
     evaluate_run.add_argument("--timeout-seconds", type=float, default=300.0)
     evaluate_run.add_argument("--top-k", type=int, default=5)
     evaluate_run.add_argument("--max-llm-calls-per-case", type=int, default=100)
+    evaluate_run.add_argument(
+        "--embedding-mode",
+        choices=["feature_hash_embedding_v1", "configured"],
+        default="feature_hash_embedding_v1",
+    )
     evaluate_run.add_argument("--resume", action="store_true")
     evaluate_run.add_argument("--case-id", action="append", default=[])
     evaluate_run.add_argument("--scenario", action="append", default=[])

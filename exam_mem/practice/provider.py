@@ -601,6 +601,25 @@ def _postgres_backend(  # noqa: ANN001
     memories = PostgresLearningMemoryRepository(connection)
     students = PostgresStudentModelRepository(connection)
     audit = PostgresLifecycleAuditRepository(connection)
+
+    def lifecycle_backend() -> LifecycleMemoryBackend:
+        embedding_client = get_embedding_client()
+        return LifecycleMemoryBackend(
+            event_repository=events,
+            memory_repository=memories,
+            student_model_repository=students,
+            relation_classifier=(relation_classifier or DeepTutorRelationClassifierAdapter()),
+            applier=LifecycleApplier(
+                connection,
+                memory_repository=memories,
+                audit_repository=audit,
+                event_repository=events,
+                embedding_client=embedding_client,
+            ),
+            trace_id=trace_id,
+            embedding_client=embedding_client,
+        )
+
     providers = {
         BackendMode.APPEND_ONLY: lambda: AppendOnlyMemoryBackend(
             event_repository=events,
@@ -613,19 +632,7 @@ def _postgres_backend(  # noqa: ANN001
             embedding_client=get_embedding_client(),
             trace_id=trace_id,
         ),
-        BackendMode.LIFECYCLE: lambda: LifecycleMemoryBackend(
-            event_repository=events,
-            memory_repository=memories,
-            student_model_repository=students,
-            relation_classifier=(relation_classifier or DeepTutorRelationClassifierAdapter()),
-            applier=LifecycleApplier(
-                connection,
-                memory_repository=memories,
-                audit_repository=audit,
-                event_repository=events,
-            ),
-            trace_id=trace_id,
-        ),
+        BackendMode.LIFECYCLE: lifecycle_backend,
     }
     return build_memory_backend(mode, providers)
 
