@@ -739,6 +739,59 @@ def test_s06_one_concept_error_contests_stable_high_mastery() -> None:
     assert evaluation.result.expected_row_versions == {"s06_high_v3": 8}
 
 
+@pytest.mark.parametrize(
+    ("current_level", "current_score", "answer_correct", "error_type", "candidate_level", "candidate_score"),
+    [
+        ("low", 0.2, True, None, "high", 1.0),
+        ("improving", 0.6, True, None, "high", 1.0),
+        ("improving", 0.6, False, "formula_misuse", "low", 0.0),
+    ],
+)
+def test_non_stable_mastery_accumulates_evidence_without_contested_branch(
+    current_level: str,
+    current_score: float,
+    answer_correct: bool,
+    error_type: str | None,
+    candidate_level: str,
+    candidate_score: float,
+) -> None:
+    seed = _answer_event(
+        event_id="non_scoring_seed",
+        answer_correct=current_score >= 0.5,
+        error_type=None if current_score >= 0.5 else "concept_confusion",
+        is_temporary_exception=True,
+    )
+    current = _mastery_snapshot(
+        memory_id="non_stable_v1",
+        value=_mastery_value(level=current_level, score=current_score),
+        provenance=[seed.event_id],
+        state="active",
+        version=1,
+        row_version=4,
+    )
+    event = _answer_event(
+        event_id="first_directional_evidence",
+        answer_correct=answer_correct,
+        error_type=error_type,
+    )
+
+    evaluation = evaluate_mastery_policy(
+        _mastery_policy_input(
+            event=event,
+            current=current,
+            candidate_value=_mastery_value(level=candidate_level, score=candidate_score),
+            historical_events=[seed],
+        )
+    )
+
+    assert evaluation.result.decision.operation is LifecycleOperation.MERGE
+    assert evaluation.result.decision.reason_code == (
+        "directional_evidence_accumulated_without_level_change"
+    )
+    assert evaluation.result.decision.target_memory_ids == ["non_stable_v1"]
+    assert evaluation.result.expected_row_versions == {"non_stable_v1": 4}
+
+
 def test_s07_three_candidate_events_in_one_session_advance_contested_branch() -> None:
     group_id = "s07_contested_group"
     current_events = _answer_events(

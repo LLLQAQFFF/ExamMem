@@ -8,10 +8,11 @@ import logging
 from typing import Protocol
 
 from deeptutor.plugins.host_services import complete, extract_json_object
-from exam_mem.contracts import MemoryUpdateCandidate
+from exam_mem.contracts import MemoryNamespace, MemoryUpdateCandidate
 from exam_mem.domain.slot_key import validate_slot_key
 from exam_mem.lifecycle.contracts import (
     LifecycleCandidateSnapshot,
+    MemoryRelation,
     RelationClassifierOutput,
     ResolvedRelationClassification,
     resolve_relation_output,
@@ -21,6 +22,7 @@ _SYSTEM_PROMPT = """You are a constrained Learning Memory relation classifier.
 Compare the new candidate with exactly one item from existing_candidates.
 Return only one JSON object matching the supplied JSON Schema.
 relation must be one of: duplicate, complementary, contradictory, unrelated.
+Obey allowed_relations from the request; never return a relation outside that list.
 candidate_display_number must be a displayed 1-based number from this request.
 Never invent or request database IDs, row versions, provenance, or lifecycle operations.
 Do not decide ADD, NO_OP, MERGE, SUPERSEDE, INVALIDATE, or CONTESTED.
@@ -71,19 +73,28 @@ class DeepTutorRelationClassifierAdapter:
         candidate_snapshots: Sequence[LifecycleCandidateSnapshot],
     ) -> ResolvedRelationClassification:
         ordered = validate_relation_candidate_pool(candidate, candidate_snapshots)
-        prompt = _build_user_prompt(candidate, ordered)
+        allowed_relations = _allowed_relations(candidate)
+        output_schema = _relation_output_schema(allowed_relations)
+        prompt = _build_user_prompt(
+            candidate,
+            ordered,
+            allowed_relations=allowed_relations,
+            output_schema=output_schema,
+        )
         last_error: Exception | None = None
         for attempt in range(1, _MAX_CLASSIFICATION_ATTEMPTS + 1):
             try:
                 raw_output = await self._completion(
                     prompt=prompt,
                     system_prompt=_SYSTEM_PROMPT,
-                    response_format=_relation_response_format(),
+                    response_format=_relation_response_format(output_schema),
                     temperature=0.0,
                 )
                 classification = RelationClassifierOutput.model_validate(
                     extract_json_object(raw_output)
                 )
+                if classification.relation not in allowed_relations:
+                    raise ValueError("relation is outside the candidate slot contract")
                 return resolve_relation_output(classification, ordered)
             except Exception as exc:
                 last_error = exc
@@ -145,9 +156,13 @@ def resolve_validated_relation_output(
 def _build_user_prompt(
     candidate: MemoryUpdateCandidate,
     ordered: Sequence[LifecycleCandidateSnapshot],
+    *,
+    allowed_relations: tuple[MemoryRelation, ...],
+    output_schema: dict[str, object],
 ) -> str:
     payload = {
-        "output_json_schema": RelationClassifierOutput.model_json_schema(),
+        "output_json_schema": output_schema,
+        "allowed_relations": [relation.value for relation in allowed_relations],
         "new_candidate": {
             "slot_key": candidate.slot_key,
             "proposed_value": candidate.proposed_value.model_dump(mode="json"),
@@ -165,13 +180,28 @@ def _build_user_prompt(
     return json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
 
 
-def _relation_response_format() -> dict[str, object]:
+def _allowed_relations(candidate: MemoryUpdateCandidate) -> tuple[MemoryRelation, ...]:
+    if candidate.scope.memory_namespace is MemoryNamespace.ERROR_PATTERN:
+        return (MemoryRelation.DUPLICATE, MemoryRelation.COMPLEMENTARY)
+    return tuple(MemoryRelation)
+
+
+def _relation_output_schema(
+    allowed_relations: tuple[MemoryRelation, ...],
+) -> dict[str, object]:
+    schema = RelationClassifierOutput.model_json_schema()
+    relation_definition = schema["$defs"]["MemoryRelation"]
+    relation_definition["enum"] = [relation.value for relation in allowed_relations]
+    return schema
+
+
+def _relation_response_format(schema: dict[str, object]) -> dict[str, object]:
     return {
         "type": "json_schema",
         "json_schema": {
             "name": "exam_mem_relation_classifier_output",
             "strict": True,
-            "schema": RelationClassifierOutput.model_json_schema(),
+            "schema": schema,
         },
     }
 

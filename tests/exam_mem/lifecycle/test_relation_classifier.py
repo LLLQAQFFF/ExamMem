@@ -161,11 +161,16 @@ async def test_adapter_uses_strict_schema_and_safe_display_only_prompt() -> None
     schema = json_schema["schema"]
     assert isinstance(schema, dict)
     assert schema["additionalProperties"] is False
+    assert schema["$defs"]["MemoryRelation"]["enum"] == [
+        "duplicate",
+        "complementary",
+    ]
 
     prompt = call["prompt"]
     assert isinstance(prompt, str)
     payload = json.loads(prompt)
     assert payload["output_json_schema"]["additionalProperties"] is False
+    assert payload["allowed_relations"] == ["duplicate", "complementary"]
     assert [item["candidate_display_number"] for item in payload["existing_candidates"]] == [
         1,
         2,
@@ -191,6 +196,23 @@ async def test_adapter_uses_strict_schema_and_safe_display_only_prompt() -> None
 async def test_adapter_retries_one_invalid_strict_output_then_resolves() -> None:
     completion = SequencedCompletion(
         ["not-json", json.dumps(_classification_payload(display_number=1))]
+    )
+
+    resolved = await DeepTutorRelationClassifierAdapter(completion).classify(
+        _candidate(),
+        _snapshots(),
+    )
+
+    assert completion.calls == 2
+    assert resolved.classification.relation is MemoryRelation.COMPLEMENTARY
+
+
+@pytest.mark.asyncio
+async def test_error_pattern_adapter_retries_relation_outside_slot_contract() -> None:
+    invalid = _classification_payload(display_number=1)
+    invalid["relation"] = "unrelated"
+    completion = SequencedCompletion(
+        [json.dumps(invalid), json.dumps(_classification_payload(display_number=1))]
     )
 
     resolved = await DeepTutorRelationClassifierAdapter(completion).classify(

@@ -134,7 +134,7 @@ async def test_relation_call_preserves_cancellation_as_failed_trace(
     assert calls[0].error.error_type == "CancelledError"
 
 
-async def test_low_mastery_seed_event_is_valid_incorrect_evidence() -> None:
+async def test_seed_event_is_a_valid_non_scoring_provenance_placeholder() -> None:
     case = next(
         case
         for case in load_cases("protocol_check")
@@ -166,6 +166,10 @@ async def test_low_mastery_seed_event_is_valid_incorrect_evidence() -> None:
     assert event.answer_correct is False
     assert event.error_type is not None
     assert event.error_detail is not None
+    assert event.evidence_quality.is_temporary_exception is True
+    assert [reason.value for reason in event.evidence_quality.reasons] == [
+        "insufficient_context"
+    ]
 
 
 async def test_postgres_retrieval_preserves_the_natural_language_query() -> None:

@@ -48,6 +48,8 @@ from exam_mem.backends.protocol import MemoryBackend
 from exam_mem.contracts import (
     ErrorPatternValue,
     ErrorType,
+    EvidenceQuality,
+    EvidenceQualityReason,
     LearningContext,
     LearningEvent,
     LearningEventType,
@@ -679,6 +681,11 @@ class PostgresEvaluationSession:
                 else "evaluation seed evidence supporting an initial low mastery state"
                 if not correct
                 else None
+            ),
+            evidence_quality=EvidenceQuality(
+                confidence=1.0,
+                is_temporary_exception=True,
+                reasons=[EvidenceQualityReason.INSUFFICIENT_CONTEXT],
             ),
             occurred_at=memory.valid_from - timedelta(seconds=offset + 1),
         )

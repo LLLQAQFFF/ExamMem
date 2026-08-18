@@ -16,6 +16,7 @@ from exam_mem.contracts import (
     LifecycleDecision,
     LifecycleOperation,
     LifecycleState,
+    MasteryLevel,
     MasteryValue,
     MemoryNamespace,
 )
@@ -502,6 +503,20 @@ def _decide_mastery_result(
                 confidence=event.evidence_quality.confidence,
                 targets=(current_snapshot,),
                 include_expected_versions=False,
+            )
+        current_value = _mastery_value_from_snapshot(current_snapshot)
+        if current_value.level in {MasteryLevel.LOW, MasteryLevel.IMPROVING}:
+            return _mastery_policy_result(
+                policy_input,
+                operation=LifecycleOperation.MERGE,
+                reason_code="directional_evidence_accumulated_without_level_change",
+                confidence=_directional_confidence(
+                    support_summary,
+                    EvidenceDirection.CANDIDATE,
+                    fallback=event.evidence_quality.confidence,
+                ),
+                targets=(current_snapshot,),
+                include_expected_versions=True,
             )
         return _mastery_policy_result(
             policy_input,
