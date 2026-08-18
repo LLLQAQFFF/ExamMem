@@ -82,5 +82,5 @@ PostgreSQL，并保留演示数据。
 测试完成后，按中文 Runbook 使用专用账号、强密码、正式数据库和秘密管理配置：
 
 ```text
-artifacts/exam_mem_migration/RUNBOOK.zh-CN.md
+docs/exam-mem/runbook.zh-CN.md
 ```

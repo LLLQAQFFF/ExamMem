@@ -66,11 +66,21 @@ http://127.0.0.1:3782/exam-mem/practice
 
 ## 文档
 
-- [中文运行手册](artifacts/exam_mem_migration/RUNBOOK.zh-CN.md)
-- [迁移报告](artifacts/exam_mem_migration/MIGRATION_REPORT.md)
-- [Checkpoint 与验收记录](artifacts/exam_mem_migration/CHECKPOINTS.md)
-- [延期清单](artifacts/exam_mem_migration/DEFERRED_ITEMS.md)
-- [面试项目讲解指南](artifacts/exam_mem_migration/INTERVIEW_GUIDE.zh-CN.md)
+- [技术文档总览](docs/exam-mem/README.md)
+- [中文运行手册](docs/exam-mem/runbook.zh-CN.md)
+- [插件迁移报告](docs/exam-mem/plugin-migration.md)
+- [评测方法](docs/exam-mem/evaluation-methodology.md)
+- [Stage08 开发集失败/混合基线](results/stage08-dev.md)
+- [Stage09 一次性冻结测试](results/stage09-frozen-test.md)
+
+## 可复现实验证据
+
+`evaluation/datasets/` 保留受控 Memory benchmark、manifest、dev/test split 和协议样本。
+Stage09 使用 40 条 dev 与一次性 80 条 frozen test 比较五种 Memory Backend；Lifecycle
+在 frozen test 上取得 95.73% operation accuracy、82.49% macro-F1 和 90.42%
+active-state exact。该结果只覆盖结构化 LearningEvent 之后的记忆治理，不代表出题、
+判题、聊天抽取或真实学习增益。完整限制、失败 case 和 baseline 见
+[结果索引](results/README.md)。
 
 ## 开源说明
 

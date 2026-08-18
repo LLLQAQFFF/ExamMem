@@ -39,4 +39,4 @@ against systems or data you do not own or have permission to use.
   Taxonomy/grader contract.
 
 Operational setup and secret-safe database checks are documented in the
-[ExamMem Runbook](artifacts/exam_mem_migration/RUNBOOK.md).
+[ExamMem Runbook](docs/exam-mem/runbook.zh-CN.md).

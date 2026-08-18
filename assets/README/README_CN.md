@@ -87,8 +87,8 @@ ExamMem 只通过 DeepTutor 的中性插件 API 和 Host Service 装配，DeepTu
 ```
 
 详见[演示说明](../../scripts/exam_mem_demo/README.md)、
-[中文运维 Runbook](../../artifacts/exam_mem_migration/RUNBOOK.zh-CN.md)和
-[迁移报告](../../artifacts/exam_mem_migration/MIGRATION_REPORT.md)。
+[中文运维 Runbook](../../docs/exam-mem/runbook.zh-CN.md)和
+[迁移报告](../../docs/exam-mem/plugin-migration.md)。
 
 ---
 

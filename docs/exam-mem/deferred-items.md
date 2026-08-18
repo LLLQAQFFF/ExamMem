@@ -13,7 +13,7 @@ is a product boundary, not an unfinished fallback path.
 | Learning Journey Memory | Has a different longitudinal aggregation and product lifecycle from current Learning Memory. | Dedicated schema/invariants and migration plan. |
 | Course question answering | Is not Exam Practice and must not reuse Practice sessions or grading checkpoints. | Separate capability and session-surface contract. |
 | Large-scale source-driven question pipeline | The narrow current feature pins native Quiz output, canonical Taxonomy identity, source hashes and rubric inside one Practice checkpoint. Reusable content libraries, automatic ingestion, licensing workflow and quality evaluation remain absent. | Approved question-content pipeline and quality gates. |
-| Stage 08 optimization/evaluation | No experiment ledger, online metrics or model-quality benchmark was authorized in this migration. | Explicit Stage 08 scope and reproducible evaluation baseline. |
+| Teacher-labelled exam evaluation | Stage08/09 cover controlled structured Memory trajectories, not syllabus parsing, question generation, grading or learning gain. | Licensed sources, annotation protocol, frozen split and teacher agreement review. |
 
 ## Known current limitations
 
@@ -30,9 +30,10 @@ is a product boundary, not an unfinished fallback path.
   controlled four-dimensional Scope and canonical Taxonomy identity; Learning
   Memory evidence is created later by an ExamMem answer/grade workflow, never
   by trusting Native Quiz's own correctness result.
-- Automated tests fix external LLM/embedding results. They prove real transport,
-  registry, workflow and database behavior, not live provider accuracy, latency
-  or cost.
+- Engineering regressions fix external LLM/embedding results and prove transport,
+  registry, workflow and database behavior. Stage09 separately evaluates Memory
+  with a configured Host LLM and local embedding; neither proves question quality,
+  grading quality, live-provider SLA or learning gain.
 - Practice generation reports real pipeline stages and validated-question
   counts, but it does not predict an ETA or fabricate an overall percentage for
   open-ended exploration and planning. Token-level model progress is not part of
