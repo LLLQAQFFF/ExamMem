@@ -17,7 +17,8 @@
 - DeepTutor 原生 Chat/Quiz/Mastery Path 与 ExamMem 领域边界清楚；
 - 五臂受控 Memory 评测已运行 40 条 dev 和一次性 80 条冻结 test；test 上 Lifecycle
   operation accuracy 95.73%、macro-F1 82.49%、active-state exact 90.42%，但推荐准确率
-  仅 30.83%，且 80 个 Lifecycle case 有 1 个严格契约失败。
+  仅 30.83%，且 80 个 Lifecycle case 有 1 个严格契约失败；
+- 工程回归使用确定性 LLM 替身验证契约；Stage09 另用配置的 Host LLM 和本地 Qwen embedding 评估 Memory，二者证据边界分开报告。
 
 当前不能声称：
 
@@ -25,8 +26,8 @@
 - 已有真实用户规模、QPS、留存率或商业收入；
 - 已完成多源 RAG、教材知识库、图片/视频/PPT 摄取；
 - 公共数据集上的准确率就是考研场景效果；
-- LLM Judge 的分数等同于教师评价。
-- 受控合成 Memory 轨迹的 95.73% 等同于出题、判题或真实学习增益准确率。
+- LLM Judge 的分数等同于教师评价；
+- 受控合成 Memory 轨迹的 95.73% 等同于出题、判题、聊天抽取或真实学习增益准确率。
 
 面试时主动讲清边界，可信度通常比堆砌未经验证的指标更高。
 
@@ -49,12 +50,13 @@
 
 ### 3.1 调研口径
 
-本手册交叉使用两类资料：
+本手册在 2026-08-18 使用 AnySearch 检索，并把证据分成三层：
 
-- 官方岗位描述用于确认企业公开要求，例如端到端链路、真实数据回放、评测、A/B、稳定性、安全和可观测性；
-- 近期社区面经用于收集真实追问样本，例如 ownership、数据集规模、Recall@K、状态恢复、记忆粒度、并发和后端基础。
+- A 级：招聘方公开岗位描述，用于确认企业明确写出的能力要求；
+- B 级：候选人自述的近期面试复盘，用于收集出现过的追问，不视为逐字录音；
+- C 级：面试题整理、付费专栏和模拟面试，只用于扩充复习目录，不用于证明“高频”或公司偏好。
 
-社区内容是应聘者自述或整理，不是逐字面试记录；样本也存在岗位、年限和幸存者偏差。因此这里只归纳多个来源反复出现的主题，不给出伪精确的“出现频率”，也不声称某家公司必问某题。
+本轮检索主动排除了把模拟阿里面试、培训题库或 SEO 文章当作真实面经的做法。社区内容仍有岗位、年限、幸存者偏差，岗位描述也只代表具体职位。因此这里只归纳跨来源一致的主题，不给出伪精确的“出现频率”，也不声称某家公司必问某题。
 
 ### 3.2 高频关注点与本项目证据
 
@@ -64,11 +66,11 @@
 | 真实调用链 | 不是背框架名，能画出输入、编排、工具、状态和输出 | Browser HTTP、Python App、WebSocket 汇入同一 `exam_practice` workflow 的 PostgreSQL E2E | Browser HTTP 先经过插件 Router；仓库没有专用 `exam_mem/sdk.py` |
 | Agent/工作流取舍 | 为什么某些步骤允许模型自治，某些步骤必须确定 | 辅导复用 Agent loop；评分、记忆和审计使用显式状态机与严格契约 | 不把固定工作流包装成“多 Agent 自主规划” |
 | 状态、失败与并发 | 断线是否重复写，状态放哪，如何恢复和纠错 | checkpoint、append-only Trace、幂等键、Grade Artifact 复用、L2 CAS、Review/Correction | 没有线上流量就不声称经过高 QPS 验证 |
-| 数据与效果评测 | 数据从哪来，怎么切分，有什么 baseline，数字为何可信 | 120 条受控 Memory 轨迹、40 dev/80 一次性 test、五臂消融；另有工程回归 | 当前数据不证明真实模型出题、判题或学习增益 |
+| 数据与效果评测 | 数据从哪来，怎么切分，有什么 baseline，数字为何可信 | 40 dev/80 一次性 test、五臂同 harness 消融、冻结 hash 和预注册门槛 | 当前数据只覆盖结构化 Memory，不证明出题、判题或学习增益 |
 | RAG 与模型基础 | chunk、召回、rerank、幻觉、结构化输出是否理解 | 能说明 DeepTutor RAG 与当前 ExamMem 闭环边界，模型边界使用 schema/版本 | 当前没有完成教材级多源 RAG，不报 Recall@5 |
 | 后端与生产化 | AI 应用是否仍有扎实的存储、事务、API 和运维能力 | FastAPI、PostgreSQL、Alembic、事务、CAS、隔离库、构建和安全门禁 | 熔断、限流、线上告警和 A/B 仍是生产化后续项 |
 
-近期官方岗位把“意图→检索→规划→工具→生成→安全→前端”的全链路、真实数据回放、业务指标、A/B、熔断降级和可观测性放在同一个职责中；多份面经又反复追问项目效果、数据集规模、失败重试、记忆、检索指标以及数据库/Redis/Python 基础。准备顺序因此应该是：先讲业务和 ownership，再讲调用链与一个故障故事，最后用评测证据和边界收口。
+交叉核对后的共同关注点很稳定：候选人复盘会直接追问“为什么做、谁在用、请求如何路由、文档如何处理、RAG 如何实现、效果怎么样”；公开 Agent/RAG 岗位要求 tool use、reflection、chat history、Context Engineering、质量评测以及 Python/FastAPI/PostgreSQL/前端；字节跳动公开 Agent 评测岗位还把真实业务流程抽象、可复现用例、稳定性、一致性和安全性写进职责。准备顺序因此应该是：先讲场景和 ownership，再画调用链并讲一个工程决策，最后用冻结评测和限制收口，而不是先背框架名。
 
 ### 3.3 面试前必须填好的“真实性卡片”
 
@@ -194,55 +196,67 @@ PracticeWorkbench
 - 前端：`web/components/exam-mem/`
 - 三入口 PostgreSQL E2E：`tests/exam_mem/practice/test_real_entries_postgres.py`
 
-## 6. 四个最值得讲的工程问题
+## 6. 六个从症状到根因的工程决策
 
-### 6.1 为什么不继续改 Fork
+讲故障时不要按“报错—加判断—再报错”的时间线复述。统一使用下面的结构：
 
-问题：Fork 中业务代码会逐渐渗透到 Host 注册表、配置、数据库和 UI；以后同步上游成本越来越高。
+```text
+不变量 → 可复现症状 → 候选假设与实验 → 根因 → 最小模型修正 → 回归证据 → 剩余边界
+```
 
-方案：把实现分成三类：
+这样讲的是工程判断，而不是补丁数量。
 
-- ExamMem 自有领域代码，迁移到 `exam_mem/`；
-- DeepTutor 真正需要的中性 Host Hook，进入 `deeptutor.plugins`；
-- 只为 Fork 服务的硬编码直接丢弃。
+### 6.1 Fork 耦合：从复制功能转为定义插件边界
 
-验收：扫描 `deeptutor/` 不允许直接 import `exam_mem`；插件关闭时 DeepTutor 原生测试和构建仍通过。
+- 不变量：DeepTutor Core 不认识任何垂类插件，禁用 ExamMem 后原生系统仍可测试、构建。
+- 症状：冻结 Fork 的领域代码渗入 Host 注册、配置、数据库和 UI，同步上游时无法判断哪些差异必须保留。
+- 分析：不是“复制哪些文件”的问题，而是缺少稳定所有权边界。
+- 干净方案：把源实现分为 ExamMem 自有领域代码、中性 Host Hook、不可迁移 Fork 耦合；前两类分别进入 `exam_mem/` 和 `deeptutor.plugins`，第三类丢弃。没有增加 `if exam_mem` 或无限兼容层。
+- 证据：Core import gate、插件关闭回归、原生 production build、插件 Browser/Python/WebSocket/PostgreSQL E2E。
+- 取舍：多一层 Contribution DTO 和 Host service port，但换来独立发布节奏、可审计装配和更低的上游合并成本。
 
-取舍：中性 API 增加了一层协议，但换来独立演进、可测试装配和更低上游合并成本。
+### 6.2 知识点漂移：canonical ID 不能交给模型重建
 
-### 6.2 为什么不能让 LLM 再猜一次知识点
+- 不变量：一次练习的题目、评分、记忆必须绑定同一个已发布 taxonomy leaf。
+- 症状：题目已在不可变 catalog 中绑定叶子知识点，作答阶段又做语义映射；模型返回 `unknown` 时只留下 L1，L2/L3 为空。
+- 排查：先验证 taxonomy version 是否存在，再比较 catalog ID、模型映射和持久化 Scope，证明错误发生在重复推断而不是数据库漏写。
+- 干净方案：catalog 的 `knowledge_point_ids` 是权威；下游只校验存在、active、leaf、unique。`unknown` 或越界 ID 在副作用前 fail closed。只有没有 canonical ID 的显式入口才允许语义映射。
+- 证据：catalog/taxonomy 契约测试、PostgreSQL 闭环和跨 Scope 泄漏测试。
+- 原则：确定性身份一旦固化，下游不能让概率模型“再猜一次”。
 
-一次真实缺陷是：题目已经在不可变 catalog 中绑定叶子知识点，作答时却又让模型做语义映射。模型可能返回 `unknown`，结果只写 L1，L2/L3 都为空。
+### 6.3 代理断线与 409：传输失败、业务失败和契约失败必须分层
 
-干净修复：
+- 不变量：相同答案的恢复不能重复评分或重复写记忆；版本不兼容不能静默降级。
+- 症状：浏览器显示 `socket hang up` 或“返回值不是 JSON”，后端同时可能已经记录 HTTP 409、taxonomy version 不存在或 `grader_contract_version_mismatch`。
+- 排查：按浏览器代理日志 → 后端状态码/错误码 → checkpoint → Grade Artifact → 数据库副作用顺序核对，不能仅凭前端断线判断业务成功或失败。
+- 干净方案：请求携带稳定 idempotency key；状态转换落 checkpoint；同答案重放复用已有 Grade Artifact；Trace 记录 pinned/saved/effective 版本和失败阶段。网络瞬断按同一键恢复，taxonomy/grader 契约错误 fail closed，由配置或数据迁移修复。
+- 拒绝的做法：换幂等键盲重试、捕获所有异常后 fallback、把服务端文本错误强行当成功 JSON。
+- 剩余边界：尚未用线上流量证明高并发行为，因此只声称契约和集成测试覆盖。
 
-- catalog 中的 `knowledge_point_ids` 是权威；
-- 作答时只验证 ID 是否存在、active、leaf、unique；
-- `unknown` 或非法 ID 在写 L1 前 fail closed；
-- LLM 语义映射只保留给没有 canonical ID 的显式旧场景，不是正常运行权威。
-
-这展示了一个通用原则：确定性业务身份一旦在上游固化，下游不能再交给概率模型重建。
-
-### 6.3 如何处理断线、重试和重复写
-
-HTTP 的 `socket hang up` 只表示代理连接断了，不等于后端业务一定失败。若客户端盲目换 idempotency key 重试，会重复评分和记忆写入。
-
-方案：
-
-- 请求携带稳定幂等键；
-- 每个状态转换持久化 checkpoint；
-- Trace 记录阶段、版本、重试次数和失败码；
-- 同一个答案重放时复用已有 checkpoint/Grade Artifact；
-- 诊断和 Memory 副作用仍按当前答案 Scope 执行；
-- retryable 与 contract mismatch 分开，契约错误 fail closed。
-
-### 6.4 L1/L2/L3 为什么不能是一个 JSON
+### 6.4 L1/L2/L3：不是三个页面，而是三种不变量
 
 - L1 是不可变证据，回答“发生过什么”；
-- L2 是有 Scope、有 provenance、有版本链的业务事实，回答“当前如何解释证据”；
-- L3 是跨事实的可重建投影，回答“当前整体学习状态是什么”。
+- L2 是有 Scope、provenance、CAS 和生命周期的当前事实，回答“如何解释证据”；
+- L3 是带 source watermark 的可重建投影，回答“当前整体学习状态是什么”。
 
-如果只保存一个可更新 JSON，无法解释结论来源、并发覆盖、纠错历史，也无法可靠重建。代价是表和事务更多，但它们服务的是不同不变量，不是为了炫技分层。
+尝试把它们塞进一个可更新 JSON 会同时失去来源、并发冲突、纠错历史和重建能力。最终设计不是为了复制 DeepTutor 的三个卡片，而是复用其前端心智模型，后端仍由 ExamMem 独立 PostgreSQL 维护领域真值。L1 明细负责信息透明和纠错入口；考试复盘只呈现题目、答案、题解、诊断和版本进步，不把全部记忆治理细节重复一遍。
+
+### 6.5 Lifecycle 评测：先修证据模型，再看冻结 test
+
+- 不变量：只能用 dev 调整实现；冻结 test 一次性消费，运行后不得据此改代码再挑最好数字。
+- 初始现象：dev 中弱证据会过早形成方向性状态，LOW/IMPROVING 的互补证据不能持续累积，多值 error-pattern 的关系决策可能越过 slot 契约。
+- 候选方案：增加阈值特判或放宽模型输出虽然能减少报错，但会掩盖错误证据模型，并让生命周期语义随 case 漂移。
+- 干净方案：初始 fixture 只作 temporary provenance，不伪造方向；LOW/IMPROVING 在未达晋级阈值时通过 MERGE 累积；关系分类 schema 只允许当前 slot 支持的关系，越界输出严格失败并受限重试。
+- 防泄漏：40 条 dev 与 80 条 test 有独立 hash；test release 要求显式授权、完整五臂、无过滤器和原子 claim。
+- 结果：冻结 test 上 operation accuracy 95.73%、macro-F1 82.49%、active-state exact 90.42%、cross-scope leakage 0%；Lifecycle 完成 79/80，推荐准确率仅 30.83%。最后两个限制必须和最佳数字一起讲。
+
+### 6.6 TestClient 卡住：先证明环境边界，不为绿色测试改业务
+
+- 症状：若干 FastAPI/Starlette `TestClient` 用例打印进度后不退出，最初看起来像 Starlette、httpx2 或 AnyIO 依赖不兼容。
+- 实验：在临时环境比较版本后仍不能形成稳定解释；进一步缩小到纯 Python `asyncio.run_coroutine_threadsafe()`，发现受限命令沙箱连跨线程 event loop wakeup 都无法完成。
+- 根因：执行沙箱能力边界，而不是 ExamMem 路由、权限断言或依赖组合。
+- 处理：相同解释器和依赖在允许跨线程唤醒的本机进程运行 asyncio 探针、最小 TestClient 和全部 21 个 TestClient 文件，284 passed 并正常退出。
+- 拒绝的做法：删除权限断言、加入超时特判、未经证据升级依赖。最终没有修改核心代码或依赖，只把正确执行环境写入 Runbook。
 
 ## 7. 高频追问与参考回答
 
@@ -398,37 +412,41 @@ runner 或外部 webhook 可以保留全网卡监听，但必须有网络隔离�
 
 #### Q33：你的评测集多大，为什么是这个规模？
 
-当前有 120 条 `exam_mem_controlled_v1` 受控多轮 Memory 轨迹，覆盖 12 类生命周期
-场景；40 条 dev 用于修正，80 条 test 通过一次性 release 冻结运行。这个规模适合验证
-状态机、关系决策、污染、Scope 和检索的早期消融，不足以代表中国考研题目分布，也
-没有教师双标。下一步仍需 200～500 条按来源/章节隔离的领域金标，分别评估大纲、
-出题、判题和推荐；有真实用户后再建立时间切片 bad-case 集。
+当前有 120 条 `exam_mem_controlled_v1` 受控多轮 Memory 轨迹，覆盖 12 类生命周期场景；40 条 dev 用于修正，80 条 test 通过一次性 release 冻结运行。这个规模适合验证状态机、关系决策、污染、Scope 和检索的早期消融，不足以代表中国考研题目分布，也没有教师双标。下一步仍需 200～500 条按来源/章节隔离的领域金标，分别评估大纲、出题、判题和推荐；有真实用户后再建立时间切片 bad-case 集。
 
 #### Q34：你拿什么做 baseline，提升从何而来？
 
-Memory 子系统使用 `none/native/append_only/vector/lifecycle` 五臂同 harness 消融。
-冻结 test 上，Lifecycle 的 active-state exact 为 90.42%，比 none 的 7.50% 高 82.92
-个百分点；stale rate 为 3.32%，比 append-only/vector 的 89.28% 低 85.96 个百分点；
-推荐准确率 30.83%，比 baseline 的 3.75% 高 27.08 个百分点。代价是完成率 79/80、
-Weak Recall@5 低 10 个百分点、平均延迟是 vector 的 1.49 倍。operation accuracy
-95.73% 只能与 Gold 比，其他 backend 不暴露 typed operation，所以不能伪造这一项的
-baseline。出题和判题的数据集尚未完成，不能借用 Memory 分数。
+Memory 子系统使用 `none/native/append_only/vector/lifecycle` 五臂同 harness 消融。冻结 test 上，Lifecycle 的 active-state exact 为 90.42%，比 none 的 7.50% 高 82.92 个百分点；stale rate 为 3.32%，比 append-only/vector 的 89.28% 低 85.96 个百分点；推荐准确率 30.83%，比 baseline 的 3.75% 高 27.08 个百分点。代价是完成率 79/80、Weak Recall@5 低 10 个百分点、平均延迟是 vector 的 1.49 倍。operation accuracy 95.73% 只能与 Gold 比，其他 backend 不暴露 typed operation，所以不能伪造这一项的 baseline。出题和判题的数据集尚未完成，不能借用 Memory 分数。
 
 #### Q35：这是 AI 项目，为什么还会问数据库、Redis、Python 和网络？
 
 因为模型调用之外仍是在线系统：认证上下文决定用户隔离，事务和 CAS 决定记忆是否被覆盖，连接池和超时影响吞吐，HTTP/代理错误决定能否安全重试。ExamMem 可以重点讲 PostgreSQL 事务、append-only trigger、Alembic、幂等和 `socket hang up`；Redis/MQ 没有实际使用就只回答原理和适用场景，不硬说项目中用了。
 
+#### Q36：为什么不用一个更强模型把这些规则都做掉？
+
+模型适合生成、解释和关系判断，不适合承担租户身份、taxonomy 主键、事务提交和幂等这些确定性职责。更强模型也会超时、版本漂移和输出越界。ExamMem 的做法是让模型在窄 schema 内做语义判断，服务端负责 Scope、版本、候选集和副作用边界；模型失败时恢复，不让它重建业务真值。
+
+#### Q37：95.73% 是不是你项目的最终准确率？
+
+不是。它是 80 条冻结受控 Memory 轨迹中 398 个 Gold lifecycle operation 的 accuracy，只评估结构化 LearningEvent 之后的记忆操作。题目生成、判题、聊天抽取和学习增益都是 N/A。面试时应同时报告 macro-F1 82.49%、完成率 79/80、推荐准确率 30.83% 和数据是合成轨迹，避免用一个高数字掩盖边界。
+
+#### Q38：推荐只有 30.83%，为什么还值得讲？
+
+因为这揭示了系统已经把“正确维护当前状态”和“给出好的下一步推荐”拆成两个可独立验证的问题。Lifecycle 显著减少 stale state，但 prerequisite、难度和多样性的 Gold 还不充分。正确后续是单独建设推荐数据与指标，不是调整口径把 30.83% 隐藏掉，也不是让规则无限 fallback。
+
+#### Q39：你如何证明修复不是在 test 上过拟合？
+
+所有实现修正只看 40 条 dev；80 条 test 有独立 hash，release 必须完整五臂、无 case/scenario filter，并通过原子 claim 限制一次。冻结结果发布后没有再修改代码重跑。未来修改只能使用 dev 或创建新的数据版本，不能消费同一 test 挑最好结果。
+
+#### Q40：遇到测试卡住时，为什么没有直接升级依赖？
+
+因为“依赖不兼容”只是候选假设。把问题缩小到纯 asyncio 后，受限沙箱同样无法跨线程唤醒；相同依赖在本机进程中最小探针和 284 个 TestClient 用例都通过。证据指向执行环境，所以正确修复是明确门禁环境，而不是在没有根因的情况下改 Starlette/httpx2/AnyIO 或业务权限代码。
+
 ## 8. 到底需不需要数据集
 
-结论：如果要声称“模型效果好”或比较方案优劣，就需要数据集。当前必须区分三层证据：
-工程回归证明契约；`exam_mem_controlled_v1` 证明结构化 Memory 生命周期在受控场景的
-效果；教师标注的考研领域金标和真实用户实验仍未完成。
+结论：如果要声称“模型效果好”或比较方案优劣，就需要数据集。当前证据分三层：工程回归证明契约；`exam_mem_controlled_v1` 证明受控结构化 Memory 生命周期；教师标注的考研领域金标和真实用户实验仍未完成。
 
-截至 2026-08-18，除工程回归外，Memory 评测的冻结 test 已在真实 PostgreSQL、Host
-LLM 和本地 Qwen embedding 上完成五臂比较。它从结构化 LearningEvent 开始，不能
-回答：聊天抽取是否正确、生成题是否正确、难度是否合适、评分理由是否可靠、推荐是否
-真的帮助学习。完整数字和防泄漏方法见
-[Stage09 报告](../stage09/STAGE09_REPORT.zh-CN.md)。
+截至 2026-08-18，Memory 冻结 test 已在真实 PostgreSQL、Host LLM 和本地 Qwen embedding 上完成五臂比较。它从已校验的结构化 `LearningEvent` 开始，因此不能回答：聊天抽取是否正确、生成题是否正确、难度是否合适、评分理由是否可靠、推荐是否真的帮助学习。完整数字、防泄漏方法和数据库副作用见 [Stage09 报告](../stage09/STAGE09_REPORT.zh-CN.md)。工程回归中的确定性 fake LLM 则用于证明状态机、事务、迁移、Scope、幂等、恢复、接口和构建没有退化，两类证据不能混写。
 
 ### 8.1 公共数据集能做什么
 
@@ -524,11 +542,7 @@ LLM 和本地 Qwen embedding 上完成五臂比较。它从结构化 LearningEve
 
 面试时应该这样回答当前证据边界：
 
-> 当前我完成了两层评测：工程回归验证真实数据库闭环；120 条受控 Memory 轨迹用
-> 40 dev/80 一次性 test 比较五个 backend，冻结 test 的 Lifecycle operation accuracy
-> 是 95.73%、state exact 是 90.42%。这只说明结构化 LearningEvent 之后的记忆治理，
-> 不代表出题、判题或提分效果。下一步是 200～500 条按来源和章节隔离、教师双标的考研
-> 金标；公共 C-Eval/QGEval 只作外部参考，不偷换成产品结论。
+> 当前我完成了两层评测：工程回归验证真实数据库闭环；120 条受控 Memory 轨迹用 40 dev/80 一次性 test 比较五个 backend，冻结 test 的 Lifecycle operation accuracy 是 95.73%、state exact 是 90.42%。这只说明结构化 LearningEvent 之后的记忆治理，不代表出题、判题或提分效果。下一步是 200～500 条按来源和章节隔离、教师双标的考研金标；公共 C-Eval/QGEval 只作外部参考，不偷换成产品结论。
 
 ## 9. 面试演示脚本
 
@@ -543,7 +557,7 @@ LLM 和本地 Qwen embedding 上完成五臂比较。它从结构化 LearningEve
 7. 打开 Review/Trace，解释断线后如何 Resume、为什么同幂等键不会重复写。
 8. 最后展示测试和已知限制，不现场演示未完成的多源 RAG。
 
-准备一个“故障故事”：用 taxonomy/grader contract mismatch 或旧 `unknown` 映射说明你如何从日志 → checkpoint → 数据库 → 根因 → 契约修复 → 回归测试定位问题。
+准备一个“工程决策故事”，从第 6 节选择自己最熟的一条。推荐现场讲 canonical ID 或 TestClient：先写不变量，再展示最小复现和被排除的假设，最后落到根因、修正和回归证据。不要按时间罗列改过多少次代码。
 
 ## 10. 简历写法
 
@@ -553,11 +567,9 @@ LLM 和本地 Qwen embedding 上完成五臂比较。它从结构化 LearningEve
 - 实现“版本化大纲 → 叶子知识点辅导 → 不可变题集版本/多次检测 → 评分诊断 → Learning Memory → 推荐恢复复盘”闭环，并用独立 PostgreSQL 隔离业务真值。
 - 设计 L1 append-only、L2 CAS/provenance/Lifecycle、L3 可重建投影，以及 checkpoint、Trace、幂等和补偿机制，覆盖五种 Memory Backend。
 - 建立真实 Browser HTTP/Python App/unified WebSocket/PostgreSQL 回归与 migration hash 门禁；明确区分确定性工程测试和待建设的模型效果金标集。
-- 构建 `none/native/append-only/vector/lifecycle` 五臂受控评测，在 80 条一次性冻结
-  test 上取得 95.73% Lifecycle operation accuracy 和 90.42% active-state exact；相对
-  none 提升 82.92 个百分点，同时保留 1/80 执行失败和推荐准确率 30.83% 的限制。
+- 构建 `none/native/append-only/vector/lifecycle` 五臂受控评测，在 80 条一次性冻结 test 上取得 95.73% Lifecycle operation accuracy 和 90.42% active-state exact；相对 none 提升 82.92 个百分点，同时保留 1/80 执行失败和推荐准确率 30.83% 的限制。
 
-如果必须量化，只使用可以从当前测试日志复现的数字，并注明它是“测试数量/入口覆盖”，不是“模型准确率”。
+如果量化，只使用可以从当前报告复现的数字，并注明数据集、子系统、分母和限制；不能把 Memory operation accuracy 写成整个产品或模型的准确率。
 
 ## 11. 反问面试官
 
@@ -569,17 +581,21 @@ LLM 和本地 Qwen embedding 上完成五臂比较。它从结构化 LearningEve
 
 ## 12. 资料来源与使用方式
 
-以下资料用于归纳面试关注点，不代表每家公司都会逐题询问：
+以下资料由 AnySearch 于 2026-08-18 检索并复核。等级表示“可用于证明什么”，不表示内容一定正确，也不代表每家公司都会逐题询问。
 
 ### 岗位与面经
 
-- [海康威视大模型应用开发岗位](https://talent.hikvision.com/home/socity/position?postId=B4F6AAF8C5C1FEB7D6C131231EBAB46F)：官方岗位强调端到端 Agent 链路、真实数据回放、指标驱动、A/B、安全与可观测性。
-- [大模型应用开发面经（5 年经验）](https://www.nowcoder.com/feed/main/detail/129eaa1c20444651ac3b932e200d3da4)：社区经验，突出项目落地、RAG 难点、效果评估和基础知识。
-- [字节 AI 应用岗复盘](https://www.nowcoder.com/discuss/882634966025175040)：社区经验，强调离线评测与在线链路、数据回流和 bad case。
-- [T 公司 Agent 开发面经](https://www.nowcoder.com/feed/main/detail/aef9769bc0604700bcc8ed4fa8db8377)：社区样本直接追问评测集如何构造、precision/recall、跨场景检索污染和个人贡献。
-- [面试官视角的 AI 项目复盘](https://ac.nowcoder.com/discuss/1652755?channel=-1&source_id=discuss_tag_discuss_hot_nctrack&type=0)：社区观点提醒避免术语堆砌，必须讲清 ownership、真实测试、指标和状态同步。
+- A 级，[字节跳动大模型/Agent 评测工程师](https://jobs.bytedance.com/experienced/position/7587252577764870405/detail)：官方岗位把真实业务流程抽象为可复现评测用例，并覆盖能力、稳定性、一致性、安全性、样本和 Benchmark 治理。
+- A 级，[大模型应用全栈开发（Agent+RAG）](https://www.nowcoder.com/jobs/detail/315080)：公开职位明确要求 tool use、reflection、chat history、pipeline/agentic RAG、RAG/上下文评测，以及 Python/FastAPI、PostgreSQL、Next.js 和 Docker。它只代表一个初创团队岗位，不能外推为行业统一标准。
+- A 级，[海康威视大模型应用开发岗位](https://talent.hikvision.com/home/socity/position?postId=B4F6AAF8C5C1FEB7D6C131231EBAB46F)：官方岗位强调端到端 Agent 链路、真实数据回放、指标驱动、A/B、安全与可观测性。
+- B 级，[2 年 Java 转 AI 应用社招一面](https://www.nowcoder.com/discuss/914627656245600256)：候选人自述的问题包括团队定位、为什么做项目、请求路由、真实使用者、效果、RAG 细节、长文档处理和个人行动；它直接支持“先讲场景和调用链”的准备顺序。
+- B 级，[字节 AI 应用岗复盘](https://www.nowcoder.com/discuss/882634966025175040)：社区经验强调离线评测与在线链路、数据回流和 bad case。
+- B 级，[T 公司 Agent 开发面经](https://www.nowcoder.com/feed/main/detail/aef9769bc0604700bcc8ed4fa8db8377)：社区样本直接追问评测集构造、precision/recall、跨场景检索污染和个人贡献。
+- C 级，[RAG/Agent 项目到底要讲什么](https://www.nowcoder.com/discuss/893051252416737280)：整理型文章给出了 chunk、TopK、引用、无答案、工具失败、权限、循环和 trace 等追问，只用于检查准备覆盖面。
+- C 级，[百度 Agent 面经整理](https://www.nowcoder.com/discuss/880841659733311488)：内容包含付费专栏推广，不能当真实频次证据；其中“先画业务因果链、再解释框架取舍”和 checkpoint/幂等追问可作为复习线索。
+- C 级，[面试官视角的 AI 项目复盘](https://ac.nowcoder.com/discuss/1652755?channel=-1&source_id=discuss_tag_discuss_hot_nctrack&type=0)：社区观点提醒避免术语堆砌，必须讲清 ownership、真实测试、指标和状态同步。
 
-社区面经只能作为定性问题样本，不能当作招聘方官方标准或频率统计；官方岗位描述也只能反映一个岗位。遇到来源只给“推荐回答”而没有原始经历时，本手册只把它当准备线索，不把答案本身当事实。
+社区面经只能作为定性问题样本，不能当作招聘方官方标准或频率统计；官方岗位描述也只能反映具体岗位。只给“推荐回答”而没有原始经历的内容一律降为 C 级，模拟面试不进入事实依据。
 
 ### 评测与数据集
 
