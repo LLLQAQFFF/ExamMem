@@ -34,18 +34,7 @@ Browser、HTTP API 和 Python SDK 共用同一套插件能力与 PostgreSQL 领�
 
 ## 产品闭环
 
-```mermaid
-flowchart LR
-    A[导入考试大纲] --> B[发布 Taxonomy]
-    B --> C[按知识点学习]
-    C --> D[生成版本化练习]
-    D --> E[作答与评分]
-    E --> F[错误诊断]
-    F --> G[Lifecycle Memory]
-    G --> H[学习画像 / 复习队列]
-    H --> I[薄弱点专项练习 / 复盘 / 纠错]
-    I --> C
-```
+![ExamMem 从考试大纲到薄弱点专项练习的智能备考闭环](assets/figs/diagrams/product-loop.png)
 
 这不是几张独立页面的拼接：练习选择的知识点来自已发布 Taxonomy，评分结果进入同一 Scope 下的学习记忆，推荐和复盘再读取这些可追溯证据。
 
@@ -65,14 +54,7 @@ flowchart LR
 
 ## 架构
 
-```mermaid
-flowchart LR
-    U[Browser / HTTP / SDK] --> H[DeepTutor Host]
-    H --> P[ExamMem Plugin]
-    P --> D[exam_mem Domain]
-    D --> DB[(ExamMem PostgreSQL)]
-    D --> L[DeepTutor LLM Runtime]
-```
+![DeepTutor Host、ExamMem Plugin、领域实现与基础设施的系统架构](assets/figs/diagrams/system-architecture.png)
 
 - **DeepTutor Host** 提供通用聊天、Agent、模型配置、插件发现和中性能力调用。
 - **ExamMem Plugin** 位于 `deeptutor_plugins/exam_mem/`，负责页面、API 与 Host Hook 装配。
@@ -95,6 +77,38 @@ L1 保留 append-only 学习事件，L2 使用 CAS、事务和 provenance 维护
 ### 插件所有权与确定性身份
 
 ExamMem 通过中性 Plugin API 接入 DeepTutor，而不是在 Core 中添加 `if exam_mem`。Taxonomy version、`slot_key`、四维 Scope、assessment version 和 idempotency key 共同保证考试、知识点、作答和记忆不会串线。
+
+## 产品界面
+
+### 1. 从大纲到知识点学习
+
+学习计划将导入的考试大纲固定为“科目 → 章节 → 知识点”层级，每个叶子知识点都可以继续辅导或进入专项练习。
+
+![ExamMem 学习计划与知识点层级](assets/figs/screenshots/01-learning-plan.png)
+
+### 2. 可恢复的版本化练习
+
+用户从已发布范围选择知识点，生成可重考的试卷版本。作答后同一闭环完成评分、诊断、学习记忆写入和下一步推荐，进度可中断恢复。
+
+![ExamMem 版本化练习、评分与推荐](assets/figs/screenshots/02-practice-workflow.png)
+
+### 3. 考试版本与历次作答复盘
+
+复盘页按考试聚合不同版本和多次作答，并展示题目、用户答案、参考答案、公式、评分证据与后续建议。
+
+![ExamMem 考试版本、历次成绩与作答复盘](assets/figs/screenshots/03-exam-review.png)
+
+### 4. 可追溯的学习画像
+
+学习画像从正式作答和版本化 Learning Memory 派生覆盖率、掌握度、正确率、稳定错因和趋势，每个结论都可回到原始记忆证据。
+
+![ExamMem 学习画像与知识点掌握结构](assets/figs/screenshots/04-learning-profile.png)
+
+### 5. 基于记忆的复习与薄弱点练习
+
+复习中心根据掌握度、重复错因、遗忘风险和计划优先级生成可解释队列，用户可查看依据或直接进入预选知识点的专项练习。
+
+![ExamMem 复习优先队列与薄弱点专项练习](assets/figs/screenshots/05-review-center.png)
 
 ## Controlled Evaluation
 

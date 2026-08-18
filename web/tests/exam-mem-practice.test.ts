@@ -16,9 +16,12 @@ import {
   submitExamPracticeAnswer,
 } from "../lib/exam-mem-practice";
 import {
+  diagnosisTypeLabel,
   formatExamScore,
   groupExamReviewHistory,
   listExamReviewHistory,
+  practiceStateLabel,
+  recommendationReasonLabel,
   selectVisiblePracticeHistory,
 } from "../lib/exam-mem-product";
 
@@ -26,6 +29,15 @@ test("exam scores fail closed outside the canonical probability scale", () => {
   assert.equal(formatExamScore(0.5), "50.0%");
   assert.equal(formatExamScore(100, "评分数据异常"), "评分数据异常");
   assert.equal(formatExamScore(null), "—");
+});
+
+test("practice domain codes have learner-facing bilingual labels", () => {
+  assert.equal(practiceStateLabel("MEMORY_UPDATED", true), "已更新学习记忆");
+  assert.equal(practiceStateLabel("RECOMMENDED", false), "Next step ready");
+  assert.equal(diagnosisTypeLabel("reasoning_gap", true), "推理缺口");
+  assert.equal(diagnosisTypeLabel(null, true), "未发现需要记录的错因");
+  assert.equal(recommendationReasonLabel("forgetting_risk", true), "存在遗忘风险");
+  assert.equal(recommendationReasonLabel("unrecognized", false), "Other learning evidence");
 });
 import {
   archiveAssessment,

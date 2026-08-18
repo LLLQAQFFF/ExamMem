@@ -149,6 +149,57 @@ export function formatExamScore(
     : invalidLabel;
 }
 
+export function practiceStateLabel(state: string, chinese: boolean): string {
+  const labels: Record<string, [string, string]> = {
+    IDLE: ["尚未开始", "Not started"],
+    QUESTION_READY: ["等待作答", "Ready for an answer"],
+    ANSWER_RECEIVED: ["答案已提交", "Answer submitted"],
+    GRADED: ["已完成评分", "Graded"],
+    DIAGNOSED: ["已完成诊断", "Diagnosed"],
+    MEMORY_UPDATED: ["已更新学习记忆", "Learning Memory updated"],
+    RECOMMENDED: ["已生成下一步建议", "Next step ready"],
+  };
+  return labels[state]?.[chinese ? 0 : 1] ?? (chinese ? "状态已记录" : "Status recorded");
+}
+
+export function diagnosisTypeLabel(
+  errorType: string | null | undefined,
+  chinese: boolean,
+): string {
+  if (!errorType) {
+    return chinese ? "未发现需要记录的错因" : "No error pattern needs to be recorded";
+  }
+  const labels: Record<string, [string, string]> = {
+    concept_confusion: ["概念混淆", "Concept confusion"],
+    formula_misuse: ["公式误用", "Formula misuse"],
+    condition_omission: ["条件遗漏", "Condition omitted"],
+    calculation_error: ["计算错误", "Calculation error"],
+    reasoning_gap: ["推理缺口", "Reasoning gap"],
+    reading_error: ["审题错误", "Reading error"],
+    careless_error: ["粗心错误", "Careless error"],
+    unknown: ["未分类错因", "Unclassified error"],
+  };
+  return labels[errorType]?.[chinese ? 0 : 1] ?? (chinese ? "其他错因" : "Other error pattern");
+}
+
+export function recommendationReasonLabel(reason: string, chinese: boolean): string {
+  const labels: Record<string, [string, string]> = {
+    weakness: ["当前掌握较弱", "Current weakness"],
+    stable_error: ["存在稳定重复错因", "Recurring error pattern"],
+    forgetting_risk: ["存在遗忘风险", "Forgetting risk"],
+    active_plan_priority: ["当前学习计划优先", "Active plan priority"],
+    coverage_gap: ["尚缺正式检测证据", "No formal assessment evidence"],
+    contested_evidence: ["证据存在冲突，建议重新验证", "Conflicting evidence needs verification"],
+    contested_evidence_downweighted: ["争议证据已降低权重", "Contested evidence was downweighted"],
+    recent_practice_downweighted: ["近期已练习，已降低重复推荐", "Recent practice was downweighted"],
+    scheduled_review: ["按掌握水平安排复习", "Scheduled by mastery level"],
+    syllabus_fallback: ["按考试大纲继续学习", "Continue through the syllabus"],
+    no_positive_signal: ["暂无优先弱项，按大纲顺序继续", "No priority weakness; continue in syllabus order"],
+    mastery_follow_up: ["巩固已掌握内容", "Reinforce mastered material"],
+  };
+  return labels[reason]?.[chinese ? 0 : 1] ?? (chinese ? "其他学习依据" : "Other learning evidence");
+}
+
 export function selectVisiblePracticeHistory<
   T extends Pick<PracticeHistoryItem, "practice_session_id">,
 >(

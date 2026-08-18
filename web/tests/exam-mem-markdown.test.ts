@@ -37,7 +37,7 @@ test("ExamMem review and learning archive render persisted evidence as markdown"
 
   assert.match(
     review,
-    /content=\{checkpoint\.question\?\.stem \?\? checkpoint\.step_state\}/,
+    /content=\{checkpoint\.question\?\.stem \?\? practiceStateLabel\(checkpoint\.step_state, zh\)\}/,
   );
   assert.match(review, /value=\{checkpoint\.submitted_answer\?\.answer\}/);
   assert.match(review, /function AnswerBlock[\s\S]*<ExamMemMarkdown/);

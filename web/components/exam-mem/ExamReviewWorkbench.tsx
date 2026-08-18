@@ -17,11 +17,14 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import {
+  diagnosisTypeLabel,
   disputeGrade,
   formatExamScore,
   getExamReview,
   groupExamReviewHistory,
   listExamReviewHistory,
+  practiceStateLabel,
+  recommendationReasonLabel,
   type ExamReview,
   type ExamReviewGroup,
   type ExamReviewHistoryItem,
@@ -41,6 +44,7 @@ type ArchiveFilter = "active" | "archived";
 export default function ExamReviewWorkbench() {
   const searchParams = useSearchParams();
   const { t, i18n } = useTranslation();
+  const zh = i18n.language?.toLowerCase().startsWith("zh");
   const [history, setHistory] = useState<ExamReviewHistoryItem[]>([]);
   const [selectedExamKey, setSelectedExamKey] = useState<string | null>(null);
   const [review, setReview] = useState<ExamReview | null>(null);
@@ -445,18 +449,18 @@ export default function ExamReviewWorkbench() {
           {review ? (
             <>
               <section className="grid gap-3 sm:grid-cols-4">
-                <Fact label={t("State")} value={review.step_state} />
-                <Fact label={t("Score")} value={review.score_invalid ? t("Invalid score data") : formatExamScore(review.score, t("Invalid score data"))} />
+                <Fact label={t("State")} value={practiceStateLabel(review.step_state, zh)} />
+                <Fact label={t("Score")} value={review.score_invalid ? (zh ? "暂无有效评分" : "No valid score") : formatExamScore(review.score, zh ? "暂无有效评分" : "No valid score")} />
                 <Fact
                   label={t("Correct answers")}
                   value={`${review.correct_count ?? 0}/${review.answer_count}`}
                 />
                 <Fact
-                  label={t("Pinned Backend")}
-                  value={review.runtime?.backend_mode ?? "legacy"}
+                  label={zh ? "最近更新" : "Last updated"}
+                  value={new Date(review.updated_at).toLocaleString(i18n.language)}
                 />
               </section>
-              <AttemptSummary review={review} />
+              <AttemptSummary review={review} chinese={zh} />
               {review.checkpoints
                 .filter((checkpoint) => checkpoint.submitted_answer)
                 .map((checkpoint, index) => (
@@ -464,14 +468,14 @@ export default function ExamReviewWorkbench() {
                     key={checkpoint.checkpoint_key}
                     className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-5"
                   >
-                  <p className="break-all font-mono text-xs text-[var(--muted-foreground)]">
-                    {checkpoint.checkpoint_key}
-                  </p>
-                  <p className="mt-2 text-xs font-semibold text-[var(--muted-foreground)]">
-                    {t("Question")} {index + 1}
-                  </p>
+                  <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-[var(--muted-foreground)]">
+                    <p className="font-semibold">{t("Question")} {index + 1}</p>
+                    <span className="rounded-full bg-[var(--muted)] px-2 py-1">
+                      {practiceStateLabel(checkpoint.step_state, zh)}
+                    </span>
+                  </div>
                   <ExamMemMarkdown
-                    content={checkpoint.question?.stem ?? checkpoint.step_state}
+                    content={checkpoint.question?.stem ?? practiceStateLabel(checkpoint.step_state, zh)}
                     className="mt-1 font-semibold"
                   />
                   <div className="mt-3 grid gap-3 md:grid-cols-2">
@@ -493,7 +497,7 @@ export default function ExamReviewWorkbench() {
                   {checkpoint.grade_result ? (
                     <div className="mt-3 text-sm">
                       <p className="font-medium">
-                        {t("Grade")}: {formatExamScore(checkpoint.grade_result.score, t("Invalid score data"))}
+                        {t("Grade")}: {formatExamScore(checkpoint.grade_result.score, zh ? "暂无有效评分" : "No valid score")}
                       </p>
                       <ExamMemMarkdown
                         content={checkpoint.grade_result.evidence.join("\n\n")}
@@ -503,24 +507,19 @@ export default function ExamReviewWorkbench() {
                   ) : null}
                   {checkpoint.diagnosis_result ? (
                     <div className="mt-2 text-sm text-[var(--muted-foreground)]">
-                      <p>{checkpoint.diagnosis_result.error_type}</p>
-                      <ExamMemMarkdown
-                        content={checkpoint.diagnosis_result.explanation}
-                        className="mt-1"
-                      />
+                      <p>{diagnosisTypeLabel(checkpoint.diagnosis_result.error_type, zh)}</p>
+                      {checkpoint.diagnosis_result.error_type ? (
+                        <ExamMemMarkdown
+                          content={checkpoint.diagnosis_result.explanation}
+                          className="mt-1"
+                        />
+                      ) : null}
                     </div>
-                  ) : null}
-                  {checkpoint.grade_artifact ? (
-                    <p className="mt-2 text-xs text-[var(--muted-foreground)]">
-                      {checkpoint.grade_artifact.reused
-                        ? t("Grade Artifact reused; evidence remained new.")
-                        : t("New Grade Artifact")}
-                    </p>
                   ) : null}
                   {checkpoint.recommendation ? (
                     <p className="mt-2 text-sm text-[var(--muted-foreground)]">
                       {t("Next recommendation")}: {" "}
-                      {checkpoint.recommendation.reason_codes.join(" · ")}
+                      {checkpoint.recommendation.reason_codes.map((reasonCode) => recommendationReasonLabel(reasonCode, zh)).join(" · ")}
                     </p>
                   ) : null}
                   {checkpoint.learning_event_id && review.exam_id.startsWith("plan:") ? (
@@ -582,11 +581,23 @@ export default function ExamReviewWorkbench() {
                   </p>
                 </section>
               ) : null}
-              <section className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-5">
-                <h2 className="font-semibold">{t("Trace and lifecycle audit")}</h2>
+              <details className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-5">
+                <summary className="cursor-pointer font-semibold">
+                  {zh ? "技术审计详情" : "Technical audit details"}
+                </summary>
+                <p className="mt-1 text-xs text-[var(--muted-foreground)]">
+                  {zh ? "包含追踪事件、生命周期决策和评分复核记录。" : "Contains trace events, lifecycle decisions, and grade review records."}
+                </p>
                 <pre className="mt-3 max-h-96 overflow-auto rounded-lg bg-[var(--muted)]/40 p-3 text-xs">
                   {JSON.stringify(
                     {
+                      practice_session_id: review.practice_session_id,
+                      runtime: review.runtime,
+                      checkpoints: review.checkpoints.map((checkpoint) => ({
+                        checkpoint_key: checkpoint.checkpoint_key,
+                        step_state: checkpoint.step_state,
+                        grade_artifact: checkpoint.grade_artifact,
+                      })),
                       trace: review.trace,
                       lifecycle: review.lifecycle,
                       grade_reviews: review.grade_reviews,
@@ -595,7 +606,7 @@ export default function ExamReviewWorkbench() {
                     2,
                   )}
                 </pre>
-              </section>
+              </details>
             </>
           ) : null}
         </main>
@@ -604,7 +615,7 @@ export default function ExamReviewWorkbench() {
   );
 }
 
-function AttemptSummary({ review }: { review: ExamReview }) {
+function AttemptSummary({ review, chinese }: { review: ExamReview; chinese: boolean }) {
   const { t } = useTranslation();
   const summary = review.attempt_summary;
   return (
@@ -618,7 +629,7 @@ function AttemptSummary({ review }: { review: ExamReview }) {
       <div className="mt-4 grid gap-3 md:grid-cols-3">
         <SummaryList label={t("Strengths")} items={summary.strengths} />
         <SummaryList label={t("Weak points")} items={summary.weak_points} />
-        <SummaryList label={t("Error patterns")} items={summary.error_patterns} />
+        <SummaryList label={t("Error patterns")} items={summary.error_patterns.map((item) => diagnosisTypeLabel(item, chinese))} />
       </div>
       {summary.next_actions.length ? (
         <div className="mt-4 rounded-lg bg-[var(--muted)]/40 p-3 text-sm">
@@ -628,7 +639,7 @@ function AttemptSummary({ review }: { review: ExamReview }) {
               key={`${item.knowledge_point_id}:${index}`}
               className="mt-1 text-[var(--muted-foreground)]"
             >
-              {item.knowledge_point_id} · {item.reason_codes.join(" · ")}
+              {item.knowledge_point_id} · {item.reason_codes.map((reasonCode) => recommendationReasonLabel(reasonCode, chinese)).join(" · ")}
             </p>
           ))}
         </div>
@@ -709,6 +720,7 @@ function VersionScores({
   archivePending: boolean;
 }) {
   const { t } = useTranslation();
+  const chinese = locale.toLowerCase().startsWith("zh");
   const versions = group.versions.length ? group.versions : [null];
   return (
     <section className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-5">
@@ -771,7 +783,7 @@ function VersionScores({
                             attempt.assessment_attempt_number ?? attempt.attempt_number,
                         })}
                       </span>
-                      <span>{attempt.score_invalid ? t("Invalid score data") : formatExamScore(attempt.score, t("Invalid score data"))}</span>
+                      <span>{attempt.score_invalid ? (chinese ? "暂无有效评分" : "No valid score") : formatExamScore(attempt.score, chinese ? "暂无有效评分" : "No valid score")}</span>
                     </span>
                     <span className="mt-1 block text-xs text-[var(--muted-foreground)]">
                       {statusLabel(t, attempt.attempt_status)} · {attempt.correct_count ?? 0}/

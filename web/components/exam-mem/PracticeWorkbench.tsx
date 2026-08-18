@@ -46,8 +46,11 @@ import {
   type StudyPlan,
 } from "@/lib/exam-mem-study-plans";
 import {
+  diagnosisTypeLabel,
   formatExamScore,
   listPracticeHistory,
+  practiceStateLabel,
+  recommendationReasonLabel,
   resumePractice,
   selectVisiblePracticeHistory,
   type PracticeHistoryItem,
@@ -354,9 +357,15 @@ export default function PracticeWorkbench() {
       </header>
 
       <section className="grid gap-3 sm:grid-cols-3">
-        <Info label={t("Business store")} value={t("Independent ExamMem PostgreSQL")} />
+        <Info
+          label={tr("学习记录", "Learning record")}
+          value={tr("按学习计划独立保存", "Saved separately for this study plan")}
+        />
         <Info label={tr("考试范围", "Exam scope")} value={plan && subject ? `${plan.name} / ${subject.name}` : tr("请先发布学习计划", "Publish a study plan first")} />
-        <Info label={t("Recovery")} value={t("Server checkpoint + immutable retry key")} />
+        <Info
+          label={tr("作答保护", "Answer protection")}
+          value={tr("自动保存进度，可中断恢复", "Progress is saved and recoverable")}
+        />
       </section>
 
       <section className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-5">
@@ -418,7 +427,7 @@ export default function PracticeWorkbench() {
                   {tr(`第 ${item.attempt_number} 次练习`, `Practice #${item.attempt_number}`)} · {item.current_checkpoint.question?.stem ?? t("Practice session")}
                 </span>
                 <span className="mt-1 block text-xs text-[var(--muted-foreground)]">
-                  {item.current_checkpoint.grade_result ? `${tr("得分", "Score")} ${formatExamScore(item.current_checkpoint.grade_result.score, tr("评分数据异常", "Invalid score data"))} · ` : ""}{item.step_state} · {item.answer_count} {t("answers")} · {item.runtime?.backend_mode ?? t("legacy configuration")}
+                  {item.current_checkpoint.grade_result ? `${tr("得分", "Score")} ${formatExamScore(item.current_checkpoint.grade_result.score, tr("暂无有效评分", "No valid score"))} · ` : ""}{practiceStateLabel(item.step_state, zh)} · {item.answer_count} {t("answers")}
                 </span>
               </button>
             ))}
@@ -475,7 +484,7 @@ export default function PracticeWorkbench() {
                 <div className="flex items-center gap-2">
                   {grade.correct ? <CheckCircle2 className="h-5 w-5 text-emerald-500" /> : <CircleAlert className="h-5 w-5 text-amber-500" />}
                   <h2 className="font-semibold">
-                    {grade.correct ? t("Correct") : t("Needs review")} · {t("Score")} {formatExamScore(grade.score, tr("评分数据异常", "Invalid score data"))}
+                    {grade.correct ? t("Correct") : t("Needs review")} · {t("Score")} {formatExamScore(grade.score, tr("暂无有效评分", "No valid score"))}
                   </h2>
                 </div>
                 <ExamMemMarkdown
@@ -529,45 +538,57 @@ export default function PracticeWorkbench() {
 
           <aside className="min-w-0 space-y-4">
             <section className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-4">
-              <div className="flex items-center gap-2 text-sm font-semibold"><Database className="h-4 w-4 text-[var(--primary)]" />{t("Run identity")}</div>
+              <div className="flex items-center gap-2 text-sm font-semibold"><CheckCircle2 className="h-4 w-4 text-[var(--primary)]" />{tr("本次学习进度", "Learning progress")}</div>
               <dl className="mt-3 space-y-3 text-xs">
-                <Identity label={t("State")} value={practice.step_state} />
+                <Identity label={t("State")} value={practiceStateLabel(practice.step_state, zh)} />
+                <Identity
+                  label={tr("已完成题目", "Questions completed")}
+                  value={`${practice.answered_question_count ?? 0}/${practice.question_count ?? 0}`}
+                  mono={false}
+                />
+              </dl>
+            </section>
+            {diagnosis ? (
+              <section className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-4">
+                <div className="flex items-center gap-2 text-sm font-semibold"><Brain className="h-4 w-4 text-amber-500" />{t("Diagnosis")}</div>
+                <p className="mt-3 text-sm">{diagnosisTypeLabel(diagnosis.error_type, zh)}</p>
+                {diagnosis.error_type ? (
+                  <ExamMemMarkdown
+                    content={diagnosis.explanation}
+                    className="mt-2 text-xs leading-5 text-[var(--muted-foreground)]"
+                  />
+                ) : null}
+              </section>
+            ) : null}
+            {recommendation ? (
+              <section className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-4">
+                <h2 className="text-sm font-semibold">{t("Why this question")}</h2>
+                <p className="mt-2 text-xs text-[var(--muted-foreground)]">{recommendation.reason_codes.map((reason) => recommendationReasonLabel(reason, zh)).join(tr("、", ", "))}</p>
+                {recommendation.source_memory_ids.length ? (
+                  <Link href="/exam-mem/memories" className="mt-3 inline-block text-xs text-[var(--primary)] hover:underline">{t("Inspect recommendation evidence")}</Link>
+                ) : null}
+              </section>
+            ) : null}
+            <details className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-4 text-xs">
+              <summary className="flex cursor-pointer list-none items-center gap-2 font-semibold">
+                <Database className="h-4 w-4 text-[var(--muted-foreground)]" />
+                {tr("技术审计详情", "Technical audit details")}
+              </summary>
+              <dl className="mt-4 space-y-3">
                 <Identity label={t("Trace ID")} value={practice.trace_id} />
                 <Identity label={t("Practice session")} value={practice.practice_session_id} />
                 <Identity label={t("DeepTutor session")} value={turn?.session_id ?? ""} />
                 <Identity label={t("Pinned Backend")} value={practice.runtime?.backend_mode ?? "legacy"} />
                 <Identity label={t("Config revision")} value={practice.runtime?.config_revision ?? "legacy"} />
               </dl>
-            </section>
-            {diagnosis ? (
-              <section className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-4">
-                <div className="flex items-center gap-2 text-sm font-semibold"><Brain className="h-4 w-4 text-amber-500" />{t("Diagnosis")}</div>
-                <p className="mt-3 text-sm">{diagnosis.error_type || t("No supported error type")}</p>
-                <ExamMemMarkdown
-                  content={diagnosis.explanation}
-                  className="mt-2 text-xs leading-5 text-[var(--muted-foreground)]"
-                />
-              </section>
-            ) : null}
-            {recommendation ? (
-              <section className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-4">
-                <h2 className="text-sm font-semibold">{t("Why this question")}</h2>
-                <p className="mt-2 text-xs text-[var(--muted-foreground)]">{recommendation.reason_codes.join(", ")}</p>
-                {recommendation.source_memory_ids.length ? (
-                  <Link href="/exam-mem/memories" className="mt-3 inline-block text-xs text-[var(--primary)] hover:underline">{t("Inspect recommendation evidence")}</Link>
-                ) : null}
-              </section>
-            ) : null}
-            {grade && practice.grade_artifact ? (
-              <section className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-4">
-                <h2 className="text-sm font-semibold">{t("Grade Artifact")}</h2>
-                <p className="mt-2 text-xs text-[var(--muted-foreground)]">
+              {grade && practice.grade_artifact ? (
+                <p className="mt-4 border-t border-[var(--border)] pt-3 text-[var(--muted-foreground)]">
                   {practice.grade_artifact.reused
                     ? t("Grading computation was strictly reused; this answer still created new learning evidence.")
                     : t("This submission produced a new grading computation.")}
                 </p>
-              </section>
-            ) : null}
+              ) : null}
+            </details>
           </aside>
         </div>
       ) : null}
@@ -689,11 +710,11 @@ function Info({ label, value }: { label: string; value: string }) {
   );
 }
 
-function Identity({ label, value }: { label: string; value: string }) {
+function Identity({ label, value, mono = true }: { label: string; value: string; mono?: boolean }) {
   return (
     <div>
       <dt className="text-[var(--muted-foreground)]">{label}</dt>
-      <dd className="mt-1 break-all font-mono">{value}</dd>
+      <dd className={`mt-1 break-all ${mono ? "font-mono" : "font-medium"}`}>{value}</dd>
     </div>
   );
 }
