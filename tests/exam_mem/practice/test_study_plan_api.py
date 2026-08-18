@@ -12,8 +12,10 @@ import pytest
 from deeptutor.multi_user.context import reset_current_user, set_current_user
 from deeptutor.multi_user.models import CurrentUser, UserScope
 from deeptutor_plugins.exam_mem.api import StudyPlanImportBody, build_router
+from deeptutor_plugins.exam_mem.learning_context import ExamMemLearningContextContributor
 from deeptutor_plugins.exam_mem.study_plan import ImportedStudyPlan
 from exam_mem.practice.learning_observation import LearningObservationDraft
+from exam_mem.practice.learning_profile import build_learning_profile
 from exam_mem.storage import StudyPlanConflict
 from exam_mem.study import ImportedOutline, StudyPlanTree, materialize_outline
 
@@ -129,6 +131,12 @@ class FakeStudyPlans:
     async def find_objective_session(self, **_kwargs):  # noqa: ANN003, ANN201
         return self.link
 
+    async def find_objective_session_by_host(self, *, user_id, host_session_id):  # noqa: ANN001, ANN201
+        assert user_id == "study-user"
+        if self.link is None or self.link["host_session_id"] != host_session_id:
+            return None
+        return self.link
+
     async def bind_objective_session(self, **kwargs):  # noqa: ANN003, ANN201
         self.link = {
             **kwargs,
@@ -184,6 +192,7 @@ class FakeRuntime:
     def __init__(self) -> None:
         self.study_plans = FakeStudyPlans()
         self.observations = FakeObservations()
+        self.learning_profiles = FakeLearningProfiles()
         self.connection = FakeConnection()
 
 
@@ -196,9 +205,22 @@ class FakeProvider:
         yield self.runtime
 
 
+class FakeLearningProfiles:
+    async def get(self, *, context, taxonomy, evaluated_at):  # noqa: ANN001, ANN201
+        return build_learning_profile(
+            context=context,
+            taxonomy=taxonomy,
+            events=[],
+            memories=[],
+            model=None,
+            evaluated_at=evaluated_at,
+        )
+
+
 class FakeTurnHost:
     def __init__(self) -> None:
         self.requests = []
+        self.context_bindings = []
 
     async def start_turn(self, request):  # noqa: ANN001, ANN201
         self.requests.append(request)
@@ -206,6 +228,10 @@ class FakeTurnHost:
 
     async def session_exists(self, session_id):  # noqa: ANN001, ANN201
         return session_id == "host-session"
+
+    async def bind_session_context_sources(self, session_id, source_names):  # noqa: ANN001, ANN201
+        self.context_bindings.append((session_id, source_names))
+        return True
 
     async def delete_session(self, session_id):  # noqa: ANN001, ANN201
         raise AssertionError(f"unexpected cleanup: {session_id}")
@@ -238,6 +264,12 @@ class FakeObservations:
         assert kwargs["observation_id"] == self.observation["observation_id"]
         self.observation = {**self.observation, "status": "confirmed"}
         return self.observation
+
+    async def list(self, **kwargs):  # noqa: ANN003, ANN201
+        assert kwargs["user_id"] == "study-user"
+        assert kwargs["channel"] == "learning_path"
+        assert kwargs["status"] == "confirmed"
+        return [] if self.observation is None else [self.observation]
 
 
 class FakeObservationAgent:
@@ -310,6 +342,19 @@ async def test_import_publish_and_open_objective_restores_one_host_session() -> 
                 f"/api/v1/exam-mem/study-plans/{plan_id}/objectives/{objective_id}/summarize",
                 json={"version": 1, "language": "zh"},
             )
+            subject = published.json()["published"]["tree"]["subjects"][0]
+            taxonomy_version = published.json()["published"]["taxonomy_versions"][subject["id"]]
+            profile = await client.get(
+                "/api/v1/exam-mem/learning-profile",
+                params={
+                    "exam_id": f"plan:{plan_id}",
+                    "subject_id": subject["id"],
+                    "taxonomy_version": taxonomy_version,
+                },
+            )
+            learning_context = await ExamMemLearningContextContributor(provider).resolve(
+                session_id="host-session", language="zh"
+            )
             archived = await client.post(f"/api/v1/exam-mem/study-plans/{plan_id}/archive")
             active_list = await client.get("/api/v1/exam-mem/study-plans")
             archived_list = await client.get(
@@ -329,11 +374,24 @@ async def test_import_publish_and_open_objective_restores_one_host_session() -> 
     assert second.json()["session_id"] == first.json()["session_id"]
     assert len(turns.requests) == 1
     assert turns.requests[0].capability == "mastery_path"
+    assert turns.requests[0].context_sources == ("exam_mem_learning",)
+    assert turns.context_bindings == [("host-session", ("exam_mem_learning",))]
     assert "函数极限" in turns.requests[0].content
     assert len(learning.paths) == 1
     assert summarized.status_code == 200
     assert summarized.json()["observation"]["status"] == "confirmed"
     assert summarized.json()["observation"]["knowledge_point_ids"] == [objective_id]
+    assert profile.status_code == 200
+    assert profile.json()["context"] == {
+        "exam_id": f"plan:{plan_id}",
+        "subject_id": subject["id"],
+    }
+    assert profile.json()["summary"]["due_count"] == 0
+    assert learning_context is not None
+    assert "正式评测记忆（强证据" in learning_context.content
+    assert "函数极限" in learning_context.content
+    assert "复习了函数极限的定义" in learning_context.content
+    assert "弱证据" in learning_context.content
     assert archived.status_code == 200
     assert active_list.json()["plans"] == []
     assert archived_list.json()["plans"][0]["plan_id"] == plan_id

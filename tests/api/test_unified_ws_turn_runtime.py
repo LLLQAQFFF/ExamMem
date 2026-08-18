@@ -5,13 +5,19 @@ from types import SimpleNamespace
 
 import pytest
 
+from deeptutor.core.context import ContextBlock
 from deeptutor.core.stream import StreamEvent, StreamEventType
+from deeptutor.plugins import SessionContextBlock
 from deeptutor.services.session.sqlite_store import SQLiteSessionStore
 from deeptutor.services.session.turn_runtime import TurnRuntimeManager
 
 
 async def _noop_async(*_args, **_kwargs):
     return None
+
+
+async def _resolved_context_blocks():
+    return (SessionContextBlock(name="learning_context", content="scoped evidence"),)
 
 
 def _fake_skill_service() -> SimpleNamespace:
@@ -162,6 +168,7 @@ async def test_turn_runtime_replays_events_and_materializes_messages(
             captured["user_message"] = context.user_message
             captured["metadata"] = context.metadata
             captured["source_manifest"] = context.source_manifest
+            captured["context_blocks"] = context.context_blocks
             yield StreamEvent(
                 type=StreamEventType.CONTENT,
                 source="chat",
@@ -176,6 +183,13 @@ async def test_turn_runtime_replays_events_and_materializes_messages(
         "deeptutor.services.session.context_builder.ContextBuilder", FakeContextBuilder
     )
     monkeypatch.setattr("deeptutor.runtime.orchestrator.ChatOrchestrator", FakeOrchestrator)
+    monkeypatch.setattr(
+        "deeptutor.plugins.get_plugin_manager",
+        lambda: SimpleNamespace(
+            capabilities=lambda: (),
+            resolve_session_context=lambda **_kwargs: _resolved_context_blocks(),
+        ),
+    )
     monkeypatch.setattr(
         "deeptutor.book.context.build_book_context",
         lambda *_args, **_kwargs: SimpleNamespace(
@@ -214,6 +228,7 @@ async def test_turn_runtime_replays_events_and_materializes_messages(
             "memory_references": ["summary"],
             "book_references": [{"book_id": "book-1", "page_ids": ["page-1"]}],
             "mastery_path_id": "path-1",
+            "context_sources": ["learning_context"],
             "config": {},
         }
     )
@@ -266,6 +281,10 @@ async def test_turn_runtime_replays_events_and_materializes_messages(
         {"book_id": "book-1", "page_ids": ["page-1"]}
     ]
     assert captured["metadata"]["mastery_path_id"] == "path-1"
+    assert captured["metadata"]["context_sources"] == ["learning_context"]
+    assert captured["context_blocks"] == (
+        ContextBlock(name="learning_context", content="scoped evidence"),
+    )
     assert detail["messages"][1]["content"] == "Hello Frank"
     assert detail["preferences"] == {
         "capability": "chat",
@@ -277,6 +296,7 @@ async def test_turn_runtime_replays_events_and_materializes_messages(
         # preference (survives reloads; later turns fall back to it).
         "persona": "socratic",
         "mastery_path_id": "path-1",
+        "context_sources": ["learning_context"],
     }
 
     persisted_turn = await store.get_turn(turn["id"])

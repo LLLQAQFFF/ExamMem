@@ -30,6 +30,14 @@ class Attachment:
     extracted_text: str = ""
 
 
+@dataclass(frozen=True, slots=True)
+class ContextBlock:
+    """Named, read-only grounding supplied by an explicitly bound source."""
+
+    name: str
+    content: str
+
+
 @dataclass
 class UnifiedContext:
     """
@@ -64,6 +72,8 @@ class UnifiedContext:
             source: id/name/type/preview). Empty when no sources are attached.
             Consumed by the chat capability to render an "Attached Sources"
             section in the system prompt and to enable the ``read_source`` tool.
+        context_blocks: Read-only grounding resolved from session-bound Host
+            contributions. Plain sessions have no blocks.
         metadata: Catch-all for capability-specific extras.
     """
 
@@ -81,4 +91,5 @@ class UnifiedContext:
     persona_context: str = ""
     skills_manifest: str = ""
     source_manifest: str = ""
+    context_blocks: tuple[ContextBlock, ...] = ()
     metadata: dict[str, Any] = field(default_factory=dict)

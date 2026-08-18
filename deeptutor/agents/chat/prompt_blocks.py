@@ -81,6 +81,11 @@ class ChatPromptAssembler:
             blocks.append(PromptBlock("partner_turn_policy", partner_policy))
         if context.memory_context:
             blocks.append(PromptBlock("memory", context.memory_context))
+        blocks.extend(
+            PromptBlock(f"session_context:{block.name}", block.content)
+            for block in context.context_blocks
+            if block.content.strip()
+        )
         if include_tool_manifest:
             tools = tool_manifest or self._fallback_empty_tool_list()
             if kb_note:

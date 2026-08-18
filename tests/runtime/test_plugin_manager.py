@@ -17,6 +17,7 @@ from deeptutor.plugins import (
     PluginManager,
     PluginManifest,
     RouterContribution,
+    SessionContextBlock,
     SettingsContribution,
     mount_plugin_routers,
 )
@@ -70,6 +71,17 @@ class _Plugin(BaseFullStackPlugin):
             self._events.append(f"stop:{self.manifest.name}")
 
 
+class _ContextContributor:
+    name = "learning_context"
+
+    def __init__(self) -> None:
+        self.calls: list[tuple[str, str]] = []
+
+    async def resolve(self, *, session_id: str, language: str) -> SessionContextBlock:
+        self.calls.append((session_id, language))
+        return SessionContextBlock(name=self.name, content="scoped evidence")
+
+
 def _manifest(name: str = "fake") -> PluginManifest:
     async def health() -> dict[str, str]:
         return {"status": "ready", "database": "isolated"}
@@ -110,6 +122,7 @@ def test_manager_materializes_and_describes_contributions_once() -> None:
             "description": "fake plugin",
             "capabilities": ["fake_capability"],
             "tools": ["fake_tool"],
+            "session_context_contributors": [],
             "navigation": [
                 {
                     "href": "/fake",
@@ -167,6 +180,35 @@ def test_duplicate_plugin_contributions_are_rejected() -> None:
 
     with pytest.raises(PluginLoadError, match="duplicate plugin tool"):
         manager.load()
+
+
+@pytest.mark.asyncio
+async def test_session_context_is_resolved_only_for_explicit_named_sources() -> None:
+    contributor = _ContextContributor()
+    plugin = _Plugin(
+        PluginManifest(
+            name="context",
+            version="1",
+            description="context",
+            session_context_contributors=(contributor,),
+        )
+    )
+    manager = PluginManager(factories={"context": lambda: plugin})
+
+    assert (
+        await manager.resolve_session_context(
+            source_names=(), session_id="session-1", language="zh"
+        )
+        == ()
+    )
+    blocks = await manager.resolve_session_context(
+        source_names=("missing", "learning_context", "learning_context"),
+        session_id="session-1",
+        language="zh",
+    )
+
+    assert blocks == (SessionContextBlock(name="learning_context", content="scoped evidence"),)
+    assert contributor.calls == [("session-1", "zh")]
 
 
 @pytest.mark.asyncio

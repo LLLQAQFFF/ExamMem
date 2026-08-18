@@ -827,6 +827,10 @@ def build_router(
                 if existing is not None and await runtime_host().session_exists(
                     existing["host_session_id"]
                 ):
+                    if not await runtime_host().bind_session_context_sources(
+                        existing["host_session_id"], ("exam_mem_learning",)
+                    ):
+                        raise RuntimeError("Host learning session could not be rebound")
                     await runtime.connection.commit()
                     return _objective_session_payload(
                         existing,
@@ -860,6 +864,7 @@ def build_router(
                         capability="mastery_path",
                         language=body.language,
                         mastery_path_id=host_path_id,
+                        context_sources=("exam_mem_learning",),
                     )
                 )
                 created_session_id = session["id"]
@@ -1102,6 +1107,32 @@ def build_router(
                 status="confirmed",
             )
         return {**archive, "learning_path_observations": observations}
+
+    @router.get("/learning-profile")
+    async def get_learning_profile(
+        exam_id: NonEmptyString,
+        subject_id: NonEmptyString,
+        taxonomy_version: NonEmptyString,
+    ) -> dict[str, Any]:
+        context = _authenticated_context(exam_id=exam_id, subject_id=subject_id)
+        taxonomy = await _taxonomy_for_scope(
+            runtime_provider,
+            exam_id=exam_id,
+            subject_id=subject_id,
+            taxonomy_version=taxonomy_version,
+        )
+        try:
+            async with runtime_provider.open_product() as runtime:
+                profile = await runtime.learning_profiles.get(
+                    context=context,
+                    taxonomy=taxonomy,
+                    evaluated_at=datetime.now(timezone.utc),
+                )
+        except PracticeRuntimeConfigurationError as exc:
+            raise _configuration_error(exc) from exc
+        payload = profile.model_dump(mode="json")
+        payload["context"].pop("user_id", None)
+        return payload
 
     @router.post("/practice/answer")
     async def answer_practice(body: PracticeAnswerBody) -> dict[str, Any]:

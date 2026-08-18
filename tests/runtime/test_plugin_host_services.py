@@ -13,10 +13,14 @@ def test_plugin_host_services_expose_json_and_embedding_validation() -> None:
 
 def test_turn_facade_carries_only_explicit_mastery_path_identity() -> None:
     assert "mastery_path_id" not in TurnRequest(content="hello").to_payload()
+    assert "context_sources" not in TurnRequest(content="hello").to_payload()
     assert (
         TurnRequest(content="learn", mastery_path_id="path-one").to_payload()["mastery_path_id"]
         == "path-one"
     )
+    assert TurnRequest(content="learn", context_sources=["domain_context"]).to_payload()[
+        "context_sources"
+    ] == ["domain_context"]
 
 
 @pytest.mark.asyncio
@@ -116,6 +120,33 @@ async def test_plugin_turn_host_forwards_explicit_attachments(monkeypatch) -> No
             "base64": "bGVzc29u",
         }
     ]
+
+
+@pytest.mark.asyncio
+async def test_plugin_turn_host_binds_context_to_an_owned_chat_session(monkeypatch) -> None:
+    updates: list[tuple[str, dict[str, object]]] = []
+
+    class FakeApp:
+        pass
+
+    class SessionStore:
+        async def get_session(self, session_id, *, surface):  # noqa: ANN001, ANN201
+            assert (session_id, surface) == ("session-1", "chat")
+            return {"id": session_id}
+
+        async def update_session_preferences(self, session_id, preferences):  # noqa: ANN001, ANN201
+            updates.append((session_id, preferences))
+            return True
+
+    monkeypatch.setattr("deeptutor.app.DeepTutorApp", FakeApp)
+    monkeypatch.setattr("deeptutor.services.session.get_session_store", lambda: SessionStore())
+
+    bound = await host_services.PluginTurnHost().bind_session_context_sources(
+        "session-1", ("learning_context", "learning_context")
+    )
+
+    assert bound is True
+    assert updates == [("session-1", {"context_sources": ["learning_context"]})]
 
 
 @pytest.mark.asyncio

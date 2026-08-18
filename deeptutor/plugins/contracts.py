@@ -20,6 +20,23 @@ RuntimeSnapshotFactory = Callable[[], Mapping[str, Any]]
 
 
 @dataclass(frozen=True, slots=True)
+class SessionContextBlock:
+    """Bounded, read-only context returned for one explicitly bound session."""
+
+    name: str
+    content: str
+
+
+@runtime_checkable
+class SessionContextContributor(Protocol):
+    """Resolve live context without exposing Host storage to a plugin."""
+
+    name: str
+
+    async def resolve(self, *, session_id: str, language: str) -> SessionContextBlock | None: ...
+
+
+@dataclass(frozen=True, slots=True)
 class RouterContribution:
     """One FastAPI router owned by a plugin."""
 
@@ -73,6 +90,7 @@ class PluginManifest:
     migration: MigrationContribution | None = None
     health_check: HealthCheck | None = None
     runtime_snapshot: RuntimeSnapshotFactory | None = None
+    session_context_contributors: tuple[SessionContextContributor, ...] = ()
     metadata: Mapping[str, Any] = field(default_factory=dict)
 
 
@@ -106,5 +124,7 @@ __all__ = [
     "NavigationContribution",
     "PluginManifest",
     "RouterContribution",
+    "SessionContextBlock",
+    "SessionContextContributor",
     "SettingsContribution",
 ]

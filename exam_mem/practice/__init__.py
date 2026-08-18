@@ -37,6 +37,15 @@ from .knowledge_mapper import (
     KnowledgePointExtraction,
     KnowledgePointSignal,
 )
+from .learning_profile import (
+    LEARNING_PROFILE_POLICY_VERSION,
+    KnowledgePointProfile,
+    LearningProfile,
+    LearningProfileSummary,
+    ReviewQueueItem,
+    build_learning_profile,
+)
+from .learning_profile_service import LearningProfileQueryService
 from .memory import (
     MemoryReader,
     MemoryWriter,
@@ -162,6 +171,11 @@ __all__ = [
     "KnowledgeMapper",
     "KnowledgePointExtraction",
     "KnowledgePointSignal",
+    "LEARNING_PROFILE_POLICY_VERSION",
+    "KnowledgePointProfile",
+    "LearningProfile",
+    "LearningProfileSummary",
+    "LearningProfileQueryService",
     "MemoryReader",
     "MemoryWriteResult",
     "MemoryWriter",
@@ -210,6 +224,7 @@ __all__ = [
     "RecommendationPolicyV1",
     "RecommendationPolicyV1Config",
     "RecommendationScore",
+    "ReviewQueueItem",
     "SystemPlanExpirationRequest",
     "AnswerGraderTool",
     "ErrorAnalyzerTool",
@@ -221,6 +236,7 @@ __all__ = [
     "UserPlanCancellationRequest",
     "WorkflowEventSink",
     "checkpoint_key_for_context",
+    "build_learning_profile",
     "recognize_correction_intent",
     "recognize_plan_cancellation_intent",
     "stage07_practice_questions",

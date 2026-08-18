@@ -13,6 +13,8 @@ from .contracts import (
     FullStackPlugin,
     NavigationContribution,
     RouterContribution,
+    SessionContextBlock,
+    SessionContextContributor,
     SettingsContribution,
 )
 from .discovery import PluginFactory, discover_plugin_factories
@@ -43,6 +45,7 @@ class PluginManager:
         self._routers: tuple[RouterContribution, ...] = ()
         self._navigation: tuple[NavigationContribution, ...] = ()
         self._settings: tuple[SettingsContribution, ...] = ()
+        self._session_context_contributors: dict[str, SessionContextContributor] = {}
         self._loaded = False
         self._started: tuple[FullStackPlugin, ...] = ()
 
@@ -66,6 +69,7 @@ class PluginManager:
         seen_tools: set[str] = set()
         seen_router_prefixes: set[str] = set()
         seen_settings: set[str] = set()
+        context_contributors: dict[str, SessionContextContributor] = {}
 
         for discovered_name in sorted(factories):
             if discovered_name in self._disabled:
@@ -102,6 +106,15 @@ class PluginManager:
                         )
                     seen_settings.add(manifest.settings.namespace)
                     settings.append(manifest.settings)
+                for contributor in manifest.session_context_contributors:
+                    name = str(contributor.name).strip()
+                    if not name:
+                        raise PluginLoadError("plugin session context contributor name is blank")
+                    if name in context_contributors:
+                        raise PluginLoadError(
+                            f"duplicate plugin session context contributor: {name}"
+                        )
+                    context_contributors[name] = contributor
                 plugins[manifest.name] = plugin
                 plugin_capabilities_by_name[manifest.name] = tuple(
                     capability.name for capability in plugin_capabilities
@@ -126,6 +139,7 @@ class PluginManager:
         self._routers = tuple(routers)
         self._navigation = tuple(sorted(navigation, key=lambda item: (item.section, item.order)))
         self._settings = tuple(settings)
+        self._session_context_contributors = context_contributors
         self._loaded = True
 
     @property
@@ -152,6 +166,34 @@ class PluginManager:
     def settings(self) -> tuple[SettingsContribution, ...]:
         self.load()
         return self._settings
+
+    async def resolve_session_context(
+        self,
+        *,
+        source_names: Iterable[str],
+        session_id: str,
+        language: str,
+    ) -> tuple[SessionContextBlock, ...]:
+        """Resolve only explicitly bound sources; one plugin failure cannot sink Chat."""
+        self.load()
+        blocks: list[SessionContextBlock] = []
+        for name in dict.fromkeys(str(item).strip() for item in source_names):
+            contributor = self._session_context_contributors.get(name)
+            if contributor is None:
+                continue
+            try:
+                block = await contributor.resolve(session_id=session_id, language=language)
+            except Exception:
+                logger.warning("Session context contributor %s failed", name, exc_info=True)
+                continue
+            if block is None:
+                continue
+            content = block.content.strip()
+            if block.name != name or not content:
+                logger.warning("Session context contributor %s returned an invalid block", name)
+                continue
+            blocks.append(SessionContextBlock(name=name, content=content[:12_000]))
+        return tuple(blocks)
 
     async def startup(self) -> None:
         if self._started:
@@ -205,6 +247,9 @@ class PluginManager:
                     "description": manifest.description,
                     "capabilities": list(self._plugin_capabilities[manifest.name]),
                     "tools": list(self._plugin_tools[manifest.name]),
+                    "session_context_contributors": [
+                        item.name for item in manifest.session_context_contributors
+                    ],
                     "navigation": [
                         {
                             "href": item.href,

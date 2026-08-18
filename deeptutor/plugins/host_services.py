@@ -42,6 +42,7 @@ class PluginTurnRequest:
     config: dict[str, Any] = field(default_factory=dict)
     attachments: tuple[dict[str, Any], ...] = ()
     mastery_path_id: str | None = None
+    context_sources: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -79,6 +80,10 @@ class PluginTurnHost:
             payload["attachments"] = list(payload["attachments"])
         if request.mastery_path_id is None:
             payload.pop("mastery_path_id")
+        if not request.context_sources:
+            payload.pop("context_sources")
+        else:
+            payload["context_sources"] = list(request.context_sources)
         return await self._app.start_turn(payload)
 
     async def stream_turn(self, turn_id: str) -> AsyncIterator[dict[str, Any]]:
@@ -99,6 +104,18 @@ class PluginTurnHost:
         from deeptutor.services.session import get_session_store
 
         return await get_session_store().get_session(session_id, surface="chat") is not None
+
+    async def bind_session_context_sources(
+        self, session_id: str, source_names: tuple[str, ...]
+    ) -> bool:
+        """Bind named plugin context sources to one authenticated Chat session."""
+        from deeptutor.services.session import get_session_store
+
+        store = get_session_store()
+        if await store.get_session(session_id, surface="chat") is None:
+            return False
+        names = list(dict.fromkeys(name.strip() for name in source_names if name.strip()))
+        return await store.update_session_preferences(session_id, {"context_sources": names})
 
     async def list_conversations(self, *, limit: int = 50) -> tuple[PluginConversationSummary, ...]:
         """List the authenticated user's native Chat sessions through a neutral seam."""

@@ -742,6 +742,13 @@ class TurnRuntimeManager:
             else preferences.get("mastery_path_id")
         )
         payload = {**payload, "mastery_path_id": mastery_path_id}
+        context_sources_explicit = "context_sources" in payload
+        context_sources = _string_list(
+            payload.get("context_sources")
+            if context_sources_explicit
+            else preferences.get("context_sources")
+        )
+        payload = {**payload, "context_sources": context_sources}
         # Persona is a session-level preference (mirrors llm_selection): an
         # explicit ``persona`` key in the payload — including an empty string,
         # which means "Default" / no persona — wins and is persisted below; an
@@ -857,6 +864,8 @@ class TurnRuntimeManager:
         if mastery_path_explicit:
             # Like persona, an explicit empty string clears the association.
             preference_update["mastery_path_id"] = mastery_path_id
+        if context_sources_explicit:
+            preference_update["context_sources"] = context_sources
         await self.store.update_session_preferences(session["id"], preference_update)
         turn = await self.store.create_turn(session["id"], capability=capability)
         execution = _TurnExecution(
@@ -1417,6 +1426,18 @@ class TurnRuntimeManager:
             )
             memory_store = get_memory_store()
             memory_context = memory_store.read_l3_concat() if memory_references else ""
+            from deeptutor.core.context import ContextBlock
+            from deeptutor.plugins import get_plugin_manager
+
+            contributed_context = await get_plugin_manager().resolve_session_context(
+                source_names=_string_list(payload.get("context_sources")),
+                session_id=session_id,
+                language=str(payload.get("language", "en") or "en"),
+            )
+            context_blocks = tuple(
+                ContextBlock(name=block.name, content=block.content)
+                for block in contributed_context
+            )
 
             # Persona: at most one behaviour preset per turn, eagerly
             # injected (a persona must shape the voice from the first
@@ -1682,6 +1703,7 @@ class TurnRuntimeManager:
                 persona_context=persona_context,
                 skills_manifest=skills_manifest,
                 source_manifest=source_manifest_text,
+                context_blocks=context_blocks,
                 metadata={
                     "conversation_summary": history_result.conversation_summary,
                     "conversation_context_text": conversation_context_text,
@@ -1699,6 +1721,7 @@ class TurnRuntimeManager:
                     "memory_references": memory_references,
                     "question_bank_context": question_bank_context,
                     "memory_context": memory_context,
+                    "context_sources": _string_list(payload.get("context_sources")),
                     "active_persona": active_persona,
                     "llm_selection": payload.get("llm_selection") or {},
                     "llm_model": str(getattr(llm_config, "model", "") or ""),

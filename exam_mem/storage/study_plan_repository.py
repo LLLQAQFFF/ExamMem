@@ -273,6 +273,24 @@ class PostgresStudyPlanRepository:
         )
         return None if row is None else dict(row)
 
+    async def find_objective_session_by_host(
+        self, *, user_id: str, host_session_id: str
+    ) -> dict[str, Any] | None:
+        """Resolve an authenticated Host session without exposing Host storage."""
+        row = (
+            (
+                await self._connection.execute(
+                    select(study_objective_sessions).where(
+                        study_objective_sessions.c.user_id == user_id,
+                        study_objective_sessions.c.host_session_id == host_session_id,
+                    )
+                )
+            )
+            .mappings()
+            .one_or_none()
+        )
+        return None if row is None else dict(row)
+
     async def bind_objective_session(
         self,
         *,

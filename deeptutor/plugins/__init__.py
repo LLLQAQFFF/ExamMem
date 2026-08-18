@@ -8,6 +8,8 @@ from .contracts import (
     NavigationContribution,
     PluginManifest,
     RouterContribution,
+    SessionContextBlock,
+    SessionContextContributor,
     SettingsContribution,
 )
 from .manager import (
@@ -27,6 +29,8 @@ __all__ = [
     "PluginManager",
     "PluginManifest",
     "RouterContribution",
+    "SessionContextBlock",
+    "SessionContextContributor",
     "SettingsContribution",
     "get_plugin_manager",
     "load_plugin_settings",

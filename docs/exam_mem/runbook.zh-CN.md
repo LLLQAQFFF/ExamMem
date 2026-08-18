@@ -112,8 +112,8 @@ python -m alembic -c alembic.ini history
 预期唯一 head：
 
 ```text
-0011_assessment_archival (head)
-└── 0010_learning_observations
+0012_study_plan_archival (head)
+└── 0011_assessment_archival
 ```
 
 通过 PyPI wheel 安装、没有仓库根目录 `alembic.ini` 时，使用随包发布的等价入口：
@@ -138,7 +138,7 @@ python -m exam_mem.storage.migrations current
 ```
 
 `upgrade head` 会在 ExamMem PostgreSQL 中创建或升级表、索引、约束和 trigger。预期
-current 为 `0011_assessment_archival`。
+current 为 `0012_study_plan_archival`。
 
 全新数据库最终包含 22 张 public 表（包括 `alembic_version`）和 10 个不同的
 append-only trigger：
@@ -213,6 +213,8 @@ deeptutor start --dev
 ```text
 /exam-mem/practice       发布范围选题、试卷版本、多次检测、历史和恢复
 /exam-mem/learning       大纲导入、草稿确认、科目/章节/知识点和继续辅导
+/exam-mem/profile        学习画像、掌握结构、覆盖率、趋势和证据入口
+/exam-mem/review-center  到期复习、尚未检测、后续任务和薄弱点专项练习
 /exam-mem/review         Grade、Diagnosis、Trace、Lifecycle 和 Grade Review
 /exam-mem/memories       Learning Memory、版本链、证据、纠错和派生问题
 /exam-mem/issues         兼容旧深链；主入口已合并到 Learning Memory
@@ -230,6 +232,7 @@ GET /api/v1/exam-mem/practice/sessions
 GET /api/v1/exam-mem/catalog
 GET /api/v1/exam-mem/study-plans
 GET /api/v1/exam-mem/assessments
+GET /api/v1/exam-mem/learning-profile
 GET /api/v1/exam-mem/issues
 GET /api/v1/exam-mem/configuration
 ```
@@ -238,7 +241,7 @@ GET /api/v1/exam-mem/configuration
 
 - 插件 `exam_mem`；
 - Capability `exam_practice`；
-- migration head `0011_assessment_archival`；
+- migration head `0012_study_plan_archival`；
 - 单一的「智能备考」导航入口；学习路径、练习、学习记忆、考试复盘和配置作为其内部工作区。
 
 注意：`/api/v1/plugins/health` 只表示插件生命周期装配成功。当前 ExamMem 没有主动连接
@@ -272,7 +275,13 @@ python -m alembic -c alembic.ini current
    version、新的 attempt；点击「生成新版」应在相同 assessment ID 下创建下一 version。
 8. 打开 Review，确认能看到 Grade、Diagnosis、Trace 和 Lifecycle 信息。
 9. 打开 Learning Memory，确认能查看 Scope、版本链、evidence、纠错和派生问题。
-10. 返回 Practice 历史并执行 Resume，确认恢复的是服务端 checkpoint，而不是只依赖
+10. 打开学习画像并切换学习计划、版本和科目，确认正式作答、掌握度、稳定错因与证据链接
+    只来自当前 Scope；再打开复习中心，确认到期、尚未检测和后续任务被分开显示。
+11. 从薄弱点点击「专项练习」，确认 Practice 已预选同一计划、科目和知识点，但没有在点击
+    链接时提前生成题目或产生模型费用。
+12. 回到该知识点的学习会话继续对话，确认 Agent 能结合正式评测记忆调整讲解；学习路径
+    记录只能作为弱证据，不能因聊天自述显示为已掌握。
+13. 返回 Practice 历史并执行 Resume，确认恢复的是服务端 checkpoint，而不是只依赖
    浏览器缓存。
 
 上述提交会按当前 Backend 写入真实 ExamMem PostgreSQL。生产环境执行前必须确认用户、
@@ -402,13 +411,13 @@ npm run build
 
 2026-08-17 依赖升级后的本地验收基线为：
 
-- 无 ExamMem DSN、排除 `tests/exam_mem` 的 DeepTutor 原生回归：`3856 passed, 9 skipped`；
-- 启用 ExamMem 和隔离 PostgreSQL 的全仓测试：`4313 passed, 9 skipped`；
+- 无 ExamMem DSN、排除 `tests/exam_mem` 的 DeepTutor 原生回归：`3959 passed, 9 skipped`；
+- 启用 ExamMem 和隔离 PostgreSQL 的全仓测试：`4441 passed, 9 skipped`；
 - 五 Backend 专项：`33 passed`；
-- Web Node：`65/65`；
+- Web Node：`66/66`；
 - TypeScript、Ruff lint/format、i18n parity：通过；
 - ESLint：0 errors（既有 warnings 仍需逐步治理）；
-- Web production build：63 个路由。
+- Web production build：65 个路由。
 
 这些数字是已审计 lock/requirements 组合的当前基线，不是对未来任意依赖组合的永久
 保证。开发环境必须安装 `requirements/dev.txt`，其中显式包含 `httpx2`；若受限命令
@@ -465,7 +474,7 @@ alembic downgrade base
 ```
 
 `down -v` 会删除持久化数据库 volume；`downgrade base` 会破坏业务 schema。`0007`～
-`0011` 中存在 Review、学习计划、会话链接、考试版本、attempt、归档状态或 Agent 观察数据时均拒绝
+`0012` 中存在 Review、学习计划、会话链接、考试版本、attempt、归档状态或 Agent 观察数据时均拒绝
 自动降级。
 
 ## 8. 必须暂停并找管理员处理的情况
@@ -475,7 +484,7 @@ alembic downgrade base
 - 无法确认 `EXAM_MEM_DATABASE_URL` 指向哪个数据库；
 - 目标是共享库或生产库，但没有明确变更窗口和备份；
 - 需要获取、更换或迁移凭据；
-- migration head 不是 `0011_assessment_archival`，或出现多 head/分叉；
+- migration head 不是 `0012_study_plan_archival`，或出现多 head/分叉；
 - 需要执行 destructive downgrade、删除 schema、删除 Docker volume 或覆盖历史数据；
 - 需要发布、部署或推送远端；
 - 需要通过切换 Backend、绕过 Scope、直接写 Native Memory、编辑 append-only 数据或更换

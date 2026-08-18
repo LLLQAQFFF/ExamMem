@@ -7,7 +7,7 @@ from pathlib import Path
 import yaml
 
 from deeptutor.agents.chat.prompt_blocks import ChatPromptAssembler
-from deeptutor.core.context import UnifiedContext
+from deeptutor.core.context import ContextBlock, UnifiedContext
 
 PROMPTS = {
     "general": "You are DeepTutor, an interactive tutor.",
@@ -67,6 +67,20 @@ def test_partner_turn_policy_not_added_for_plain_chat():
     assembler = ChatPromptAssembler(prompts=PROMPTS, language="en")
     blocks = assembler.blocks(context=UnifiedContext(user_message="hi"), tool_manifest="- none")
     assert all(b.name != "partner_turn_policy" for b in blocks)
+
+
+def test_session_context_blocks_are_injected_as_named_read_only_grounding():
+    assembler = ChatPromptAssembler(prompts=PROMPTS, language="zh")
+    context = UnifiedContext(
+        user_message="继续学习",
+        context_blocks=(ContextBlock(name="learning_context", content="薄弱点：函数极限"),),
+    )
+
+    blocks = assembler.blocks(context=context, tool_manifest="- none")
+
+    assert next(
+        block.content for block in blocks if block.name == "session_context:learning_context"
+    ) == ("薄弱点：函数极限")
 
 
 def test_blank_identity_falls_back_to_product():

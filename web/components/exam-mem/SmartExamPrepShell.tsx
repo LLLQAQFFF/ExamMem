@@ -5,6 +5,8 @@ import { usePathname } from "next/navigation";
 import {
   BookOpenCheck,
   BrainCircuit,
+  CalendarClock,
+  ChartNoAxesCombined,
   FileCheck2,
   Settings2,
   Sparkles,
@@ -21,6 +23,8 @@ interface PrepSection {
 
 const PREP_SECTIONS: PrepSection[] = [
   { href: "/exam-mem/learning", label: "Learning Paths", icon: GraduationCap },
+  { href: "/exam-mem/profile", label: "Learning Profile", icon: ChartNoAxesCombined },
+  { href: "/exam-mem/review-center", label: "Review Center", icon: CalendarClock },
   { href: "/exam-mem/practice", label: "Practice", icon: BookOpenCheck },
   {
     href: "/exam-mem/memories",

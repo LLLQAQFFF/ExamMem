@@ -30,6 +30,7 @@ from exam_mem.practice.tools import (
 )
 
 from .api import build_router
+from .learning_context import ExamMemLearningContextContributor
 from .native_adapter import DeepTutorNativeMemoryClient
 
 
@@ -96,6 +97,9 @@ class ExamMemPlugin(BaseFullStackPlugin):
                 ),
             ),
             settings=settings_contribution,
+            session_context_contributors=(
+                ExamMemLearningContextContributor(self._runtime_provider),
+            ),
             migration=MigrationContribution(
                 config_path="exam_mem/storage/alembic.ini",
                 versions_path="exam_mem/storage/migrations/versions",

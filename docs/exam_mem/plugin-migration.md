@@ -106,8 +106,8 @@ model quality or provider availability.
 - `EXAM_MEM_DATABASE_URL` is required at the engine boundary and accepts only a
   complete `postgresql+asyncpg` URL. It is never persisted by this repository.
 - Frozen migrations `0001`–`0006` match the source baseline byte-for-byte.
-- The single target head is `0011_assessment_archival`.
-- A new empty PostgreSQL database upgrades linearly from base through all eleven
+- The single target head is `0012_study_plan_archival`.
+- A new empty PostgreSQL database upgrades linearly from base through all twelve
   revisions and produces 22 public tables including `alembic_version` and ten
   distinct append-only triggers.
 - `0008_study_plans` adds mutable drafts, immutable published plan versions and
@@ -120,6 +120,8 @@ model quality or provider availability.
   assessment aggregate. It preserves immutable catalogs, attempts, checkpoints,
   Review evidence and Learning Memory, while blocking new versions, retries,
   recovery and new answers until the assessment is restored.
+- `0012_study_plan_archival` adds reversible study-plan archival without changing
+  published Taxonomy, linked sessions, assessments or Learning Memory.
 - Integration tests use random schemas and transactions. Final audit found no
   random schema or temporary acceptance database. The reused local demo database
   remained the development target; the archival migration only added one nullable
@@ -131,15 +133,15 @@ model quality or provider availability.
 
 | Category | Result |
 | --- | --- |
-| Host suite excluding ExamMem, with DSN absent | latest dedicated baseline `3856 passed, 9 skipped`; disabled-plugin contract passed |
-| Full repository with ExamMem and local isolated PostgreSQL | `4313 passed, 9 skipped` on 2026-08-17 |
-| ExamMem focused suite | `457 passed` |
+| Host suite excluding ExamMem, with DSN absent | `3959 passed, 9 skipped`; disabled-plugin contract passed |
+| Full repository with ExamMem and local isolated PostgreSQL | `4441 passed, 9 skipped` on 2026-08-18 |
+| ExamMem focused suite | `482 passed` |
 | Five Backend matrix | `33 passed` |
 | Browser HTTP / Python SDK / unified WebSocket real entry suite | `3 passed` |
 | Frozen migration and schema metadata gate | `23 passed` |
 | Python static gate | Ruff passed |
-| Web tests | Node `65/65`; ESLint 0 errors and 58 pre-existing warnings |
-| Web production build | Turbopack compiled and type-checked; 63 routes, including six ExamMem routes |
+| Web tests | Node `66/66`; ESLint 0 errors and 58 pre-existing warnings |
+| Web production build | Turbopack compiled and type-checked; 65 routes, including eight ExamMem routes |
 | Git/security | diff check, Core dependency scan, changed-file secret scan and source integrity passed |
 
 The post-migration product-information checkpoint consolidates the five
@@ -187,7 +189,7 @@ The 2026-08-14 product increment adds migrations `0008` and `0009`, imported
 and reviewed study-plan scopes, deterministic one-objective Host learning paths,
 durable Chat-session restoration, exact published-Taxonomy Practice selection,
 and stable assessment IDs with immutable versions and repeated attempts. The
-local demo database was upgraded to `0011_assessment_archival`; final read-only audit
+local demo database was upgraded to `0012_study_plan_archival`; final read-only audit
 found 22 public tables, ten append-only triggers, zero rows in both new Agent
 observation tables, and zero leftover test schemas. Existing Study Plan,
 assessment and Practice rows were retained.
@@ -270,3 +272,25 @@ The invalid Learning Path observation shortcut was removed rather than wrapped
 in a compatibility branch. Objective cards now keep the single authoritative
 action: start or resume their bound native tutoring conversation. Ordinary Chat
 observation remains an explicit, separately scoped Learning Archive workflow.
+
+## Learning profile, review scheduling and grounded tutoring follow-up
+
+The 2026-08-18 final product increment adds no table or migration. A deterministic
+`learning_profile_policy_v1` derives per-objective mastery, coverage, formal
+accuracy, trend and a review queue from the selected Scope's append-only L1,
+current/contested L2 and rebuildable L3. Terminal L2 versions never drive the
+view; contested errors remain visible but are not presented as stable errors.
+Every actionable conclusion carries its source Memory identifiers.
+
+The Learning Profile and Review Center let the learner select a published plan,
+syllabus version and subject. A targeted-practice link only preselects the same
+leaf objective in the existing recoverable Practice workbench; it does not
+generate questions or incur model cost until the learner explicitly starts an
+assessment.
+
+Linked tutoring sessions use a domain-neutral, named session-context Host Hook.
+The ExamMem contributor resolves the authenticated Host session back to exactly
+one plan version and objective, then injects live formal assessment memory as
+strong evidence and confirmed learning-path observations as weak continuity
+notes. Plain Chat has no binding, and DeepTutor Core neither imports `exam_mem`
+nor reads ExamMem PostgreSQL directly.

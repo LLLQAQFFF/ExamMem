@@ -28,6 +28,7 @@ class TurnRequest:
     attachments: list[dict[str, Any]] = field(default_factory=list)
     skills: list[str] = field(default_factory=list)
     mastery_path_id: str | None = None
+    context_sources: list[str] = field(default_factory=list)
 
     def to_payload(self) -> dict[str, Any]:
         payload: dict[str, Any] = {
@@ -45,6 +46,8 @@ class TurnRequest:
         }
         if self.mastery_path_id is not None:
             payload["mastery_path_id"] = self.mastery_path_id
+        if self.context_sources:
+            payload["context_sources"] = list(self.context_sources)
         return payload
 
 

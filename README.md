@@ -27,7 +27,8 @@ ExamMem 将用户导入的考试大纲解析成稳定的知识结构，让学习
 | Practice / Assessment | 按已发布范围生成练习；同一 assessment 支持多个不可变版本和多次作答 |
 | Grade & Diagnosis | 结构化保存评分、理由、错误模式和知识点诊断，而不是只返回一段临时文本 |
 | Lifecycle Memory | 用 L1/L2/L3 保存证据、当前学习状态和可重建综合，保留 provenance 与版本链 |
-| Recommendation / Review / Correction | 根据学习状态推荐下一步；按考试、版本和作答复盘，并通过追加式复核修正错误记忆 |
+| 学习画像与复习中心 | 按学习计划、科目和知识点汇总掌握度、正式作答、稳定错因与趋势，给出可追溯的复习时间和优先队列 |
+| Recommendation / Review / Correction | 从薄弱点或到期任务进入预选知识点的专项练习；按考试、版本和作答复盘，并通过追加式复核修正错误记忆 |
 
 Browser、HTTP API 和 Python SDK 共用同一套插件能力与 PostgreSQL 领域存储。
 
@@ -41,8 +42,9 @@ flowchart LR
     D --> E[作答与评分]
     E --> F[错误诊断]
     F --> G[Lifecycle Memory]
-    G --> H[推荐 / 复盘 / 纠错]
-    H --> C
+    G --> H[学习画像 / 复习队列]
+    H --> I[薄弱点专项练习 / 复盘 / 纠错]
+    I --> C
 ```
 
 这不是几张独立页面的拼接：练习选择的知识点来自已发布 Taxonomy，评分结果进入同一 Scope 下的学习记忆，推荐和复盘再读取这些可追溯证据。
@@ -57,7 +59,8 @@ flowchart LR
 | Grading | 输出评分、中文/英文理由和结构化判题结果 |
 | Diagnosis | 将作答结果归因到知识点、掌握度和错误模式 |
 | Memory | 管理 L1 事件、L2 当前状态、L3 跨范围综合和 provenance |
-| Recommendation | 根据当前证据生成下一知识点与复习建议 |
+| Profile | 从正式作答和 L1/L2/L3 派生可重建的掌握画像、覆盖率和学习趋势 |
+| Recommendation | 根据掌握度、重复错因、遗忘风险和计划优先级安排复习与专项练习 |
 | Review | 查看考试版本、历次成绩、题目、题解、诊断和复核记录 |
 
 ## 架构
@@ -75,6 +78,7 @@ flowchart LR
 - **ExamMem Plugin** 位于 `deeptutor_plugins/exam_mem/`，负责页面、API 与 Host Hook 装配。
 - **ExamMem Domain** 位于 `exam_mem/`，拥有 Taxonomy、Practice、Grading、Lifecycle 和 Repository 语义。
 - **独立 PostgreSQL** 是 ExamMem 学习事实的真相源；不直接读写 DeepTutor 内部数据库或 Native Memory。
+- **学习对话上下文** 通过中性的、显式绑定的 Host Context Hook 注入：正式评测记忆作为强证据，已确认的学习路径记录只作为弱证据，不会因聊天自述直接提高掌握度。
 
 DeepTutor Core 不直接导入 `exam_mem`。不加载插件时，DeepTutor 原生能力仍可独立运行。
 
@@ -124,6 +128,8 @@ Practice 与通用 Chat、Learning Memory 与 Native Memory 保持产品和存�
 | 路径 | 功能 |
 | --- | --- |
 | `/exam-mem/learning` | 导入、确认并按知识点学习考试大纲 |
+| `/exam-mem/profile` | 查看按学习计划隔离的掌握画像、覆盖率、趋势和证据 |
+| `/exam-mem/review-center` | 查看到期复习、尚未检测和后续任务，并进入薄弱点专项练习 |
 | `/exam-mem/practice` | 生成练习、版本化考试、作答与恢复 |
 | `/exam-mem/review` | 成绩、诊断、证据和考试复盘 |
 | `/exam-mem/memories` | L1/L2/L3 学习档案、版本与纠错 |
@@ -188,6 +194,11 @@ http://127.0.0.1:3782/exam-mem/learning
 - Frozen test 已被一次性消费；新实验必须创建并冻结新的数据版本，不能重跑当前 test 挑选最好结果。
 
 详细延期边界见[延期清单](docs/exam_mem/deferred-items.md)。
+
+## DeepTutor Host 运维
+
+- Provider auth (`openai-codex` OAuth login; `github-copilot` validates an existing Copilot auth session)：使用 `deeptutor provider login <provider>`。
+- 容器内登录 Codex 时，请遵循[临时本地 Codex OAuth 桥接指南](CONTAINERIZATION.md#temporary-local-codex-oauth-bridge)，完成后及时拆除临时端口映射。
 
 ## Acknowledgements & License
 

@@ -63,6 +63,7 @@ from .corrections import (
     ResolvedCorrectionTarget,
 )
 from .grading import GRADER_CONTRACT_VERSION
+from .learning_profile_service import LearningProfileQueryService
 from .memory import MemoryWriter, MemoryWriteResult, PracticeMemoryCandidateBuilder
 from .memory_workbench import LearningMemoryQueryService
 from .plan_transitions import PlanTransitionService, ResolvedPlanTarget
@@ -397,6 +398,7 @@ class ExamProductRuntime:
     study_plans: PostgresStudyPlanRepository
     observations: PostgresLearningObservationRepository
     learning_archive: PostgresLearningArchiveRepository
+    learning_profiles: LearningProfileQueryService
     connection: AsyncConnection
     engine: AsyncEngine
 
@@ -582,6 +584,11 @@ class PracticeRuntimeProvider:
                     study_plans=PostgresStudyPlanRepository(connection),
                     observations=PostgresLearningObservationRepository(connection),
                     learning_archive=PostgresLearningArchiveRepository(connection),
+                    learning_profiles=LearningProfileQueryService(
+                        event_repository=PostgresLearningEventRepository(connection),
+                        memory_repository=PostgresLearningMemoryRepository(connection),
+                        model_repository=PostgresStudentModelRepository(connection),
+                    ),
                     connection=connection,
                     engine=engine,
                 )

@@ -128,6 +128,19 @@ async def test_study_plan_publish_taxonomy_and_session_link_are_transactional() 
                 assert inserted is True
                 assert replay_inserted is False
                 assert replay["link_id"] == link["link_id"]
+                assert (
+                    await repository.find_objective_session_by_host(
+                        user_id=user_id,
+                        host_session_id="host-session",
+                    )
+                )["link_id"] == link["link_id"]
+                assert (
+                    await repository.find_objective_session_by_host(
+                        user_id="another-user",
+                        host_session_id="host-session",
+                    )
+                    is None
+                )
 
                 archived = await repository.archive(user_id=user_id, plan_id=plan_id)
                 assert archived["archived_at"] is not None
