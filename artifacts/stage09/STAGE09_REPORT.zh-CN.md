@@ -182,7 +182,8 @@ Native 写入隔离 run 目录，报告记录 480 条 memory record growth、683
 - 无 DSN 的 storage 单元/契约测试：43 passed，39 skipped；
 - 新建隔离库 `exammem_gate_stage09_258e4456`，从空库迁移到
   `0011_assessment_archival` 后运行 Repository/PostgreSQL 与插件闭环：83 passed；
-- Runtime 插件入口、Host service、settings 和 registry 拆分测试可退出并通过；
+- 在非沙箱本机进程运行全部 21 个 FastAPI/Starlette TestClient 文件（含 Runtime 插件
+  管理器、API 权限和 Learning API）：284 passed，正常退出；
 - `ruff check .`、文档 JSON、`git diff --check`：通过；
 - migrations `0001`～`0006` 同时与冻结源当前工作树和冻结提交
   `747958725b6e681a3a846a0430b5a21deb163188` 逐字节一致；
@@ -191,11 +192,11 @@ Native 写入隔离 run 目录，报告记录 480 条 memory record growth、683
 - 冻结源工作树 clean；其 HEAD 是冻结基线后的文档提交 `c8512fff`，本阶段没有写入；
 - 新增报告的敏感内容扫描只命中 Runbook 中的 `USER:PASSWORD` 占位符。
 
-全仓 TestClient 门禁仍受已知依赖问题阻塞：当前 Starlette 1.4.1、httpx2 2.10.0、
-AnyIO 4.14.2 环境中，即使最小空 FastAPI/Starlette 应用，`TestClient.get()` 也会卡在
-ASGI blocking portal。`tests/runtime/test_plugin_manager.py` 的路由权限用例因此不能
-结束；这不是 ExamMem 路由断言失败，Stage08 已记录的全仓后台任务不退出也仍存在。
-解决它需要单独确定并安装兼容依赖组合，不能把打印过断言进度但未退出的进程记为通过。
+此前 TestClient 卡住已证明不是依赖或业务缺陷：受限命令沙箱中，连纯 Python
+`asyncio.run_coroutine_threadsafe()` 都无法唤醒跨线程 event loop；相同解释器、相同
+依赖在非沙箱本机进程中，asyncio 探针、最小 TestClient 和上述 284 个测试均通过。
+因此没有修改 Starlette/httpx2/AnyIO，也没有用超时特判掩盖问题。后续运行这类测试时
+必须使用允许跨线程 asyncio 唤醒的执行环境。
 
 ## 11. 剩余限制
 

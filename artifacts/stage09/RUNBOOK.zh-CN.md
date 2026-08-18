@@ -102,15 +102,20 @@ code SHA 和 dataset hash 与第 1 节一致，并确认 `report.json` 五个 ba
   tests/runtime/test_exam_mem_plugin.py \
   tests/runtime/test_plugin_host_services.py \
   tests/runtime/test_plugin_settings.py
+# 需要在允许跨线程 asyncio 唤醒的本机/CI 进程中执行
+mapfile -t TESTCLIENT_FILES < <(rg -l \
+  'from (fastapi|starlette)\.testclient import TestClient' tests deeptutor)
+/home/lh/miniconda3/envs/exammem/bin/python -m pytest -q "${TESTCLIENT_FILES[@]}"
 /home/lh/miniconda3/envs/exammem/bin/python -m ruff check .
 git diff --check
 git -C /home/lh/code/ExamMem status --short --branch
 ```
 
-当前环境的 Starlette/httpx2/AnyIO `TestClient` 存在最小可复现的 ASGI portal 卡住问题，
-因此 `tests/runtime/test_plugin_manager.py::test_mount_router_applies_declared_access_dependencies`
-不能被记为通过。修复前先在独立环境验证兼容版本，不要为了让门禁变绿删除权限断言或加
-超时特判；安装/变更依赖需单独授权并更新依赖声明。
+TestClient 会创建跨线程 asyncio event loop。受限命令沙箱可能阻断 thread-safe wakeup，
+表现为测试打印进度后不退出；这时先用非沙箱本机进程运行最小
+`asyncio.run_coroutine_threadsafe()` 和 TestClient 探针。Stage09 已在相同解释器与依赖
+下非沙箱运行全部 21 个 TestClient 文件，结果为 284 passed。不要因此删除权限断言、
+添加超时特判或擅自调整 Starlette/httpx2/AnyIO 版本。
 
 还要检查：
 
