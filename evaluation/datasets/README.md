@@ -14,7 +14,7 @@
   `exam_mem_controlled_v1.manifest.json`。
 
 Stage09 的 frozen test 已完成一次性 release，结果见
-[`results/stage09-frozen-test.md`](../../results/stage09-frozen-test.md)。公开后的 test 可以
+[`docs/exam_mem/evaluation/stage09-frozen-test.md`](../../docs/exam_mem/evaluation/stage09-frozen-test.md)。公开后的 test 可以
 用于复核已发布结果，但不能继续当作未来调参的未见 holdout；新实验需要创建并冻结新的
 数据版本。
 

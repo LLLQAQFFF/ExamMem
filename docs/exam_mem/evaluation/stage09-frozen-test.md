@@ -210,5 +210,5 @@ Native 写入隔离 run 目录，报告记录 480 条 memory record growth、683
   重跑本 test 选最好数字。
 
 执行与审计命令见 [Stage09 Runbook](./stage09-runbook.zh-CN.md)，机器可读摘要见
-[Stage09 frozen-test summary](./stage09-frozen-test-summary.json)。原始不可变 run 位于本地
+[Stage09 frozen-test summary](../../../results/controlled-v1/summary.json)。原始不可变 run 位于本地
 `artifacts/stage08/runs/stage09-test-258e4456-configured-final/`。

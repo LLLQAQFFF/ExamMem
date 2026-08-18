@@ -66,12 +66,12 @@ http://127.0.0.1:3782/exam-mem/practice
 
 ## 文档
 
-- [技术文档总览](docs/exam-mem/README.md)
-- [中文运行手册](docs/exam-mem/runbook.zh-CN.md)
-- [插件迁移报告](docs/exam-mem/plugin-migration.md)
-- [评测方法](docs/exam-mem/evaluation-methodology.md)
-- [Stage08 开发集失败/混合基线](results/stage08-dev.md)
-- [Stage09 一次性冻结测试](results/stage09-frozen-test.md)
+- [技术文档总览](docs/exam_mem/README.md)
+- [中文运行手册](docs/exam_mem/runbook.zh-CN.md)
+- [插件迁移报告](docs/exam_mem/plugin-migration.md)
+- [评测方法](docs/exam_mem/evaluation/methodology.md)
+- [Stage08 开发集失败/混合基线](docs/exam_mem/evaluation/stage08-dev.md)
+- [Stage09 一次性冻结测试](docs/exam_mem/evaluation/stage09-frozen-test.md)
 
 ## 可复现实验证据
 

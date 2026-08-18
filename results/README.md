@@ -1,11 +1,11 @@
 # ExamMem 可复现实验结果
 
-本目录只保留足以核对公开结论的最终报告、复现命令和机器可读摘要。
+本目录只保留足以核对公开结论的机器可读摘要；方法、报告和复现命令属于技术文档。
 
 | 阶段 | 目的 | 报告 | 复现 | 摘要 |
 | --- | --- | --- | --- | --- |
-| Stage08 | 公开 dev 上的失败/混合 baseline，记录污染和完成率问题 | [报告](./stage08-dev.md) | [Runbook](./stage08-runbook.zh-CN.md) | [JSON](./stage08-dev-summary.json) |
-| Stage09 | 只用 dev 修正后的一次性 80-case frozen test | [报告](./stage09-frozen-test.md) | [Runbook](./stage09-runbook.zh-CN.md) | [JSON](./stage09-frozen-test-summary.json) |
+| Stage08 | 公开 dev 上的失败/混合 baseline，记录污染和完成率问题 | [报告](../docs/exam_mem/evaluation/stage08-dev.md) | [Runbook](../docs/exam_mem/evaluation/stage08-runbook.zh-CN.md) | [JSON](./controlled-v1/stage08-dev-summary.json) |
+| Stage09 | 只用 dev 修正后的一次性 80-case frozen test | [报告](../docs/exam_mem/evaluation/stage09-frozen-test.md) | [Runbook](../docs/exam_mem/evaluation/stage09-runbook.zh-CN.md) | [JSON](./controlled-v1/summary.json) |
 
 冻结 benchmark、manifest 和 split 位于 [`evaluation/datasets/`](../evaluation/datasets/)。
 原始 trace、snapshot、Native Memory 输出和完整 run 目录默认写入

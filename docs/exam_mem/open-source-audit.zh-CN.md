@@ -5,7 +5,7 @@
 状态：**2026-08-17 发布候选审计快照**
 
 本文保留当日发布门禁证据，不等于对后续提交、依赖、模型提供商或部署环境的永久保证。
-后续 Memory 评测结果见 [Stage09 冻结测试](../../results/stage09-frozen-test.md)。
+后续 Memory 评测结果见 [Stage09 冻结测试](./evaluation/stage09-frozen-test.md)。
 
 ## 1. 审计目标
 
@@ -322,8 +322,8 @@ uuid 公告路径在本项目可达，也会引入无关兼容风险，因此保
 - 公共 C-Eval、EdNet 等数据带非商业许可，未被打包进仓库；
 - 多源学习和课程问答没有提前实现；
 - 评测方法、Stage08 开发集失败基线和 Stage09 冻结测试分别见
-  [评测方法](./evaluation-methodology.md)、[Stage08](../../results/stage08-dev.md)和
-  [Stage09](../../results/stage09-frozen-test.md)。
+  [评测方法](./evaluation/methodology.md)、[Stage08](./evaluation/stage08-dev.md)和
+  [Stage09](./evaluation/stage09-frozen-test.md)。
 
 ## 10. 发布 Go/No-Go 清单
 

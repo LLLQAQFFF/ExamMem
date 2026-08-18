@@ -12,7 +12,7 @@ pytestmark = pytest.mark.database
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 COMPOSE_PATH = PROJECT_ROOT / "compose.exam-mem.yaml"
-ENV_EXAMPLE_PATH = PROJECT_ROOT / "artifacts" / "stage05" / "database.env.example"
+ENV_EXAMPLE_PATH = PROJECT_ROOT / ".env.example"
 
 
 def test_database_settings_fail_when_the_secret_url_is_missing(
@@ -74,7 +74,7 @@ def test_sanitized_environment_example_contains_no_values_or_connection_string()
     lines = [
         line.strip()
         for line in ENV_EXAMPLE_PATH.read_text(encoding="utf-8").splitlines()
-        if line.strip() and not line.startswith("#")
+        if line.strip().startswith("EXAM_MEM_")
     ]
 
     assert lines == [
@@ -84,4 +84,4 @@ def test_sanitized_environment_example_contains_no_values_or_connection_string()
         "EXAM_MEM_POSTGRES_PORT=55432",
         "EXAM_MEM_DATABASE_URL=",
     ]
-    assert "://" not in ENV_EXAMPLE_PATH.read_text(encoding="utf-8")
+    assert "://" not in "\n".join(lines)

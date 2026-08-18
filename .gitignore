@@ -13,8 +13,8 @@ deeptutor/agents/question/reference_papers/
 deeptutor/services/rag/eg_only_for_analysis/
 # Upstream-generated documentation stays local; curated ExamMem docs are public.
 /docs/*
-!/docs/exam-mem/
-!/docs/exam-mem/**
+!/docs/exam_mem/
+!/docs/exam_mem/**
 /site/
 .claude
 .agents/

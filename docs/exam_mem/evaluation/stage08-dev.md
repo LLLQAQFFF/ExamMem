@@ -175,11 +175,11 @@ Native 在隔离 run 目录写 259 个文件、476,534 bytes；全部 raw run �
 ## 11. 可复现入口与剩余限制
 
 执行与恢复命令见 [Stage08 Runbook](./stage08-runbook.zh-CN.md)，机器可读摘要见
-[Stage08 dev summary](./stage08-dev-summary.json)。
+[Stage08 dev summary](../../../results/controlled-v1/stage08-dev-summary.json)。
 原始不可变 run 在本地 `artifacts/stage08/runs/dev-stage08-final-174c354c-all/`。
 
 本报告是开发集上的负面/混合基线；后续冻结测试结果与当前限制见
-[Stage09 报告](./stage09-frozen-test.md)和[延期边界](../docs/exam-mem/deferred-items.md)。
+[Stage09 报告](./stage09-frozen-test.md)和[延期边界](../deferred-items.md)。
 
 本阶段应形成“可复现的负面/混合 baseline”：结构化状态与推荐有明显收益，但当前
 关系分类器造成的污染和失败率不允许宣称已达到生产效果。
