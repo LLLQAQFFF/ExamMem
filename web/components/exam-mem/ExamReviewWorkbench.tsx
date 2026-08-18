@@ -32,6 +32,7 @@ import {
   listStudyPlans,
   restoreAssessment,
 } from "@/lib/exam-mem-study-plans";
+import ExamMemMarkdown from "@/components/exam-mem/ExamMemMarkdown";
 
 type StatusFilter = "all" | "completed" | "in_progress" | "failed";
 type ArchiveFilter = "active" | "archived";
@@ -465,10 +466,13 @@ export default function ExamReviewWorkbench() {
                   <p className="break-all font-mono text-xs text-[var(--muted-foreground)]">
                     {checkpoint.checkpoint_key}
                   </p>
-                  <h2 className="mt-2 font-semibold">
-                    {t("Question")} {index + 1} ·{" "}
-                    {checkpoint.question?.stem ?? checkpoint.step_state}
-                  </h2>
+                  <p className="mt-2 text-xs font-semibold text-[var(--muted-foreground)]">
+                    {t("Question")} {index + 1}
+                  </p>
+                  <ExamMemMarkdown
+                    content={checkpoint.question?.stem ?? checkpoint.step_state}
+                    className="mt-1 font-semibold"
+                  />
                   <div className="mt-3 grid gap-3 md:grid-cols-2">
                     <AnswerBlock
                       label={t("Your answer")}
@@ -486,16 +490,24 @@ export default function ExamReviewWorkbench() {
                     />
                   ) : null}
                   {checkpoint.grade_result ? (
-                    <p className="mt-3 text-sm">
-                      {t("Grade")}: {formatScore(checkpoint.grade_result.score)} ·{" "}
-                      {checkpoint.grade_result.evidence.join(" ")}
-                    </p>
+                    <div className="mt-3 text-sm">
+                      <p className="font-medium">
+                        {t("Grade")}: {formatScore(checkpoint.grade_result.score)}
+                      </p>
+                      <ExamMemMarkdown
+                        content={checkpoint.grade_result.evidence.join("\n\n")}
+                        className="mt-1 text-[var(--muted-foreground)]"
+                      />
+                    </div>
                   ) : null}
                   {checkpoint.diagnosis_result ? (
-                    <p className="mt-2 text-sm text-[var(--muted-foreground)]">
-                      {checkpoint.diagnosis_result.error_type}:{" "}
-                      {checkpoint.diagnosis_result.explanation}
-                    </p>
+                    <div className="mt-2 text-sm text-[var(--muted-foreground)]">
+                      <p>{checkpoint.diagnosis_result.error_type}</p>
+                      <ExamMemMarkdown
+                        content={checkpoint.diagnosis_result.explanation}
+                        className="mt-1"
+                      />
+                    </div>
                   ) : null}
                   {checkpoint.grade_artifact ? (
                     <p className="mt-2 text-xs text-[var(--muted-foreground)]">
@@ -548,9 +560,10 @@ export default function ExamReviewWorkbench() {
               {openDispute && !resolvedReview ? (
                 <section className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-5">
                   <h2 className="font-semibold">{t("Administrator Grade Review")}</h2>
-                  <p className="mt-2 text-sm text-[var(--muted-foreground)]">
-                    {openDispute.reason}
-                  </p>
+                  <ExamMemMarkdown
+                    content={openDispute.reason}
+                    className="mt-2 text-sm text-[var(--muted-foreground)]"
+                  />
                   <button
                     type="button"
                     onClick={() => void uphold()}
@@ -639,9 +652,10 @@ function AnswerBlock({ label, value }: { label: string; value?: string | null })
   return (
     <div className="mt-3 rounded-lg bg-[var(--muted)]/40 p-3">
       <p className="text-xs font-medium">{label}</p>
-      <p className="mt-1 whitespace-pre-wrap text-sm text-[var(--muted-foreground)]">
-        {value}
-      </p>
+      <ExamMemMarkdown
+        content={value}
+        className="mt-1 text-sm text-[var(--muted-foreground)]"
+      />
     </div>
   );
 }
@@ -656,9 +670,9 @@ function rubricText(rubric: Record<string, unknown>): string {
           : "",
       )
       .filter(Boolean);
-    if (descriptions.length) return descriptions.join("\n");
+    if (descriptions.length) return descriptions.join("\n\n");
   }
-  return JSON.stringify(rubric, null, 2);
+  return `\`\`\`json\n${JSON.stringify(rubric, null, 2)}\n\`\`\``;
 }
 
 function archiveEvidenceHref(review: ExamReview, eventId: string): string {

@@ -20,6 +20,7 @@ import { useTranslation } from "react-i18next";
 
 import MemoryGraph from "@/components/memory/MemoryGraph";
 import ThreeLayerMemoryOverview from "@/components/memory/ThreeLayerMemoryOverview";
+import ExamMemMarkdown from "@/components/exam-mem/ExamMemMarkdown";
 import MemoryIssuesWorkbench from "@/components/exam-mem/MemoryIssuesWorkbench";
 import {
   actOnObservation,
@@ -802,9 +803,10 @@ function EvidenceBlock({ label, value }: { label: string; value?: string | null 
   return (
     <div className="rounded-lg bg-[var(--muted)]/40 p-3">
       <p className="text-xs font-medium">{label}</p>
-      <p className="mt-1 whitespace-pre-wrap text-sm text-[var(--muted-foreground)]">
-        {value}
-      </p>
+      <ExamMemMarkdown
+        content={value}
+        className="mt-1 text-sm text-[var(--muted-foreground)]"
+      />
     </div>
   );
 }
@@ -820,9 +822,9 @@ function learningRubricText(rubric: Record<string, unknown> | undefined): string
           : "",
       )
       .filter(Boolean);
-    if (descriptions.length) return descriptions.join("\n");
+    if (descriptions.length) return descriptions.join("\n\n");
   }
-  return JSON.stringify(rubric, null, 2);
+  return `\`\`\`json\n${JSON.stringify(rubric, null, 2)}\n\`\`\``;
 }
 
 function L2View(props: {

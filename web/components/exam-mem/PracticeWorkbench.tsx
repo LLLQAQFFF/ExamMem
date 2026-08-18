@@ -46,6 +46,7 @@ import {
   resumePractice,
   type PracticeHistoryItem,
 } from "@/lib/exam-mem-product";
+import ExamMemMarkdown from "@/components/exam-mem/ExamMemMarkdown";
 
 function percent(value: number): string {
   return `${Math.round(value * 100)}%`;
@@ -418,7 +419,10 @@ export default function PracticeWorkbench() {
                     {grade.correct ? t("Correct") : t("Needs review")} · {t("Score")} {grade.score}
                   </h2>
                 </div>
-                <p className="mt-3 text-sm text-[var(--muted-foreground)]">{grade.evidence.join(" ")}</p>
+                <ExamMemMarkdown
+                  content={grade.evidence.join("\n\n")}
+                  className="mt-3 text-sm text-[var(--muted-foreground)]"
+                />
               </section>
             ) : null}
             {question ? (
@@ -431,7 +435,10 @@ export default function PracticeWorkbench() {
                   <span>·</span>
                   <span>{t("Difficulty")} {percent(question.difficulty)}</span>
                 </div>
-                <h2 className="mt-4 text-lg font-medium leading-8">{question.stem}</h2>
+                <ExamMemMarkdown
+                  content={question.stem}
+                  className="mt-4 text-lg font-medium leading-8"
+                />
                 <label className="mt-5 block">
                   <span className="text-sm font-medium">{t("Your answer")}</span>
                   <textarea
@@ -477,7 +484,10 @@ export default function PracticeWorkbench() {
               <section className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-4">
                 <div className="flex items-center gap-2 text-sm font-semibold"><Brain className="h-4 w-4 text-amber-500" />{t("Diagnosis")}</div>
                 <p className="mt-3 text-sm">{diagnosis.error_type || t("No supported error type")}</p>
-                <p className="mt-2 text-xs leading-5 text-[var(--muted-foreground)]">{diagnosis.explanation}</p>
+                <ExamMemMarkdown
+                  content={diagnosis.explanation}
+                  className="mt-2 text-xs leading-5 text-[var(--muted-foreground)]"
+                />
               </section>
             ) : null}
             {recommendation ? (
