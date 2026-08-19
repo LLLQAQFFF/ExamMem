@@ -38,6 +38,8 @@ Browser、HTTP API 和 Python SDK 共用同一套插件能力与 PostgreSQL 领�
 
 这不是几张独立页面的拼接：练习选择的知识点来自已发布 Taxonomy，评分结果进入同一 Scope 下的学习记忆，推荐和复盘再读取这些可追溯证据。
 
+图中的“知识图谱”指已发布 Taxonomy 及其知识点掌握结构；复习队列由可解释的确定性策略派生，不代表已经通过真人实验验证的个性化遗忘算法。
+
 ## 系统模块
 
 | Module | Responsibility |
