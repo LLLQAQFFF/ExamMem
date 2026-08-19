@@ -60,8 +60,7 @@ def test_migration_chain_has_one_linear_head() -> None:
         == "0010_learning_observations"
     )
     assert (
-        scripts.get_revision("0012_study_plan_archival").down_revision
-        == "0011_assessment_archival"
+        scripts.get_revision("0012_study_plan_archival").down_revision == "0011_assessment_archival"
     )
 
 

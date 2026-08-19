@@ -171,12 +171,10 @@ class ExistingErrorMemoryRepository(FakeMemoryRepository):
         memory = LearningMemory.model_validate(
             {
                 "memory_id": "existing_error_v1",
-                "scope": SCOPE.model_copy(
-                    update={"memory_namespace": "error_pattern"}
-                ).model_dump(mode="json"),
-                "slot_key": (
-                    "error_pattern:math1.linear_algebra.matrix_rank:concept_confusion"
+                "scope": SCOPE.model_copy(update={"memory_namespace": "error_pattern"}).model_dump(
+                    mode="json"
                 ),
+                "slot_key": ("error_pattern:math1.linear_algebra.matrix_rank:concept_confusion"),
                 "value": {
                     "type": "error_pattern",
                     "error_type": "concept_confusion",

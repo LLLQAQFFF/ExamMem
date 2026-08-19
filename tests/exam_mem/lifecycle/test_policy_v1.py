@@ -741,7 +741,14 @@ def test_s06_one_concept_error_contests_stable_high_mastery() -> None:
 
 
 @pytest.mark.parametrize(
-    ("current_level", "current_score", "answer_correct", "error_type", "candidate_level", "candidate_score"),
+    (
+        "current_level",
+        "current_score",
+        "answer_correct",
+        "error_type",
+        "candidate_level",
+        "candidate_score",
+    ),
     [
         ("low", 0.2, True, None, "high", 1.0),
         ("improving", 0.6, True, None, "high", 1.0),

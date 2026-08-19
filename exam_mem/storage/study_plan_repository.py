@@ -146,9 +146,7 @@ class PostgresStudyPlanRepository:
         )
         return await self.get(user_id=user_id, plan_id=plan_id)
 
-    async def list(
-        self, *, user_id: str, archived: bool | None = False
-    ) -> list[dict[str, Any]]:
+    async def list(self, *, user_id: str, archived: bool | None = False) -> list[dict[str, Any]]:
         statement = select(study_plans).where(study_plans.c.user_id == user_id)
         if archived is True:
             statement = statement.where(study_plans.c.archived_at.is_not(None))

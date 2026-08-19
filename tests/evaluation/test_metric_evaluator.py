@@ -145,13 +145,9 @@ async def test_failed_rollout_remains_in_state_and_recommendation_denominators()
     )
     failed = completed.model_copy(update={"traces": []})
 
-    by_id = {
-        metric.metric_id: metric for metric in compute_backend_metrics([case], [failed])
-    }
+    by_id = {metric.metric_id: metric for metric in compute_backend_metrics([case], [failed])}
 
     assert by_id["state.active_state_exact_match"].denominator == len(case.gold_states)
     assert by_id["state.active_state_exact_match"].numerator == 0
-    assert by_id["recommendation.knowledge_point_accuracy"].denominator == len(
-        case.gold_actions
-    )
+    assert by_id["recommendation.knowledge_point_accuracy"].denominator == len(case.gold_actions)
     assert by_id["recommendation.knowledge_point_accuracy"].numerator == 0

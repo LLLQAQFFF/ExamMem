@@ -89,7 +89,9 @@ def test_grade_contract_reads_v1_history_but_rejects_invalid_new_scores() -> Non
         "evidence": ["Legacy score."],
     }
 
-    assert GradeResult.model_validate({**payload, "grader_version": "answer_grader_v1"}).score == 100
+    assert (
+        GradeResult.model_validate({**payload, "grader_version": "answer_grader_v1"}).score == 100
+    )
     with pytest.raises(ValidationError):
         GradeResult.model_validate({**payload, "grader_version": "answer_grader_v2"})
 

@@ -366,9 +366,7 @@ def build_router(
                         plan_id=body.exam_id.removeprefix("plan:"),
                     )
             except StudyPlanConflict as exc:
-                raise HTTPException(
-                    status_code=status.HTTP_409_CONFLICT, detail=str(exc)
-                ) from exc
+                raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
         await _report_generation_progress(
             progress,
             stage="scope",
@@ -571,9 +569,7 @@ def build_router(
     async def archive_study_plan(plan_id: NonEmptyString) -> dict[str, Any]:
         try:
             async with runtime_provider.open_product() as runtime:
-                plan = await runtime.study_plans.archive(
-                    user_id=current_user_id(), plan_id=plan_id
-                )
+                plan = await runtime.study_plans.archive(user_id=current_user_id(), plan_id=plan_id)
                 await runtime.connection.commit()
         except StudyPlanNotFound as exc:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
@@ -583,9 +579,7 @@ def build_router(
     async def restore_study_plan(plan_id: NonEmptyString) -> dict[str, Any]:
         try:
             async with runtime_provider.open_product() as runtime:
-                plan = await runtime.study_plans.restore(
-                    user_id=current_user_id(), plan_id=plan_id
-                )
+                plan = await runtime.study_plans.restore(user_id=current_user_id(), plan_id=plan_id)
                 await runtime.connection.commit()
         except StudyPlanNotFound as exc:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc

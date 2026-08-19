@@ -167,9 +167,7 @@ async def test_seed_event_is_a_valid_non_scoring_provenance_placeholder() -> Non
     assert event.error_type is not None
     assert event.error_detail is not None
     assert event.evidence_quality.is_temporary_exception is True
-    assert [reason.value for reason in event.evidence_quality.reasons] == [
-        "insufficient_context"
-    ]
+    assert [reason.value for reason in event.evidence_quality.reasons] == ["insufficient_context"]
 
 
 async def test_postgres_retrieval_preserves_the_natural_language_query() -> None:

@@ -357,9 +357,7 @@ async def test_import_publish_and_open_objective_restores_one_host_session() -> 
             )
             archived = await client.post(f"/api/v1/exam-mem/study-plans/{plan_id}/archive")
             active_list = await client.get("/api/v1/exam-mem/study-plans")
-            archived_list = await client.get(
-                "/api/v1/exam-mem/study-plans?archival=archived"
-            )
+            archived_list = await client.get("/api/v1/exam-mem/study-plans?archival=archived")
             blocked = await client.post(
                 f"/api/v1/exam-mem/study-plans/{plan_id}/objectives/{objective_id}/open",
                 json={"version": 1, "language": "zh"},

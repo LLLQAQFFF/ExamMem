@@ -325,9 +325,7 @@ def test_careless_error_does_not_change_mastery() -> None:
         value={"type": "mastery", "level": "high", "score": 1.0},
     )
 
-    result = decide_lifecycle(
-        _policy_input(event, candidate=candidate, snapshots=(current,))
-    )
+    result = decide_lifecycle(_policy_input(event, candidate=candidate, snapshots=(current,)))
 
     assert result.decision.operation is LifecycleOperation.NO_OP
     assert result.decision.reason_code == "careless_error_does_not_change_mastery"
