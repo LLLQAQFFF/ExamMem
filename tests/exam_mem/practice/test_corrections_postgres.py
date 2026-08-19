@@ -24,6 +24,7 @@ from exam_mem.contracts import (
 from exam_mem.practice.corrections import ExplicitCorrectionRequest
 from exam_mem.practice.provider import PracticeRuntimeProvider
 from exam_mem.storage import (
+    LEARNING_MEMORY_EMBEDDING_DIMENSION,
     PostgresLearningEventRepository,
     PostgresLearningMemoryRepository,
     load_database_settings,
@@ -55,6 +56,13 @@ CONTEXT = LearningContext(
 SCOPE = MemoryScope(**CONTEXT.model_dump(), memory_namespace="error_pattern")
 TARGET_MEMORY_ID = "correction_postgres_memory_v1"
 TRACE_ID = "trace:correction-postgres:001"
+
+
+class _FixedEmbeddingClient:
+    async def embed(self, texts: list[str], *, input_type: str | None = None) -> list[list[float]]:
+        del input_type
+        vector = [1.0, *([0.0] * (LEARNING_MEMORY_EMBEDDING_DIMENSION - 1))]
+        return [vector.copy() for _ in texts]
 
 
 def _database_url_or_skip() -> str:
@@ -164,8 +172,13 @@ async def _business_counts(connection: AsyncConnection) -> tuple[int, ...]:
     return tuple(counts)
 
 
-async def test_correction_commits_full_chain_replays_and_hides_cross_scope_target() -> None:
+async def test_correction_commits_full_chain_replays_and_hides_cross_scope_target(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     database_url = _database_url_or_skip()
+    monkeypatch.setattr(
+        "exam_mem.practice.provider.get_embedding_client", lambda: _FixedEmbeddingClient()
+    )
     schema_name = f"correction_{uuid4().hex}"
     administration_engine = create_async_engine(database_url)
     try:
@@ -282,12 +295,16 @@ async def test_correction_commits_full_chain_replays_and_hides_cross_scope_targe
     ],
 )
 async def test_replacement_and_uncertain_corrections_persist_frozen_policy_branches(
+    monkeypatch: pytest.MonkeyPatch,
     suffix: str,
     request_updates: dict,
     operation: LifecycleOperation,
     expected_states: tuple[LifecycleState, ...],
 ) -> None:
     database_url = _database_url_or_skip()
+    monkeypatch.setattr(
+        "exam_mem.practice.provider.get_embedding_client", lambda: _FixedEmbeddingClient()
+    )
     schema_name = f"correction_{suffix}_{uuid4().hex}"
     administration_engine = create_async_engine(database_url)
     try:

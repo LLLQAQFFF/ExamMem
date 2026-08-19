@@ -21,7 +21,11 @@ from exam_mem.practice.capability import (
     PRACTICE_CONTEXT_METADATA_KEY,
     PRACTICE_QUESTIONS_CONFIG_KEY,
 )
-from exam_mem.storage import load_database_settings, metadata
+from exam_mem.storage import (
+    LEARNING_MEMORY_EMBEDDING_DIMENSION,
+    load_database_settings,
+    metadata,
+)
 from exam_mem.storage.models import (
     learning_events,
     learning_memories,
@@ -36,6 +40,13 @@ from exam_mem.storage.models import (
 pytestmark = [pytest.mark.asyncio, pytest.mark.database, pytest.mark.e2e]
 
 NOW = datetime(2026, 8, 13, 12, 0, tzinfo=timezone.utc)
+
+
+class _FixedEmbeddingClient:
+    async def embed(self, texts: list[str], *, input_type: str | None = None) -> list[list[float]]:
+        del input_type
+        vector = [1.0, *([0.0] * (LEARNING_MEMORY_EMBEDDING_DIMENSION - 1))]
+        return [vector.copy() for _ in texts]
 
 
 def _database_url_or_skip() -> str:
@@ -171,6 +182,10 @@ async def test_plugin_registry_runs_recoverable_postgresql_closure(monkeypatch) 
         manager = PluginManager(factories={"exam_mem": lambda: plugin})
         capability = manager.capabilities()[0]
         monkeypatch.setattr("deeptutor.services.llm.complete", _fixed_completion)
+        monkeypatch.setattr(
+            "exam_mem.practice.provider.get_embedding_client",
+            lambda: _FixedEmbeddingClient(),
+        )
 
         issued = await _run(capability, _practice_context(with_answer=False))
         completed = await _run(capability, _practice_context(with_answer=True))
