@@ -8,6 +8,7 @@
 - [可靠性设计](./reliability.md)：生命周期不变量、失败分类、恢复和验证证据。
 - [插件迁移报告](./plugin-migration.md)：Fork 到第一方全栈插件的边界、调用链和验收。
 - [学习计划、复盘与学习档案边界](./product-boundaries.zh-CN.md)：Scope 隔离与 UI 职责。
+- [教材库与基于教材学习需求](./textbook-grounded-learning-requirements.zh-CN.md)：结构化摄取、教材绑定、RAG 教学与多源冲突治理。
 - [Grade Review ADR](./adr/0007-grade-reviews.md)：append-only 复核事件及迁移约束。
 - [延期清单](./deferred-items.md)：尚未实现的多源学习和效果评测边界。
 
