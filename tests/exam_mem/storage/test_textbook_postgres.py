@@ -8,7 +8,12 @@ from sqlalchemy import update
 from sqlalchemy.exc import DBAPIError
 from sqlalchemy.ext.asyncio import create_async_engine
 
-from exam_mem.storage import PostgresTextbookRepository, TextbookConflict, TextbookNotFound, load_database_settings
+from exam_mem.storage import (
+    PostgresTextbookRepository,
+    TextbookConflict,
+    TextbookNotFound,
+    load_database_settings,
+)
 from exam_mem.storage.models import textbook_versions
 
 pytestmark = [pytest.mark.asyncio, pytest.mark.database, pytest.mark.repository]
@@ -64,25 +69,52 @@ async def test_textbook_versions_jobs_sections_idempotency_and_permissions() -> 
                 assert replay["version_id"] == version["version_id"]
                 with pytest.raises(TextbookConflict, match="different content"):
                     await repository.create_ingestion(
-                        user_id=user_id, textbook_id="x", version_id="y", job_id="z",
-                        idempotency_key=f"upload-{token}", title="x", metadata={}, filename="x.md",
-                        mime_type="text/markdown", size_bytes=1, content_hash="b" * 64,
+                        user_id=user_id,
+                        textbook_id="x",
+                        version_id="y",
+                        job_id="z",
+                        idempotency_key=f"upload-{token}",
+                        title="x",
+                        metadata={},
+                        filename="x.md",
+                        mime_type="text/markdown",
+                        size_bytes=1,
+                        content_hash="b" * 64,
                         host_source_ref="source:" + "b" * 64,
                     )
                 section = {
-                    "section_id": f"section-{token}", "section_key": "s1", "parent_section_id": None,
-                    "level": 1, "order": 0, "title": "第一章", "path": ["第一章"],
-                    "start_page": 1, "end_page": 20, "content_hash": "c" * 64,
-                    "confidence": 1.0, "inferred": False,
+                    "section_id": f"section-{token}",
+                    "section_key": "s1",
+                    "parent_section_id": None,
+                    "level": 1,
+                    "order": 0,
+                    "title": "第一章",
+                    "path": ["第一章"],
+                    "start_page": 1,
+                    "end_page": 20,
+                    "content_hash": "c" * 64,
+                    "confidence": 1.0,
+                    "inferred": False,
                 }
-                await repository.replace_sections(user_id=user_id, version_id=version_id, sections=(section,))
-                failed = await repository.fail_job(user_id=user_id, job_id=job_id, error_code="index_failed", message="fixture failure")
+                await repository.replace_sections(
+                    user_id=user_id, version_id=version_id, sections=(section,)
+                )
+                failed = await repository.fail_job(
+                    user_id=user_id,
+                    job_id=job_id,
+                    error_code="index_failed",
+                    message="fixture failure",
+                )
                 assert failed["stage"] == "failed"
                 retried = await repository.prepare_retry(user_id=user_id, job_id=job_id)
                 assert retried["retry_count"] == 1
                 await repository.advance_job(
-                    user_id=user_id, job_id=job_id, stage="completed", progress=100,
-                    checkpoint={"safe_stage": "completed"}, host_index_ref="structured-" + "d" * 32,
+                    user_id=user_id,
+                    job_id=job_id,
+                    stage="completed",
+                    progress=100,
+                    checkpoint={"safe_stage": "completed"},
+                    host_index_ref="structured-" + "d" * 32,
                     index_version="version-fixture",
                 )
                 stored = await repository.get_version(user_id=user_id, version_id=version_id)
@@ -92,7 +124,11 @@ async def test_textbook_versions_jobs_sections_idempotency_and_permissions() -> 
                     await repository.get_version(user_id="another-user", version_id=version_id)
                 with pytest.raises(DBAPIError):
                     async with connection.begin_nested():
-                        await connection.execute(update(textbook_versions).where(textbook_versions.c.version_id == version_id).values(content_hash="f" * 64))
+                        await connection.execute(
+                            update(textbook_versions)
+                            .where(textbook_versions.c.version_id == version_id)
+                            .values(content_hash="f" * 64)
+                        )
                 archived = await repository.archive(user_id=user_id, textbook_id=textbook_id)
                 assert archived["archived_at"] is not None
                 assert await repository.list(user_id=user_id) == []

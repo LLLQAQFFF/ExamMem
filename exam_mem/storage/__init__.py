@@ -48,6 +48,18 @@ from .student_model_repository import (
 )
 
 _LAZY_EXPORTS = {
+    "GroundedLearningConflict": (
+        ".grounded_learning_repository",
+        "GroundedLearningConflict",
+    ),
+    "GroundedLearningNotFound": (
+        ".grounded_learning_repository",
+        "GroundedLearningNotFound",
+    ),
+    "PostgresGroundedLearningRepository": (
+        ".grounded_learning_repository",
+        "PostgresGroundedLearningRepository",
+    ),
     "PostgresTextbookRepository": (
         ".textbook_repository",
         "PostgresTextbookRepository",
@@ -180,6 +192,8 @@ __all__ = [
     "EventLookupError",
     "EventWatermarkError",
     "GradeReviewAppendResult",
+    "GroundedLearningConflict",
+    "GroundedLearningNotFound",
     "LEARNING_MEMORY_EMBEDDING_DIMENSION",
     "LearningEventRepository",
     "LifecycleAuditRepository",
@@ -191,6 +205,7 @@ __all__ = [
     "PostgresLearningArchiveRepository",
     "PostgresLearningObservationRepository",
     "PostgresGradeReviewRepository",
+    "PostgresGroundedLearningRepository",
     "PostgresExamProductRepository",
     "PostgresLifecycleAuditRepository",
     "PostgresLearningEventRepository",

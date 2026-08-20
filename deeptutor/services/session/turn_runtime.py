@@ -707,6 +707,7 @@ class TurnRuntimeManager:
             # key — stripped before validation, merged back into the turn config
             # and read by the subagent capability from context.config_overrides.
             "subagent_consult_budget",
+            "knowledge_source_filters",
         )
         runtime_only_config = {
             key: raw_config.pop(key) for key in runtime_only_keys if key in raw_config
@@ -725,6 +726,12 @@ class TurnRuntimeManager:
         requested_session_id = str(payload.get("session_id") or "").strip()
         session = await self.store.ensure_session(requested_session_id or None)
         preferences = session.get("preferences") or {}
+        knowledge_source_filters_explicit = "knowledge_source_filters" in runtime_only_config
+        if not knowledge_source_filters_explicit and preferences.get("knowledge_source_filters"):
+            payload["config"] = {
+                **payload["config"],
+                "knowledge_source_filters": preferences["knowledge_source_filters"],
+            }
         stored_surface = str(preferences.get("session_surface") or "chat")
         is_new_session = not requested_session_id or session["id"] != requested_session_id
         if not is_new_session and stored_surface != session_surface:
@@ -866,6 +873,10 @@ class TurnRuntimeManager:
             preference_update["mastery_path_id"] = mastery_path_id
         if context_sources_explicit:
             preference_update["context_sources"] = context_sources
+        if knowledge_source_filters_explicit:
+            preference_update["knowledge_source_filters"] = runtime_only_config[
+                "knowledge_source_filters"
+            ]
         await self.store.update_session_preferences(session["id"], preference_update)
         turn = await self.store.create_turn(session["id"], capability=capability)
         execution = _TurnExecution(

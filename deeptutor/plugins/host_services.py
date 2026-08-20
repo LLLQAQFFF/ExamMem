@@ -49,6 +49,7 @@ class PluginTurnRequest:
     mastery_path_id: str | None = None
     context_sources: tuple[str, ...] = ()
     knowledge_bases: tuple[str, ...] = ()
+    knowledge_source_filters: dict[str, dict[str, tuple[str, ...]]] = field(default_factory=dict)
 
 
 @dataclass(frozen=True, slots=True)
@@ -94,6 +95,12 @@ class PluginTurnHost:
             payload.pop("knowledge_bases")
         else:
             payload["knowledge_bases"] = list(request.knowledge_bases)
+        if request.knowledge_source_filters:
+            payload["config"] = {
+                **payload["config"],
+                "knowledge_source_filters": request.knowledge_source_filters,
+            }
+        payload.pop("knowledge_source_filters")
         return await self._app.start_turn(payload)
 
     async def stream_turn(self, turn_id: str) -> AsyncIterator[dict[str, Any]]:
@@ -126,6 +133,28 @@ class PluginTurnHost:
             return False
         names = list(dict.fromkeys(name.strip() for name in source_names if name.strip()))
         return await store.update_session_preferences(session_id, {"context_sources": names})
+
+    async def bind_session_knowledge_sources(
+        self,
+        session_id: str,
+        source_names: tuple[str, ...],
+        *,
+        filters: dict[str, dict[str, tuple[str, ...]]] | None = None,
+    ) -> bool:
+        """Rebind an owned session to permission-checked opaque knowledge sources."""
+        from deeptutor.services.session import get_session_store
+
+        store = get_session_store()
+        if await store.get_session(session_id, surface="chat") is None:
+            return False
+        names = list(dict.fromkeys(name.strip() for name in source_names if name.strip()))
+        return await store.update_session_preferences(
+            session_id,
+            {
+                "knowledge_bases": names,
+                "knowledge_source_filters": filters or {},
+            },
+        )
 
     async def list_conversations(self, *, limit: int = 50) -> tuple[PluginConversationSummary, ...]:
         """List the authenticated user's native Chat sessions through a neutral seam."""

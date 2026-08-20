@@ -32,6 +32,7 @@ from exam_mem.practice.tools import (
 from .api import build_router
 from .learning_context import ExamMemLearningContextContributor
 from .native_adapter import DeepTutorNativeMemoryClient
+from .sdk import ExamMemTextbookLearningSDK
 
 
 def _normalize_settings(settings: Mapping[str, Any]) -> dict[str, Any]:
@@ -103,7 +104,7 @@ class ExamMemPlugin(BaseFullStackPlugin):
             migration=MigrationContribution(
                 config_path="exam_mem/storage/alembic.ini",
                 versions_path="exam_mem/storage/migrations/versions",
-                expected_head="0013_textbook_library",
+                expected_head="0014_textbook_grounding",
             ),
             metadata={
                 "product_surface": "exam_practice",
@@ -123,4 +124,4 @@ def get_plugin() -> ExamMemPlugin:
     )
 
 
-__all__ = ["ExamMemPlugin", "get_plugin"]
+__all__ = ["ExamMemPlugin", "ExamMemTextbookLearningSDK", "get_plugin"]

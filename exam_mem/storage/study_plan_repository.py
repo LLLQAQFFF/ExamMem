@@ -211,6 +211,34 @@ class PostgresStudyPlanRepository:
             raise StudyPlanNotFound("study plan version not found")
         return _version_payload(row)
 
+    async def get_version_for_taxonomy(
+        self,
+        *,
+        user_id: str,
+        plan_id: str,
+        subject_id: str,
+        taxonomy_version: str,
+    ) -> dict[str, Any]:
+        row = (
+            (
+                await self._connection.execute(
+                    select(study_plan_versions)
+                    .join(study_plans, study_plans.c.plan_id == study_plan_versions.c.plan_id)
+                    .where(
+                        study_plans.c.user_id == user_id,
+                        study_plan_versions.c.plan_id == plan_id,
+                        study_plan_versions.c.taxonomy_versions[subject_id].astext
+                        == taxonomy_version,
+                    )
+                )
+            )
+            .mappings()
+            .one_or_none()
+        )
+        if row is None:
+            raise StudyPlanNotFound("published taxonomy version not found in this Scope")
+        return _version_payload(row)
+
     async def require_active(self, *, user_id: str, plan_id: str) -> None:
         self._require_active(await self._owned_plan(user_id=user_id, plan_id=plan_id))
 

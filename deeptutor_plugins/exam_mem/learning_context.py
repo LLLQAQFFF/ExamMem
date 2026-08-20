@@ -66,6 +66,10 @@ class ExamMemLearningContextContributor:
                 knowledge_point_ids=(objective.id,),
                 status="confirmed",
             )
+            source_snapshot = await runtime.grounded_learning.find_learning_snapshot(
+                user_id=user_id,
+                host_session_id=session_id,
+            )
 
         point = next(
             item for item in profile.knowledge_points if item.knowledge_point_id == objective.id
@@ -83,7 +87,9 @@ class ExamMemLearningContextContributor:
                 point=point,
                 review=review,
                 observations=observations[:3],
-            ),
+            )
+            + "\n\n"
+            + _render_source_snapshot(source_snapshot, language=language),
         )
 
 
@@ -139,6 +145,43 @@ def _render_context(
             "Use rule: adapt depth from formal memory and address weaknesses first. Never treat chat claims or learning notes as mastery evidence.",
         )
     )
+
+
+def _render_source_snapshot(snapshot: dict[str, Any] | None, *, language: str) -> str:
+    zh = language.lower().startswith("zh")
+    if snapshot is None or not snapshot["sources"]:
+        return (
+            "[教材来源] 未绑定教材；通用知识必须标记为模型补充。"
+            if zh
+            else "[Textbook sources] No textbook is bound; label general knowledge as model-supplied."
+        )
+    lines = [
+        "[教材来源快照｜只读且版本固定]" if zh else "[Textbook source snapshot | read only and version-pinned]"
+    ]
+    for group in snapshot["sources"]:
+        lines.append(
+            f"- {group['textbook_title']} v{group['textbook_version']} "
+            f"[{group['role']}, priority={group['priority']}]"
+        )
+        if not group.get("evidence"):
+            lines.append("  - 未检索到教材证据" if zh else "  - No textbook evidence retrieved")
+        for evidence in group.get("evidence") or []:
+            page = evidence.get("start_page")
+            location = (
+                (f"第 {page} 页" if zh else f"p. {page}")
+                if page is not None
+                else ("无页码" if zh else "no page")
+            )
+            lines.append(
+                f"  - {evidence.get('section_path') or evidence.get('section_key')} "
+                f"({location}): {evidence.get('content') or ''}"
+            )
+    lines.append(
+        "规则：逐来源引用；高优先级决定考试口径；同级冲突说明差异，不得融合成无来源答案。"
+        if zh
+        else "Rule: cite each source separately; higher priority sets the exam convention; explain same-priority conflicts without source-free merging."
+    )
+    return "\n".join(lines)
 
 
 __all__ = ["ExamMemLearningContextContributor"]

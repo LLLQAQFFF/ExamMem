@@ -156,13 +156,15 @@ class LlamaIndexPipeline:
         try:
             loop = asyncio.get_running_loop()
             top_k = kwargs.get("top_k") or default_top_k()
+            retrieve_options: dict[str, Any] = {"top_k": top_k}
+            if kwargs.get("metadata_filters") is not None:
+                retrieve_options["metadata_filters"] = kwargs["metadata_filters"]
             nodes = await loop.run_in_executor(
                 None,
                 lambda: storage.retrieve_nodes(
                     storage_dir,
                     query,
-                    top_k=top_k,
-                    metadata_filters=kwargs.get("metadata_filters"),
+                    **retrieve_options,
                 ),
             )
 

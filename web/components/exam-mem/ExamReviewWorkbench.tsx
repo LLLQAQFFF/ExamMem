@@ -32,9 +32,11 @@ import {
 } from "@/lib/exam-mem-product";
 import {
   archiveAssessment,
+  getAssessmentSourceSnapshot,
   listAssessments,
   listStudyPlans,
   restoreAssessment,
+  type AssessmentSourceSnapshot,
 } from "@/lib/exam-mem-study-plans";
 import ExamMemMarkdown from "@/components/exam-mem/ExamMemMarkdown";
 
@@ -48,6 +50,8 @@ export default function ExamReviewWorkbench() {
   const [history, setHistory] = useState<ExamReviewHistoryItem[]>([]);
   const [selectedExamKey, setSelectedExamKey] = useState<string | null>(null);
   const [review, setReview] = useState<ExamReview | null>(null);
+  const [sourceSnapshot, setSourceSnapshot] =
+    useState<AssessmentSourceSnapshot | null>(null);
   const [scopeFilter, setScopeFilter] = useState("");
   const [scopeLabels, setScopeLabels] = useState<Record<string, string>>({});
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
@@ -94,9 +98,21 @@ export default function ExamReviewWorkbench() {
     async (item: ExamReviewHistoryItem) => {
       setLoading(true);
       setError(null);
+      setSourceSnapshot(null);
       try {
-        setReview(
-          await getExamReview(item.practice_session_id, item.exam_id, item.subject_id),
+        const nextReview = await getExamReview(
+          item.practice_session_id,
+          item.exam_id,
+          item.subject_id,
+        );
+        setReview(nextReview);
+        setSourceSnapshot(
+          nextReview.assessment
+            ? await getAssessmentSourceSnapshot(
+                nextReview.assessment.assessment_id,
+                nextReview.assessment.assessment_version,
+              )
+            : null,
         );
       } catch (cause) {
         setError(
@@ -166,17 +182,25 @@ export default function ExamReviewWorkbench() {
           first.attempts.find((attempt) => attempt.attempt_status === "completed") ??
           first.attempts[0];
         if (firstAttempt) {
-          setReview(
-            await getExamReview(
-              firstAttempt.practice_session_id,
-              firstAttempt.exam_id,
-              firstAttempt.subject_id,
-            ),
+          const nextReview = await getExamReview(
+            firstAttempt.practice_session_id,
+            firstAttempt.exam_id,
+            firstAttempt.subject_id,
+          );
+          setReview(nextReview);
+          setSourceSnapshot(
+            nextReview.assessment
+              ? await getAssessmentSourceSnapshot(
+                  nextReview.assessment.assessment_id,
+                  nextReview.assessment.assessment_version,
+                )
+              : null,
           );
         }
       } else {
         setSelectedExamKey(null);
         setReview(null);
+        setSourceSnapshot(null);
       }
     } catch (cause) {
       setError(
@@ -193,6 +217,7 @@ export default function ExamReviewWorkbench() {
     if (!filteredGroups.length) {
       setSelectedExamKey(null);
       setReview(null);
+      setSourceSnapshot(null);
       return;
     }
     if (!filteredGroups.some((group) => group.key === selectedExamKey)) {
@@ -461,6 +486,48 @@ export default function ExamReviewWorkbench() {
                 />
               </section>
               <AttemptSummary review={review} chinese={zh} />
+              {sourceSnapshot ? (
+                <section className="rounded-xl border border-teal-500/30 bg-teal-500/5 p-5">
+                  <h2 className="font-semibold">
+                    {zh ? "固定教材证据" : "Pinned textbook evidence"}
+                  </h2>
+                  <p className="mt-1 text-xs text-[var(--muted-foreground)]">
+                    {zh
+                      ? `试卷 v${sourceSnapshot.assessment_version} 使用生成时固定的教材版本、章节和索引版本。`
+                      : `Assessment v${sourceSnapshot.assessment_version} uses textbook versions, sections, and index versions pinned at generation.`}
+                  </p>
+                  <div className="mt-3 space-y-3">
+                    {sourceSnapshot.evidence.map((source) => (
+                      <article
+                        key={`${source.textbook_title}:${source.textbook_version}:${source.priority}`}
+                        className="rounded-lg border border-[var(--border)] bg-[var(--card)] p-3"
+                      >
+                        <p className="text-sm font-medium">
+                          {source.textbook_title} v{source.textbook_version}
+                        </p>
+                        <p className="text-xs text-[var(--muted-foreground)]">
+                          {zh
+                            ? `${source.role} · 优先级 ${source.priority}`
+                            : `${source.role} · priority ${source.priority}`}
+                        </p>
+                        {source.evidence.map((item, index) => (
+                          <div key={`${item.section_key ?? "section"}:${index}`} className="mt-2 text-xs">
+                            <p className="font-medium">
+                              {Array.isArray(item.section_path)
+                                ? item.section_path.join(" / ")
+                                : item.section_path || item.section_key || (zh ? "未知章节" : "Unknown section")}
+                              {item.start_page ? ` · ${zh ? "第" : "p. "}${item.start_page}${zh ? "页" : ""}` : ""}
+                            </p>
+                            <p className="mt-1 line-clamp-3 text-[var(--muted-foreground)]">
+                              {item.content}
+                            </p>
+                          </div>
+                        ))}
+                      </article>
+                    ))}
+                  </div>
+                </section>
+              ) : null}
               {review.checkpoints
                 .filter((checkpoint) => checkpoint.submitted_answer)
                 .map((checkpoint, index) => (

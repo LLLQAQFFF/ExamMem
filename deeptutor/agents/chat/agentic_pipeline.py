@@ -933,6 +933,10 @@ class AgenticChatPipeline:
         exec_dir = task_dir / "exec" if task_dir is not None else None
         if tool_name == "rag":
             kwargs.setdefault("mode", "hybrid")
+            source_filters = context.config_overrides.get("knowledge_source_filters")
+            kb_name = str(kwargs.get("kb_name") or "").strip()
+            if isinstance(source_filters, dict) and isinstance(source_filters.get(kb_name), dict):
+                kwargs["metadata_filters"] = source_filters[kb_name]
         elif tool_name == "kb_files":
             # The report is read by the user as much as by the model, so it is
             # written in the turn's language. Injected server-side; the tool

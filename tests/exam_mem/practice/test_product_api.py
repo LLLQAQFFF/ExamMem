@@ -221,7 +221,11 @@ async def test_native_quiz_questions_are_versioned_and_server_side() -> None:
             assert request.capability == "deep_question"
             assert request.language == "zh"
             assert "必须使用简体中文" in request.content
+            assert "固定教材来源" in request.content
+            assert "概率论 v3" in request.content
             assert request.attachments[0]["filename"] == "lesson.pdf"
+            assert request.knowledge_bases == ("opaque-index",)
+            assert request.knowledge_source_filters == {"opaque-index": {"section_key": ("bayes",)}}
             return {"id": "generation-session"}, {"id": "generation-turn"}
 
         async def stream_turn(self, turn_id):
@@ -271,6 +275,28 @@ async def test_native_quiz_questions_are_versioned_and_server_side() -> None:
         body=body,
         canonical_knowledge_point_id="math1.probability.bayes",
         progress=record_progress,
+        grounding_package={
+            "mode": "primary",
+            "sources": [
+                {
+                    "textbook_title": "概率论",
+                    "textbook_version": 3,
+                    "role": "primary",
+                    "priority": 0,
+                    "evidence": [
+                        {
+                            "section_path": "条件概率 / 贝叶斯公式",
+                            "section_key": "bayes",
+                            "start_page": 42,
+                            "end_page": 43,
+                            "content": "贝叶斯公式的固定教材定义。",
+                        }
+                    ],
+                }
+            ],
+            "knowledge_bases": ["opaque-index"],
+            "filters": {"opaque-index": {"section_key": ("bayes",)}},
+        },
     )
 
     assert len(questions) == 2

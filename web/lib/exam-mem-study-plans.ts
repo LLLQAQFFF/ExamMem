@@ -51,6 +51,8 @@ export interface ObjectiveSession {
   learning_mastery: number;
   created_at: string;
   updated_at: string;
+  source_status?: "unbound" | "no_results" | "grounded";
+  source_snapshot?: Record<string, unknown> | null;
 }
 
 export interface StudyPlan {
@@ -91,6 +93,26 @@ export interface Assessment {
   latest_version: number;
   archived_at: string | null;
   attempts: AssessmentAttempt[];
+}
+
+export interface AssessmentSourceSnapshot {
+  snapshot_id: string;
+  assessment_id: string;
+  assessment_version: number;
+  evidence: Array<{
+    textbook_title: string;
+    textbook_version: number;
+    role: string;
+    priority: number;
+    evidence: Array<{
+      section_path?: string[] | string | null;
+      section_key?: string | null;
+      start_page?: number | null;
+      content?: string;
+    }>;
+  }>;
+  index_versions: Record<string, string>;
+  created_at: string;
 }
 
 async function jsonOrError<T>(response: Response): Promise<T> {
@@ -174,6 +196,7 @@ export async function openStudyObjective(
   objectiveId: string,
   version: number,
   language: "zh" | "en",
+  sourceMode: "primary" | "compare" = "primary",
 ): Promise<ObjectiveSession> {
   const response = await apiFetch(
     apiUrl(
@@ -182,7 +205,7 @@ export async function openStudyObjective(
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ version, language }),
+      body: JSON.stringify({ version, language, source_mode: sourceMode }),
     },
   );
   return jsonOrError<ObjectiveSession>(response);
@@ -194,6 +217,19 @@ export async function listAssessments(
   const query = new URLSearchParams({ archival });
   const response = await apiFetch(apiUrl(`/api/v1/exam-mem/assessments?${query}`));
   return (await jsonOrError<{ assessments: Assessment[] }>(response)).assessments;
+}
+
+export async function getAssessmentSourceSnapshot(
+  assessmentId: string,
+  version: number,
+): Promise<AssessmentSourceSnapshot | null> {
+  const response = await apiFetch(
+    apiUrl(
+      `/api/v1/exam-mem/assessments/${encodeURIComponent(assessmentId)}/versions/${version}/source-snapshot`,
+    ),
+  );
+  if (response.status === 404) return null;
+  return jsonOrError<AssessmentSourceSnapshot>(response);
 }
 
 export async function archiveAssessment(assessmentId: string): Promise<void> {

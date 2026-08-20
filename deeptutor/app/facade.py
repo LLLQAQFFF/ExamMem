@@ -29,8 +29,12 @@ class TurnRequest:
     skills: list[str] = field(default_factory=list)
     mastery_path_id: str | None = None
     context_sources: list[str] = field(default_factory=list)
+    knowledge_source_filters: dict[str, dict[str, tuple[str, ...]]] = field(default_factory=dict)
 
     def to_payload(self) -> dict[str, Any]:
+        config = dict(self.config)
+        if self.knowledge_source_filters:
+            config["knowledge_source_filters"] = self.knowledge_source_filters
         payload: dict[str, Any] = {
             "content": self.content,
             "capability": self.capability,
@@ -38,7 +42,7 @@ class TurnRequest:
             "tools": list(self.tools),
             "knowledge_bases": list(self.knowledge_bases),
             "language": self.language,
-            "config": dict(self.config),
+            "config": config,
             "notebook_references": list(self.notebook_references),
             "history_references": list(self.history_references),
             "attachments": list(self.attachments),

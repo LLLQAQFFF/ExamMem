@@ -254,6 +254,78 @@ textbook_ingestion_jobs = Table(
 
 Index("ix_textbook_jobs_user_updated", textbook_ingestion_jobs.c.user_id, textbook_ingestion_jobs.c.updated_at)
 
+study_plan_textbook_bindings = Table(
+    "study_plan_textbook_bindings",
+    metadata,
+    Column("binding_id", Text, nullable=False),
+    Column("user_id", Text, nullable=False),
+    Column("plan_id", Text, nullable=False),
+    Column("plan_version", Integer, nullable=False),
+    Column("textbook_version_id", Text, ForeignKey("textbook_versions.version_id"), nullable=False),
+    Column("revision", Integer, nullable=False),
+    Column("role", Text, nullable=False),
+    Column("priority", Integer, nullable=False),
+    Column("status", Text, nullable=False),
+    Column("confirmed_by", Text, nullable=True),
+    Column("confirmed_at", DateTime(timezone=True), nullable=True),
+    Column("created_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+    PrimaryKeyConstraint("binding_id", name="pk_study_plan_textbook_bindings"),
+    ForeignKeyConstraint(["plan_id", "plan_version"], ["study_plan_versions.plan_id", "study_plan_versions.version"], name="fk_textbook_bindings_plan_version"),
+    UniqueConstraint("plan_id", "plan_version", "textbook_version_id", "revision", name="uq_textbook_bindings_revision"),
+    CheckConstraint("revision >= 1", name="ck_textbook_bindings_revision"),
+    CheckConstraint("priority >= 0", name="ck_textbook_bindings_priority"),
+    CheckConstraint("role IN ('primary','supplement','reference')", name="ck_textbook_bindings_role"),
+    CheckConstraint("status IN ('candidate','confirmed','inactive')", name="ck_textbook_bindings_status"),
+)
+
+objective_textbook_section_mappings = Table(
+    "objective_textbook_section_mappings",
+    metadata,
+    Column("mapping_id", Text, nullable=False),
+    Column("user_id", Text, nullable=False),
+    Column("plan_id", Text, nullable=False),
+    Column("plan_version", Integer, nullable=False),
+    Column("objective_id", Text, nullable=False),
+    Column("textbook_section_id", Text, ForeignKey("textbook_sections.section_id"), nullable=False),
+    Column("mapping_version", Integer, nullable=False),
+    Column("confidence", Float, nullable=False),
+    Column("created_via", Text, nullable=False),
+    Column("status", Text, nullable=False),
+    Column("confirmed_by", Text, nullable=True),
+    Column("confirmed_at", DateTime(timezone=True), nullable=True),
+    Column("created_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+    PrimaryKeyConstraint("mapping_id", name="pk_objective_textbook_section_mappings"),
+    ForeignKeyConstraint(["plan_id", "plan_version"], ["study_plan_versions.plan_id", "study_plan_versions.version"], name="fk_textbook_mappings_plan_version"),
+    UniqueConstraint("plan_id", "plan_version", "objective_id", "textbook_section_id", "mapping_version", name="uq_textbook_mappings_version"),
+    CheckConstraint("mapping_version >= 1", name="ck_textbook_mappings_version"),
+    CheckConstraint("confidence >= 0 AND confidence <= 1", name="ck_textbook_mappings_confidence"),
+    CheckConstraint("created_via IN ('manual','recommended')", name="ck_textbook_mappings_method"),
+    CheckConstraint("status IN ('candidate','confirmed','rejected')", name="ck_textbook_mappings_status"),
+)
+
+learning_source_snapshots = Table(
+    "learning_source_snapshots",
+    metadata,
+    Column("snapshot_id", Text, nullable=False),
+    Column("user_id", Text, nullable=False),
+    Column("idempotency_key", Text, nullable=False),
+    Column("host_session_id", Text, nullable=False),
+    Column("plan_id", Text, nullable=False),
+    Column("plan_version", Integer, nullable=False),
+    Column("objective_id", Text, nullable=False),
+    Column("mode", Text, nullable=False),
+    Column("sources", JSONB, nullable=False),
+    Column("index_versions", JSONB, nullable=False),
+    Column("created_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+    PrimaryKeyConstraint("snapshot_id", name="pk_learning_source_snapshots"),
+    ForeignKeyConstraint(["plan_id", "plan_version"], ["study_plan_versions.plan_id", "study_plan_versions.version"], name="fk_learning_snapshots_plan_version"),
+    UniqueConstraint("user_id", "idempotency_key", name="uq_learning_snapshots_idempotency"),
+    UniqueConstraint("user_id", "host_session_id", name="uq_learning_snapshots_session"),
+    CheckConstraint("mode IN ('unbound','primary','compare')", name="ck_learning_snapshots_mode"),
+    CheckConstraint("jsonb_typeof(sources) = 'array'", name="ck_learning_snapshots_sources_array"),
+    CheckConstraint("jsonb_typeof(index_versions) = 'object'", name="ck_learning_snapshots_indexes_object"),
+)
+
 assessments = Table(
     "assessments",
     metadata,
@@ -307,6 +379,25 @@ assessment_versions = Table(
         name="ck_assessment_versions_generation",
     ),
     CheckConstraint("length(content_hash) = 64", name="ck_assessment_versions_hash"),
+)
+
+assessment_source_snapshots = Table(
+    "assessment_source_snapshots",
+    metadata,
+    Column("snapshot_id", Text, nullable=False),
+    Column("user_id", Text, nullable=False),
+    Column("idempotency_key", Text, nullable=False),
+    Column("assessment_id", Text, nullable=False),
+    Column("assessment_version", Integer, nullable=False),
+    Column("evidence", JSONB, nullable=False),
+    Column("index_versions", JSONB, nullable=False),
+    Column("created_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+    PrimaryKeyConstraint("snapshot_id", name="pk_assessment_source_snapshots"),
+    ForeignKeyConstraint(["assessment_id", "assessment_version"], ["assessment_versions.assessment_id", "assessment_versions.version"], name="fk_assessment_snapshots_version"),
+    UniqueConstraint("user_id", "idempotency_key", name="uq_assessment_snapshots_idempotency"),
+    UniqueConstraint("user_id", "assessment_id", "assessment_version", name="uq_assessment_snapshots_version"),
+    CheckConstraint("jsonb_typeof(evidence) = 'array'", name="ck_assessment_snapshots_evidence_array"),
+    CheckConstraint("jsonb_typeof(index_versions) = 'object'", name="ck_assessment_snapshots_indexes_object"),
 )
 
 assessment_attempts = Table(

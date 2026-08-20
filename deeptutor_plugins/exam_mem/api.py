@@ -74,6 +74,8 @@ from exam_mem.storage import (
     AppendStatus,
     AssessmentConflict,
     AssessmentNotFound,
+    GroundedLearningConflict,
+    GroundedLearningNotFound,
     LearningObservationConflict,
     StudyPlanConflict,
     StudyPlanNotFound,
@@ -82,6 +84,7 @@ from exam_mem.storage import (
 )
 from exam_mem.study import StudyPlanTree
 
+from .grounded_learning import GroundedLearningService, render_grounding_prompt
 from .study_plan import StudyPlanOutlineImporter
 from .textbooks import TextbookIngestionService
 
@@ -200,6 +203,24 @@ class StudyPlanDraftBody(StrictApiModel):
 class OpenStudyObjectiveBody(StrictApiModel):
     version: Annotated[int, Field(ge=1)] | None = None
     language: Literal["zh", "en"] = "zh"
+    source_mode: Literal["primary", "compare"] = "primary"
+
+
+class TextbookBindingBody(StrictApiModel):
+    textbook_version_id: NonEmptyString
+    role: Literal["primary", "supplement", "reference"]
+    priority: Annotated[int, Field(ge=0, le=1000)]
+    status: Literal["candidate", "confirmed", "inactive"]
+    idempotency_key: NonEmptyString
+
+
+class TextbookMappingBody(StrictApiModel):
+    objective_id: NonEmptyString
+    textbook_section_id: NonEmptyString
+    confidence: Annotated[float, Field(ge=0.0, le=1.0)]
+    created_via: Literal["manual", "recommended"]
+    status: Literal["candidate", "confirmed", "rejected"]
+    idempotency_key: NonEmptyString
 
 
 class TextbookUploadBody(StrictApiModel):
@@ -345,6 +366,7 @@ def build_router(
     source_host: PluginSourceHost | None = None,
     index_host: PluginKnowledgeIndexHost | None = None,
     ingestion_service: TextbookIngestionService | None = None,
+    grounded_learning_service: GroundedLearningService | None = None,
 ) -> APIRouter:
     """Build one router wired to the same Provider as the plugin Capability."""
 
@@ -358,6 +380,9 @@ def build_router(
     indexes = index_host or PluginKnowledgeIndexHost()
     ingestor = ingestion_service or TextbookIngestionService(
         runtime_provider, source_host=sources, index_host=indexes
+    )
+    grounding = grounded_learning_service or GroundedLearningService(
+        runtime_provider, index_host=indexes
     )
 
     def runtime_host() -> PluginTurnHost:
@@ -472,6 +497,66 @@ def build_router(
             raise HTTPException(status_code=404, detail="textbook index not found")
         return await indexes.rebuild(version["host_index_ref"])
 
+    @router.get("/study-plans/{plan_id}/versions/{plan_version}/textbooks")
+    async def list_textbook_bindings(plan_id: NonEmptyString, plan_version: Annotated[int, Field(ge=1)]) -> dict[str, Any]:
+        try:
+            async with runtime_provider.open_product() as runtime:
+                bindings = await runtime.grounded_learning.list_bindings(user_id=current_user_id(), plan_id=plan_id, plan_version=plan_version)
+            return {"bindings": bindings}
+        except GroundedLearningNotFound as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+    @router.post("/study-plans/{plan_id}/versions/{plan_version}/textbooks")
+    async def set_textbook_binding(plan_id: NonEmptyString, plan_version: Annotated[int, Field(ge=1)], body: TextbookBindingBody) -> dict[str, Any]:
+        try:
+            async with runtime_provider.open_product() as runtime:
+                binding = await runtime.grounded_learning.set_binding(
+                    binding_id=_idempotent_record_id("binding", current_user_id(), body.idempotency_key),
+                    user_id=current_user_id(), plan_id=plan_id, plan_version=plan_version,
+                    textbook_version_id=body.textbook_version_id, role=body.role,
+                    priority=body.priority, status=body.status,
+                )
+                await runtime.connection.commit()
+            return {"binding": binding}
+        except GroundedLearningNotFound as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+        except GroundedLearningConflict as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+    @router.get("/study-plans/{plan_id}/versions/{plan_version}/textbook-mappings")
+    async def list_textbook_mappings(plan_id: NonEmptyString, plan_version: Annotated[int, Field(ge=1)], objective_id: str | None = None) -> dict[str, Any]:
+        try:
+            async with runtime_provider.open_product() as runtime:
+                mappings = await runtime.grounded_learning.list_mappings(user_id=current_user_id(), plan_id=plan_id, plan_version=plan_version, objective_id=objective_id)
+            return {"mappings": mappings}
+        except GroundedLearningNotFound as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+    @router.post("/study-plans/{plan_id}/versions/{plan_version}/textbook-mappings")
+    async def set_textbook_mapping(plan_id: NonEmptyString, plan_version: Annotated[int, Field(ge=1)], body: TextbookMappingBody) -> dict[str, Any]:
+        try:
+            async with runtime_provider.open_product() as runtime:
+                mapping = await runtime.grounded_learning.set_mapping(
+                    mapping_id=_idempotent_record_id("mapping", current_user_id(), body.idempotency_key),
+                    user_id=current_user_id(), plan_id=plan_id, plan_version=plan_version,
+                    objective_id=body.objective_id, textbook_section_id=body.textbook_section_id,
+                    confidence=body.confidence, created_via=body.created_via, status=body.status,
+                )
+                await runtime.connection.commit()
+            return {"mapping": mapping}
+        except GroundedLearningNotFound as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+        except GroundedLearningConflict as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+    @router.get("/learning-source-snapshots/{session_id}")
+    async def get_learning_source_snapshot(session_id: NonEmptyString) -> dict[str, Any]:
+        async with runtime_provider.open_product() as runtime:
+            snapshot = await runtime.grounded_learning.find_learning_snapshot(user_id=current_user_id(), host_session_id=session_id)
+        if snapshot is None:
+            raise HTTPException(status_code=404, detail="learning source snapshot not found")
+        return snapshot
+
     @router.post("/practice/start")
     async def start_practice(body: PracticeStartBody) -> dict[str, Any]:
         _validate_controlled_scope(body.exam_id, body.subject_id)
@@ -520,11 +605,35 @@ def build_router(
             body.knowledge_point_id,
             body.knowledge_point_name,
         )
+        assessment_grounding: dict[str, Any] | None = None
+        if body.exam_id.startswith("plan:"):
+            plan_id = body.exam_id.removeprefix("plan:")
+            try:
+                async with runtime_provider.open_product() as runtime:
+                    plan_version = await runtime.study_plans.get_version_for_taxonomy(
+                        user_id=current_user_id(),
+                        plan_id=plan_id,
+                        subject_id=body.subject_id,
+                        taxonomy_version=body.taxonomy_version,
+                    )
+                assessment_grounding = await grounding.evidence_package(
+                    user_id=current_user_id(),
+                    plan_id=plan_id,
+                    plan_version=int(plan_version["version"]),
+                    objective_id=canonical_id,
+                    query=f"{body.knowledge_point_name} assessment definition theorem procedure",
+                    mode="primary",
+                )
+            except (StudyPlanNotFound, GroundedLearningNotFound) as exc:
+                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+            except GroundedLearningConflict as exc:
+                raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
         questions = await _generate_practice_questions(
             runtime_host(),
             body=body,
             canonical_knowledge_point_id=canonical_id,
             progress=progress,
+            grounding_package=assessment_grounding,
         )
         context = _practice_context_payload(
             practice_session_id=body.practice_session_id,
@@ -569,6 +678,19 @@ def build_router(
                     practice_session_id=body.practice_session_id,
                     trace_id=body.trace_id,
                 )
+                assessment_source_snapshot = None
+                if assessment_grounding and any(
+                    item.get("evidence") for item in assessment_grounding["sources"]
+                ):
+                    assessment_source_snapshot = await runtime.grounded_learning.create_assessment_snapshot(
+                        snapshot_id=f"assessment-source:{uuid.uuid4().hex}",
+                        user_id=user_id,
+                        idempotency_key=f"assessment-source:{assessment_id}:{assessment_version['version']}",
+                        assessment_id=assessment_id,
+                        assessment_version=assessment_version["version"],
+                        evidence=assessment_grounding["sources"],
+                        index_versions=assessment_grounding["index_versions"],
+                    )
                 await runtime.connection.commit()
         except AssessmentConflict as exc:
             raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
@@ -609,6 +731,7 @@ def build_router(
             "assessment_id": assessment_id,
             "version": assessment_version["version"],
             "attempt_id": attempt["attempt_id"],
+            "source_snapshot": assessment_source_snapshot,
         }
         return result
 
@@ -732,6 +855,16 @@ def build_router(
                 archived=archived,
             )
         return {"assessments": items}
+
+    @router.get("/assessments/{assessment_id}/versions/{version}/source-snapshot")
+    async def get_assessment_source_snapshot(assessment_id: NonEmptyString, version: Annotated[int, Field(ge=1)]) -> dict[str, Any]:
+        async with runtime_provider.open_product() as runtime:
+            snapshot = await runtime.grounded_learning.find_assessment_snapshot(
+                user_id=current_user_id(), assessment_id=assessment_id, assessment_version=version
+            )
+        if snapshot is None:
+            raise HTTPException(status_code=404, detail="assessment source snapshot not found")
+        return snapshot
 
     @router.post("/assessments/{assessment_id}/archive")
     async def archive_assessment(assessment_id: NonEmptyString) -> dict[str, Any]:
@@ -954,6 +1087,12 @@ def build_router(
                     plan_version=plan_version,
                     objective_id=objective_id,
                 )
+                pinned_snapshot = None
+                if existing is not None:
+                    pinned_snapshot = await runtime.grounded_learning.find_learning_snapshot(
+                        user_id=user_id,
+                        host_session_id=existing["host_session_id"],
+                    )
                 if existing is not None and await runtime_host().session_exists(
                     existing["host_session_id"]
                 ):
@@ -961,6 +1100,16 @@ def build_router(
                         existing["host_session_id"], ("exam_mem_learning",)
                     ):
                         raise RuntimeError("Host learning session could not be rebound")
+                    if pinned_snapshot is not None:
+                        knowledge_bases, source_filters = grounding.validate_snapshot(
+                            pinned_snapshot
+                        )
+                        if not await runtime_host().bind_session_knowledge_sources(
+                            existing["host_session_id"],
+                            knowledge_bases,
+                            filters=source_filters,
+                        ):
+                            raise RuntimeError("Host learning knowledge sources could not be rebound")
                     await runtime.connection.commit()
                     return _objective_session_payload(
                         existing,
@@ -969,6 +1118,7 @@ def build_router(
                             objective_id=objective_id,
                         ),
                         created=False,
+                        source_snapshot=pinned_snapshot,
                     )
 
                 host_path_id = _host_objective_path_id(user_id, plan_id, plan_version, objective_id)
@@ -982,6 +1132,24 @@ def build_router(
                         module_name=f"{subject.name} / {module.name}",
                     ),
                 )
+                if pinned_snapshot is not None:
+                    knowledge_bases, source_filters = grounding.validate_snapshot(pinned_snapshot)
+                    evidence_package = {
+                        "mode": pinned_snapshot["mode"],
+                        "sources": pinned_snapshot["sources"],
+                        "knowledge_bases": list(knowledge_bases),
+                        "filters": source_filters,
+                        "index_versions": pinned_snapshot["index_versions"],
+                    }
+                else:
+                    evidence_package = await grounding.evidence_package(
+                        user_id=user_id,
+                        plan_id=plan_id,
+                        plan_version=plan_version,
+                        objective_id=objective_id,
+                        query=f"{subject.name} {module.name} {objective.name}",
+                        mode=body.source_mode,
+                    )
                 session, turn = await runtime_host().start_turn(
                     PluginTurnRequest(
                         content=_objective_start_prompt(
@@ -990,11 +1158,15 @@ def build_router(
                             subject_name=subject.name,
                             module_name=module.name,
                             objective_name=objective.name,
-                        ),
+                        )
+                        + "\n\n"
+                        + render_grounding_prompt(evidence_package, language=body.language),
                         capability="mastery_path",
                         language=body.language,
                         mastery_path_id=host_path_id,
                         context_sources=("exam_mem_learning",),
+                        knowledge_bases=tuple(evidence_package["knowledge_bases"]),
+                        knowledge_source_filters=evidence_package["filters"],
                     )
                 )
                 created_session_id = session["id"]
@@ -1019,6 +1191,18 @@ def build_router(
                         host_session_id=session["id"],
                         initial_turn_id=turn["id"],
                     )
+                source_snapshot, _ = await runtime.grounded_learning.create_learning_snapshot(
+                    snapshot_id=f"learning-source:{uuid.uuid4().hex}",
+                    user_id=user_id,
+                    idempotency_key=f"learning-source:{session['id']}",
+                    host_session_id=session["id"],
+                    plan_id=plan_id,
+                    plan_version=plan_version,
+                    objective_id=objective_id,
+                    mode=evidence_package["mode"],
+                    sources=evidence_package["sources"],
+                    index_versions=evidence_package["index_versions"],
+                )
                 await runtime.connection.commit()
                 return _objective_session_payload(
                     link,
@@ -1027,10 +1211,17 @@ def build_router(
                         objective_id=objective_id,
                     ),
                     created=True,
+                    source_snapshot=source_snapshot,
                 )
         except StudyPlanNotFound as exc:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
         except StudyPlanConflict as exc:
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+        except GroundedLearningNotFound as exc:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+        except (GroundedLearningConflict, RuntimeError) as exc:
+            if created_session_id is not None:
+                await runtime_host().delete_session(created_session_id)
             raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
         except Exception:
             if created_session_id is not None:
@@ -2064,6 +2255,7 @@ async def _generate_practice_questions(
     body: GeneratedPracticeStartBody,
     canonical_knowledge_point_id: str,
     progress: PracticeGenerationProgressSink | None = None,
+    grounding_package: dict[str, Any] | None = None,
 ) -> tuple[Question, ...]:
     source_artifacts = []
     for attachment in body.attachments:
@@ -2085,6 +2277,8 @@ async def _generate_practice_questions(
             }
         )
     topic = _practice_generation_prompt(body)
+    if grounding_package and grounding_package["sources"]:
+        topic += "\n\n" + render_grounding_prompt(grounding_package, language=body.language)
     session: dict[str, Any] | None = None
     pairs: list[dict[str, Any]] = []
     generation_error: dict[str, Any] | None = None
@@ -2105,6 +2299,10 @@ async def _generate_practice_questions(
                     "_persist_user_message": False,
                 },
                 attachments=tuple(item.model_dump(mode="json") for item in body.attachments),
+                knowledge_bases=tuple(
+                    (grounding_package or {}).get("knowledge_bases") or ()
+                ),
+                knowledge_source_filters=(grounding_package or {}).get("filters") or {},
             )
         )
         async for event in host.stream_turn(turn["id"]):
@@ -2302,7 +2500,11 @@ async def _study_plan_with_progress(
 
 
 def _objective_session_payload(
-    link: dict[str, Any], progress: dict[str, Any], *, created: bool
+    link: dict[str, Any],
+    progress: dict[str, Any],
+    *,
+    created: bool,
+    source_snapshot: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     return {
         "objective_id": link["objective_id"],
@@ -2314,6 +2516,14 @@ def _objective_session_payload(
         "learning_mastery": progress["mastery"],
         "created_at": link["created_at"].isoformat(),
         "updated_at": link["updated_at"].isoformat(),
+        "source_snapshot": source_snapshot,
+        "source_status": (
+            "unbound"
+            if source_snapshot is None or not source_snapshot["sources"]
+            else "grounded"
+            if any(item.get("evidence") for item in source_snapshot["sources"])
+            else "no_results"
+        ),
     }
 
 
@@ -2322,6 +2532,11 @@ def _host_objective_path_id(
 ) -> str:
     identity = "\x1f".join((user_id, plan_id, str(plan_version), objective_id)).encode()
     return f"em{hashlib.sha256(identity).hexdigest()[:28]}"
+
+
+def _idempotent_record_id(kind: str, user_id: str, key: str) -> str:
+    identity = "\x1f".join((kind, user_id, key)).encode()
+    return f"{kind}:{hashlib.sha256(identity).hexdigest()}"
 
 
 def _objective_start_prompt(

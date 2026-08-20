@@ -11,6 +11,7 @@ import {
   FileUp,
   GraduationCap,
   Link2,
+  GitCompareArrows,
   Loader2,
   MessageSquare,
   Plus,
@@ -24,6 +25,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { extractBase64FromDataUrl, readFileAsDataUrl } from "@/lib/file-attachments";
+import TextbookGroundingPanel from "@/components/exam-mem/TextbookGroundingPanel";
 import {
   archiveStudyPlan,
   getStudyPlan,
@@ -175,7 +177,7 @@ export default function LearningPathsWorkbench() {
     } finally { setWorking(false); }
   };
 
-  const continueLearning = async (objectiveId: string) => {
+  const continueLearning = async (objectiveId: string, sourceMode: "primary" | "compare" = "primary") => {
     if (!detail?.published) return;
     setWorking(true);
     setError(null);
@@ -185,6 +187,7 @@ export default function LearningPathsWorkbench() {
         objectiveId,
         detail.published.version,
         zh ? "zh" : "en",
+        sourceMode,
       );
       router.push(session.chat_url);
     } catch (cause) {
@@ -253,6 +256,7 @@ export default function LearningPathsWorkbench() {
                 <div><h2 className="font-serif text-xl font-semibold">{selectedSubject.name}</h2><p className="mt-1 text-xs text-[var(--muted-foreground)]">{tr(`${detail.name} · 版本 ${detail.published.version} · 已发布考试范围`, `${detail.name} · v${detail.published.version} · published exam scope`)}</p></div>
                 <span className={`rounded-full px-3 py-1 text-xs ${detail.archived_at ? "bg-amber-500/10 text-amber-600" : "bg-emerald-500/10 text-emerald-600"}`}><Check className="mr-1 inline h-3 w-3" />{detail.archived_at ? tr("已归档，只读", "Archived, read-only") : tr("结构已锁定", "Structure locked")}</span>
               </div>
+              <TextbookGroundingPanel planId={detail.plan_id} version={detail.published.version} objectives={selectedSubject.modules.flatMap((item) => item.knowledge_points.map((point) => ({ id: point.id, name: point.name })))} />
               {selectedSubject.modules.map((module) => (
                 <div key={module.id}>
                   <h3 className="mb-2 text-sm font-semibold">{module.name} <span className="font-normal text-[var(--muted-foreground)]">{module.knowledge_points.length} {tr("个知识点", "objectives")}</span></h3>
@@ -265,7 +269,8 @@ export default function LearningPathsWorkbench() {
                       return <article key={objective.id} className="flex min-w-0 items-center gap-3 rounded-lg border border-[var(--border)] p-3">
                         <Icon className={`h-4 w-4 shrink-0 ${status === "mastered" ? "text-emerald-500" : status === "learning" ? "text-amber-500" : "text-[var(--muted-foreground)]"}`} />
                         <div className="min-w-0 flex-1"><p className="truncate text-sm">{objective.name}</p><p className="text-xs text-[var(--muted-foreground)]">{Math.round((session?.learning_mastery ?? 0) * 100)}% · {objective.type}</p></div>
-                        {!detail.archived_at ? <button type="button" disabled={working} onClick={() => void continueLearning(objective.id)} title={tr("继续学习", "Continue learning")} className="rounded-lg border border-[var(--border)] p-2 text-teal-600 hover:bg-[var(--muted)] disabled:opacity-50"><MessageSquare className="h-4 w-4" /></button> : null}
+                        {!detail.archived_at ? <button type="button" disabled={working} onClick={() => void continueLearning(objective.id)} title={tr("按主教材学习", "Learn from primary source")} className="rounded-lg border border-[var(--border)] p-2 text-teal-600 hover:bg-[var(--muted)] disabled:opacity-50"><MessageSquare className="h-4 w-4" /></button> : null}
+                        {!detail.archived_at ? <button type="button" disabled={working} onClick={() => void continueLearning(objective.id, "compare")} title={tr("比较教材观点", "Compare textbook views")} className="rounded-lg border border-[var(--border)] p-2 text-indigo-600 hover:bg-[var(--muted)] disabled:opacity-50"><GitCompareArrows className="h-4 w-4" /></button> : null}
                         {!detail.archived_at ? <Link href={`/exam-mem/practice?${query}`} title={tr("专项练习", "Targeted practice")} className="rounded-lg border border-[var(--border)] p-2 text-[var(--primary)] hover:bg-[var(--muted)]"><BookOpenCheck className="h-4 w-4" /></Link> : null}
                       </article>;
                     })}

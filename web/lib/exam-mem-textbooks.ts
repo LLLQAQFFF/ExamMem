@@ -47,6 +47,25 @@ export interface Textbook {
   versions: TextbookVersion[];
 }
 
+export interface TextbookBinding {
+  binding_id: string;
+  textbook_version_id: string;
+  revision: number;
+  role: "primary" | "supplement" | "reference";
+  priority: number;
+  status: "candidate" | "confirmed" | "inactive";
+}
+
+export interface TextbookMapping {
+  mapping_id: string;
+  objective_id: string;
+  textbook_section_id: string;
+  mapping_version: number;
+  confidence: number;
+  created_via: "manual" | "recommended";
+  status: "candidate" | "confirmed" | "rejected";
+}
+
 async function jsonOrError<T>(response: Response): Promise<T> {
   const payload = (await response.json()) as T & { detail?: string | { message?: string } };
   if (!response.ok) {
@@ -80,4 +99,24 @@ export async function retryTextbookJob(jobId: string): Promise<void> {
 
 export async function archiveTextbook(textbookId: string): Promise<void> {
   await jsonOrError(await apiFetch(apiUrl(`/api/v1/exam-mem/textbooks/${encodeURIComponent(textbookId)}/archive`), { method: "POST" }));
+}
+
+export async function listTextbookBindings(planId: string, version: number): Promise<TextbookBinding[]> {
+  const response = await apiFetch(apiUrl(`/api/v1/exam-mem/study-plans/${encodeURIComponent(planId)}/versions/${version}/textbooks`));
+  return (await jsonOrError<{ bindings: TextbookBinding[] }>(response)).bindings;
+}
+
+export async function setTextbookBinding(planId: string, version: number, body: Omit<TextbookBinding, "binding_id" | "revision">): Promise<TextbookBinding> {
+  const response = await apiFetch(apiUrl(`/api/v1/exam-mem/study-plans/${encodeURIComponent(planId)}/versions/${version}/textbooks`), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...body, idempotency_key: crypto.randomUUID() }) });
+  return (await jsonOrError<{ binding: TextbookBinding }>(response)).binding;
+}
+
+export async function listTextbookMappings(planId: string, version: number): Promise<TextbookMapping[]> {
+  const response = await apiFetch(apiUrl(`/api/v1/exam-mem/study-plans/${encodeURIComponent(planId)}/versions/${version}/textbook-mappings`));
+  return (await jsonOrError<{ mappings: TextbookMapping[] }>(response)).mappings;
+}
+
+export async function setTextbookMapping(planId: string, version: number, body: Omit<TextbookMapping, "mapping_id" | "mapping_version">): Promise<TextbookMapping> {
+  const response = await apiFetch(apiUrl(`/api/v1/exam-mem/study-plans/${encodeURIComponent(planId)}/versions/${version}/textbook-mappings`), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...body, idempotency_key: crypto.randomUUID() }) });
+  return (await jsonOrError<{ mapping: TextbookMapping }>(response)).mapping;
 }

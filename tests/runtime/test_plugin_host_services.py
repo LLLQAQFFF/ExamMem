@@ -137,10 +137,14 @@ async def test_plugin_turn_host_forwards_neutral_knowledge_sources(monkeypatch) 
             content="learn",
             capability="mastery_path",
             knowledge_bases=("structured-" + "a" * 32,),
+            knowledge_source_filters={"structured-" + "a" * 32: {"section_key": ("chapter-1",)}},
         )
     )
 
     assert requests[0]["knowledge_bases"] == ["structured-" + "a" * 32]
+    assert requests[0]["config"]["knowledge_source_filters"] == {
+        "structured-" + "a" * 32: {"section_key": ("chapter-1",)}
+    }
 
 
 @pytest.mark.asyncio
@@ -168,6 +172,59 @@ async def test_plugin_turn_host_binds_context_to_an_owned_chat_session(monkeypat
 
     assert bound is True
     assert updates == [("session-1", {"context_sources": ["learning_context"]})]
+
+
+@pytest.mark.asyncio
+async def test_plugin_turn_host_rebinds_filtered_knowledge_sources(monkeypatch) -> None:
+    updates: list[tuple[str, dict[str, object]]] = []
+
+    class FakeApp:
+        pass
+
+    class SessionStore:
+        async def get_session(self, session_id, *, surface):  # noqa: ANN001, ANN201
+            return {"id": session_id} if surface == "chat" else None
+
+        async def update_session_preferences(self, session_id, preferences):  # noqa: ANN001, ANN201
+            updates.append((session_id, preferences))
+            return True
+
+    monkeypatch.setattr("deeptutor.app.DeepTutorApp", FakeApp)
+    monkeypatch.setattr("deeptutor.services.session.get_session_store", lambda: SessionStore())
+    source = "structured-" + "b" * 32
+    assert await host_services.PluginTurnHost().bind_session_knowledge_sources(
+        "session-1", (source, source), filters={source: {"section_key": ("s1",)}}
+    )
+    assert updates == [
+        (
+            "session-1",
+            {
+                "knowledge_bases": [source],
+                "knowledge_source_filters": {source: {"section_key": ("s1",)}},
+            },
+        )
+    ]
+
+
+@pytest.mark.asyncio
+async def test_plugin_turn_host_refuses_knowledge_rebind_for_unowned_session(monkeypatch) -> None:
+    class FakeApp:
+        pass
+
+    class SessionStore:
+        async def get_session(self, session_id, *, surface):  # noqa: ANN001, ANN201
+            assert (session_id, surface) == ("other-session", "chat")
+            return None
+
+        async def update_session_preferences(self, *_args, **_kwargs):  # noqa: ANN002, ANN003
+            raise AssertionError("an unowned session must not be updated")
+
+    monkeypatch.setattr("deeptutor.app.DeepTutorApp", FakeApp)
+    monkeypatch.setattr("deeptutor.services.session.get_session_store", lambda: SessionStore())
+
+    assert not await host_services.PluginTurnHost().bind_session_knowledge_sources(
+        "other-session", ("opaque-index",)
+    )
 
 
 @pytest.mark.asyncio

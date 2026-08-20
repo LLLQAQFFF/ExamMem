@@ -1325,6 +1325,24 @@ def test_augment_tool_kwargs_injects_mastery_path_id() -> None:
     assert augmented["_mastery_path_id"] == "book-1"
 
 
+def test_augment_tool_kwargs_scopes_rag_to_neutral_source_metadata() -> None:
+    pipeline = AgenticChatPipeline.__new__(AgenticChatPipeline)
+    context = UnifiedContext(
+        user_message="teach",
+        config_overrides={
+            "knowledge_source_filters": {
+                "opaque-index": {"section_key": ("chapter-2", "chapter-4")}
+            }
+        },
+    )
+
+    augmented = pipeline._augment_tool_kwargs(
+        "rag", {"query": "limits", "kb_name": "opaque-index"}, context
+    )
+
+    assert augmented["metadata_filters"] == {"section_key": ("chapter-2", "chapter-4")}
+
+
 def test_augment_tool_kwargs_injects_geogebra_image() -> None:
     pipeline = AgenticChatPipeline.__new__(AgenticChatPipeline)
     pipeline.language = "zh"

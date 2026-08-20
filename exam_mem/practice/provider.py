@@ -42,6 +42,7 @@ from exam_mem.storage import (
     PostgresBaselineFactRepository,
     PostgresExamProductRepository,
     PostgresGradeReviewRepository,
+    PostgresGroundedLearningRepository,
     PostgresLearningArchiveRepository,
     PostgresLearningEventRepository,
     PostgresLearningMemoryRepository,
@@ -398,6 +399,7 @@ class ExamProductRuntime:
     checkpoints: PostgresPracticeCheckpointRepository
     study_plans: PostgresStudyPlanRepository
     textbooks: PostgresTextbookRepository
+    grounded_learning: PostgresGroundedLearningRepository
     observations: PostgresLearningObservationRepository
     learning_archive: PostgresLearningArchiveRepository
     learning_profiles: LearningProfileQueryService
@@ -585,6 +587,7 @@ class PracticeRuntimeProvider:
                     checkpoints=PostgresPracticeCheckpointRepository(connection),
                     study_plans=PostgresStudyPlanRepository(connection),
                     textbooks=PostgresTextbookRepository(connection),
+                    grounded_learning=PostgresGroundedLearningRepository(connection),
                     observations=PostgresLearningObservationRepository(connection),
                     learning_archive=PostgresLearningArchiveRepository(connection),
                     learning_profiles=LearningProfileQueryService(
