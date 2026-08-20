@@ -123,6 +123,27 @@ async def test_plugin_turn_host_forwards_explicit_attachments(monkeypatch) -> No
 
 
 @pytest.mark.asyncio
+async def test_plugin_turn_host_forwards_neutral_knowledge_sources(monkeypatch) -> None:
+    requests: list[dict[str, object]] = []
+
+    class FakeApp:
+        async def start_turn(self, request):
+            requests.append(request)
+            return {"id": "session-1"}, {"id": "turn-1"}
+
+    monkeypatch.setattr("deeptutor.app.DeepTutorApp", FakeApp)
+    await host_services.PluginTurnHost().start_turn(
+        host_services.PluginTurnRequest(
+            content="learn",
+            capability="mastery_path",
+            knowledge_bases=("structured-" + "a" * 32,),
+        )
+    )
+
+    assert requests[0]["knowledge_bases"] == ["structured-" + "a" * 32]
+
+
+@pytest.mark.asyncio
 async def test_plugin_turn_host_binds_context_to_an_owned_chat_session(monkeypatch) -> None:
     updates: list[tuple[str, dict[str, object]]] = []
 

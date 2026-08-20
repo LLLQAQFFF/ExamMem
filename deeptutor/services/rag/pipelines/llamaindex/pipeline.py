@@ -158,7 +158,12 @@ class LlamaIndexPipeline:
             top_k = kwargs.get("top_k") or default_top_k()
             nodes = await loop.run_in_executor(
                 None,
-                lambda: storage.retrieve_nodes(storage_dir, query, top_k=top_k),
+                lambda: storage.retrieve_nodes(
+                    storage_dir,
+                    query,
+                    top_k=top_k,
+                    metadata_filters=kwargs.get("metadata_filters"),
+                ),
             )
 
             result = self._nodes_to_result(query, nodes)
@@ -210,6 +215,7 @@ class LlamaIndexPipeline:
                     "page": meta.get("page_label", meta.get("page", "")),
                     "chunk_id": node.node.node_id or str(i),
                     "score": round(node.score, 4) if node.score is not None else "",
+                    "metadata": dict(meta),
                 }
             )
 

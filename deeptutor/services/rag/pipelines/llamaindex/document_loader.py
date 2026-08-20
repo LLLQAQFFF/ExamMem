@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import base64
 from dataclasses import dataclass
+import json
 import logging
 import mimetypes
 from pathlib import Path
@@ -264,13 +265,17 @@ class LlamaIndexDocumentLoader:
 
     def _append_if_nonempty(self, documents: list[Any], file_path: Path, text: str) -> None:
         if text.strip():
+            metadata = {"file_name": file_path.name, "file_path": str(file_path)}
+            sidecar = file_path.with_suffix(file_path.suffix + ".metadata.json")
+            if sidecar.is_file():
+                payload = json.loads(sidecar.read_text(encoding="utf-8"))
+                if not isinstance(payload, dict):
+                    raise ValueError(f"Document metadata sidecar must contain an object: {sidecar}")
+                metadata.update(payload)
             documents.append(
                 Document(
                     text=text,
-                    metadata={
-                        "file_name": file_path.name,
-                        "file_path": str(file_path),
-                    },
+                    metadata=metadata,
                 )
             )
             self.logger.info(f"Loaded: {file_path.name} ({len(text)} chars)")

@@ -29,7 +29,7 @@ def test_alembic_configuration_does_not_store_a_database_url() -> None:
 def test_migration_chain_has_one_linear_head() -> None:
     scripts = _script_directory()
 
-    assert scripts.get_heads() == ["0012_study_plan_archival"]
+    assert scripts.get_heads() == ["0013_textbook_library"]
     assert scripts.get_revision("0001_learning_memory_schema").down_revision is None
     assert (
         scripts.get_revision("0002_append_only_records").down_revision
@@ -62,6 +62,7 @@ def test_migration_chain_has_one_linear_head() -> None:
     assert (
         scripts.get_revision("0012_study_plan_archival").down_revision == "0011_assessment_archival"
     )
+    assert scripts.get_revision("0013_textbook_library").down_revision == "0012_study_plan_archival"
 
 
 def test_revision_ids_fit_the_alembic_version_column() -> None:
@@ -98,7 +99,7 @@ def test_initial_migration_renders_the_frozen_schema_offline() -> None:
 
     assert result.returncode == 0, result.stderr
     assert "create extension if not exists vector" in rendered
-    assert rendered.count("create table ") == 22
+    assert rendered.count("create table ") == 26
     for table_name in (
         "alembic_version",
         "learning_events",
@@ -122,12 +123,16 @@ def test_initial_migration_renders_the_frozen_schema_offline() -> None:
         "assessment_attempts",
         "learning_observations",
         "learning_observation_actions",
+        "textbooks",
+        "textbook_versions",
+        "textbook_sections",
+        "textbook_ingestion_jobs",
     ):
         assert f"create table {table_name}" in rendered
     assert "vector(1024)" in rendered
     assert "using hnsw (content_embedding vector_cosine_ops)" in rendered
     assert "create function exam_mem_reject_append_only_mutation" in rendered
-    assert rendered.count("create trigger tr_") == 10
+    assert rendered.count("create trigger tr_") == 11
     assert "deferrable initially deferred" in rendered
     assert "add column trace_id text not null" in rendered
     assert "add column decision_id text not null" in rendered

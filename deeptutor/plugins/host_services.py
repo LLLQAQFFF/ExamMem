@@ -2,7 +2,12 @@
 
 from __future__ import annotations
 
+import asyncio
 from dataclasses import asdict, dataclass, field
+import hashlib
+import json
+from pathlib import Path
+import re
 from typing import Any, AsyncIterator
 
 from deeptutor.agents._shared.capability_result import emit_capability_result
@@ -43,6 +48,7 @@ class PluginTurnRequest:
     attachments: tuple[dict[str, Any], ...] = ()
     mastery_path_id: str | None = None
     context_sources: tuple[str, ...] = ()
+    knowledge_bases: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -84,6 +90,10 @@ class PluginTurnHost:
             payload.pop("context_sources")
         else:
             payload["context_sources"] = list(request.context_sources)
+        if not request.knowledge_bases:
+            payload.pop("knowledge_bases")
+        else:
+            payload["knowledge_bases"] = list(request.knowledge_bases)
         return await self._app.start_turn(payload)
 
     async def stream_turn(self, turn_id: str) -> AsyncIterator[dict[str, Any]]:
@@ -291,6 +301,158 @@ class PluginSourceHost:
             "truncated": outcome.truncated,
         }
 
+    def save_attachment(self, *, filename: str, content: bytes) -> dict[str, Any]:
+        """Persist one user-owned source and return an opaque content-addressed ref."""
+        from deeptutor.services.path_service import get_path_service
+        from deeptutor.utils.document_validator import DocumentValidator
+
+        safe_name = Path(filename).name
+        if not safe_name or safe_name != filename:
+            raise ValueError("attachment filename must be a plain basename")
+        suffix = Path(safe_name).suffix.lower()
+        if suffix not in {".pdf", ".txt", ".md"}:
+            raise ValueError("structured sources support only PDF, TXT and Markdown")
+        if not content or len(content) > DocumentValidator.MAX_FILE_SIZE:
+            raise ValueError("attachment is empty or exceeds the Host size limit")
+        source_hash = hashlib.sha256(content).hexdigest()
+        source_ref = f"source:{source_hash}"
+        root = get_path_service().workspace_root / "structured_sources" / source_hash
+        root.mkdir(parents=True, exist_ok=True)
+        path = root / f"original{suffix}"
+        if path.exists() and hashlib.sha256(path.read_bytes()).hexdigest() != source_hash:
+            raise PluginDataConflict("structured source ref conflicts with stored bytes")
+        if not path.exists():
+            path.write_bytes(content)
+        manifest = root / "manifest.json"
+        if not manifest.exists():
+            manifest.write_text(
+                json.dumps(
+                    {"source_ref": source_ref, "source_hash": source_hash, "filename": safe_name},
+                    ensure_ascii=False,
+                    sort_keys=True,
+                ),
+                encoding="utf-8",
+            )
+        return {"source_ref": source_ref, "source_hash": source_hash, "filename": safe_name, "size_bytes": len(content)}
+
+    async def parse_saved_source(self, source_ref: str) -> dict[str, Any]:
+        """Parse a previously saved source through the shared ParseService."""
+        from deeptutor.services.parsing import get_parse_service
+
+        root = self._source_root(source_ref)
+        paths = [path for path in root.glob("original.*") if path.is_file()]
+        if len(paths) != 1:
+            raise FileNotFoundError("structured source is unavailable")
+        parsed = await asyncio.to_thread(get_parse_service().parse, paths[0])
+        return {
+            "source_ref": source_ref,
+            "source_hash": parsed.source_hash,
+            "parser_signature": parsed.parser_signature,
+            "engine": parsed.engine,
+            "markdown": parsed.markdown,
+            "blocks": parsed.blocks or [],
+            "asset_ref": None if parsed.asset_dir is None else str(parsed.asset_dir),
+        }
+
+    @staticmethod
+    def _source_root(source_ref: str) -> Path:
+        from deeptutor.services.path_service import get_path_service
+
+        match = re.fullmatch(r"source:([0-9a-f]{64})", source_ref)
+        if match is None:
+            raise ValueError("invalid structured source ref")
+        return get_path_service().workspace_root / "structured_sources" / match.group(1)
+
+
+class PluginKnowledgeIndexHost:
+    """Domain-neutral owner-scoped structured-document index bridge."""
+
+    @staticmethod
+    def index_ref(identity: str) -> str:
+        return f"structured-{hashlib.sha256(identity.encode()).hexdigest()[:32]}"
+
+    async def build(self, *, index_ref: str, documents: tuple[dict[str, Any], ...], progress_callback: Any = None) -> dict[str, Any]:
+        from deeptutor.knowledge.manager import KnowledgeBaseManager
+        from deeptutor.services.path_service import get_path_service
+        from deeptutor.services.rag.service import RAGService
+
+        name = self._index_name(index_ref)
+        base = get_path_service().get_knowledge_bases_root()
+        kb_dir = base / name
+        inputs = kb_dir / "structured_inputs"
+        inputs.mkdir(parents=True, exist_ok=True)
+        paths: list[str] = []
+        for position, document in enumerate(documents):
+            text = str(document.get("text") or "").strip()
+            if not text:
+                continue
+            path = inputs / f"document-{position:06d}.md"
+            path.write_text(text, encoding="utf-8")
+            path.with_suffix(path.suffix + ".metadata.json").write_text(
+                json.dumps(dict(document.get("metadata") or {}), ensure_ascii=False, sort_keys=True),
+                encoding="utf-8",
+            )
+            paths.append(str(path))
+        if not paths:
+            raise ValueError("knowledge index requires at least one non-empty document")
+        manager = KnowledgeBaseManager(base)
+        manager.update_kb_status(name, "processing", {"stage": "indexing", "percent": 0})
+        try:
+            built = await RAGService(kb_base_dir=str(base)).initialize(
+                kb_name=name, file_paths=paths, progress_callback=progress_callback
+            )
+        except Exception:
+            manager.update_kb_status(name, "error", {"stage": "indexing", "percent": 0})
+            raise
+        if not built:
+            raise RuntimeError("Host knowledge index produced no searchable content")
+        manager.update_kb_status(name, "ready", {"stage": "complete", "percent": 100, "indexed_count": len(paths)})
+        return {"index_ref": name, "index_version": self._index_version(kb_dir)}
+
+    async def rebuild(self, index_ref: str) -> dict[str, Any]:
+        from deeptutor.services.path_service import get_path_service
+
+        name = self._index_name(index_ref)
+        inputs = get_path_service().get_knowledge_bases_root() / name / "structured_inputs"
+        documents: list[dict[str, Any]] = []
+        for path in sorted(inputs.glob("*.md")):
+            sidecar = path.with_suffix(path.suffix + ".metadata.json")
+            documents.append({"text": path.read_text(encoding="utf-8"), "metadata": json.loads(sidecar.read_text(encoding="utf-8"))})
+        return await self.build(index_ref=name, documents=tuple(documents))
+
+    async def search(self, *, index_ref: str, query: str, metadata_filters: dict[str, tuple[str, ...]] | None = None, top_k: int = 5) -> dict[str, Any]:
+        from deeptutor.services.path_service import get_path_service
+        from deeptutor.services.rag.service import RAGService
+
+        name = self._index_name(index_ref)
+        base = get_path_service().get_knowledge_bases_root()
+        if not (base / name).is_dir():
+            raise FileNotFoundError("knowledge index is unavailable")
+        result = await RAGService(kb_base_dir=str(base)).search(
+            query=query, kb_name=name, top_k=top_k, metadata_filters=metadata_filters or {}
+        )
+        result["index_ref"] = name
+        result["index_version"] = self._index_version(base / name)
+        return result
+
+    def status(self, index_ref: str) -> dict[str, Any]:
+        from deeptutor.services.path_service import get_path_service
+
+        name = self._index_name(index_ref)
+        path = get_path_service().get_knowledge_bases_root() / name
+        return {"index_ref": name, "available": path.is_dir(), "index_version": self._index_version(path)}
+
+    @staticmethod
+    def _index_name(index_ref: str) -> str:
+        if re.fullmatch(r"structured-[0-9a-f]{32}", index_ref) is None:
+            raise ValueError("invalid knowledge index ref")
+        return index_ref
+
+    @staticmethod
+    def _index_version(path: Path) -> str:
+        versions = sorted(item.name for item in path.glob("version-*") if item.is_dir())
+        return versions[-1] if versions else "unavailable"
+
 
 class NativeMemoryHost:
     """Stable plugin-facing adapter over Host-owned Native Memory formats."""
@@ -378,6 +540,7 @@ __all__ = [
     "PluginMemoryEvent",
     "PluginLearningHost",
     "PluginLearningObjective",
+    "PluginKnowledgeIndexHost",
     "PluginSourceHost",
     "PluginTurnHost",
     "PluginTurnRequest",

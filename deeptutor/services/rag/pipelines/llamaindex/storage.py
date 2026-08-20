@@ -279,10 +279,29 @@ def prune_index_cache() -> int:
         return before - len(_INDEX_CACHE)
 
 
-def retrieve_nodes(storage_dir: Path, query: str, *, top_k: int = 5) -> list[Any]:
+def retrieve_nodes(
+    storage_dir: Path,
+    query: str,
+    *,
+    top_k: int = 5,
+    metadata_filters: dict[str, Any] | None = None,
+) -> list[Any]:
     index = _cached_index(Path(storage_dir))
-    retriever = retrievers.build_retriever(index, Path(storage_dir), top_k=top_k)
-    return retriever.retrieve(query)
+    filters = metadata_filters or {}
+    candidate_count = max(top_k, top_k * 8) if filters else top_k
+    retriever = retrievers.build_retriever(index, Path(storage_dir), top_k=candidate_count)
+    nodes = retriever.retrieve(query)
+    if filters:
+        nodes = [item for item in nodes if _metadata_matches(item.node.metadata or {}, filters)]
+    return nodes[:top_k]
+
+
+def _metadata_matches(metadata: dict[str, Any], filters: dict[str, Any]) -> bool:
+    for key, accepted in filters.items():
+        values = accepted if isinstance(accepted, (list, tuple, set)) else (accepted,)
+        if metadata.get(key) not in values:
+            return False
+    return True
 
 
 def delete_kb_dir(kb_dir: Path) -> bool:

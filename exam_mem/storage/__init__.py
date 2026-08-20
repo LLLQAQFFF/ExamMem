@@ -48,6 +48,18 @@ from .student_model_repository import (
 )
 
 _LAZY_EXPORTS = {
+    "PostgresTextbookRepository": (
+        ".textbook_repository",
+        "PostgresTextbookRepository",
+    ),
+    "TextbookConflict": (
+        ".textbook_repository",
+        "TextbookConflict",
+    ),
+    "TextbookNotFound": (
+        ".textbook_repository",
+        "TextbookNotFound",
+    ),
     "AssessmentConflict": (
         ".assessment_repository",
         "AssessmentConflict",
@@ -188,6 +200,7 @@ __all__ = [
     "PostgresAssessmentRepository",
     "PostgresStudentModelRepository",
     "PostgresStudyPlanRepository",
+    "PostgresTextbookRepository",
     "ProjectionConflict",
     "PracticeCheckpointAppendResult",
     "PracticeCheckpointIdentityError",
@@ -204,6 +217,8 @@ __all__ = [
     "StudentModelSnapshot",
     "StudyPlanConflict",
     "StudyPlanNotFound",
+    "TextbookConflict",
+    "TextbookNotFound",
     "load_database_settings",
     "metadata",
 ]

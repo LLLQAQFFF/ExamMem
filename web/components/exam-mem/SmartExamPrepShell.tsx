@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   BookOpenCheck,
+  BookMarked,
   BrainCircuit,
   CalendarClock,
   ChartNoAxesCombined,
@@ -22,6 +23,7 @@ interface PrepSection {
 }
 
 const PREP_SECTIONS: PrepSection[] = [
+  { href: "/exam-mem/textbooks", label: "Textbook Library", icon: BookMarked },
   { href: "/exam-mem/learning", label: "Learning Paths", icon: GraduationCap },
   { href: "/exam-mem/profile", label: "Learning Profile", icon: ChartNoAxesCombined },
   { href: "/exam-mem/review-center", label: "Review Center", icon: CalendarClock },

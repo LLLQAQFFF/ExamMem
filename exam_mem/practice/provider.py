@@ -50,6 +50,7 @@ from exam_mem.storage import (
     PostgresPracticeCheckpointRepository,
     PostgresStudentModelRepository,
     PostgresStudyPlanRepository,
+    PostgresTextbookRepository,
     StudentModelRebuildService,
     load_database_settings,
 )
@@ -396,6 +397,7 @@ class ExamProductRuntime:
     reviews: PostgresGradeReviewRepository
     checkpoints: PostgresPracticeCheckpointRepository
     study_plans: PostgresStudyPlanRepository
+    textbooks: PostgresTextbookRepository
     observations: PostgresLearningObservationRepository
     learning_archive: PostgresLearningArchiveRepository
     learning_profiles: LearningProfileQueryService
@@ -582,6 +584,7 @@ class PracticeRuntimeProvider:
                     reviews=PostgresGradeReviewRepository(connection),
                     checkpoints=PostgresPracticeCheckpointRepository(connection),
                     study_plans=PostgresStudyPlanRepository(connection),
+                    textbooks=PostgresTextbookRepository(connection),
                     observations=PostgresLearningObservationRepository(connection),
                     learning_archive=PostgresLearningArchiveRepository(connection),
                     learning_profiles=LearningProfileQueryService(

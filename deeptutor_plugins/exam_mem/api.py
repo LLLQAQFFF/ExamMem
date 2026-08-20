@@ -13,7 +13,7 @@ import logging
 from typing import Annotated, Any, Literal, Protocol
 import uuid
 
-from fastapi import APIRouter, HTTPException, Query, status
+from fastapi import APIRouter, BackgroundTasks, HTTPException, Query, status
 from fastapi.responses import StreamingResponse
 from pydantic import (
     AwareDatetime,
@@ -30,8 +30,10 @@ from deeptutor.plugins import (
     save_plugin_settings,
 )
 from deeptutor.plugins.host_services import (
+    PluginKnowledgeIndexHost,
     PluginLearningHost,
     PluginLearningObjective,
+    PluginSourceHost,
     PluginTurnHost,
     PluginTurnRequest,
     current_user_id,
@@ -75,10 +77,13 @@ from exam_mem.storage import (
     LearningObservationConflict,
     StudyPlanConflict,
     StudyPlanNotFound,
+    TextbookConflict,
+    TextbookNotFound,
 )
 from exam_mem.study import StudyPlanTree
 
 from .study_plan import StudyPlanOutlineImporter
+from .textbooks import TextbookIngestionService
 
 NonEmptyString = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
 _EXAM_ID = "postgraduate_entrance_exam"
@@ -195,6 +200,23 @@ class StudyPlanDraftBody(StrictApiModel):
 class OpenStudyObjectiveBody(StrictApiModel):
     version: Annotated[int, Field(ge=1)] | None = None
     language: Literal["zh", "en"] = "zh"
+
+
+class TextbookUploadBody(StrictApiModel):
+    title: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=200)]
+    filename: NonEmptyString
+    mime_type: NonEmptyString
+    base64: NonEmptyString
+    idempotency_key: NonEmptyString
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+    @model_validator(mode="after")
+    def validate_file(self) -> TextbookUploadBody:
+        suffix = self.filename.lower().rsplit(".", maxsplit=1)[-1]
+        allowed = {"pdf": {"application/pdf"}, "txt": {"text/plain"}, "md": {"text/markdown", "text/plain"}}
+        if suffix not in allowed or self.mime_type.lower() not in allowed[suffix]:
+            raise ValueError("textbooks currently support only PDF, TXT and Markdown")
+        return self
 
 
 class AnalyzeConversationBody(StrictApiModel):
@@ -320,6 +342,9 @@ def build_router(
     outline_importer: StudyPlanOutlineImporter | None = None,
     learning_host: PluginLearningHost | None = None,
     observation_agent: LearningObservationAgent | None = None,
+    source_host: PluginSourceHost | None = None,
+    index_host: PluginKnowledgeIndexHost | None = None,
+    ingestion_service: TextbookIngestionService | None = None,
 ) -> APIRouter:
     """Build one router wired to the same Provider as the plugin Capability."""
 
@@ -329,12 +354,123 @@ def build_router(
     importer = outline_importer or StudyPlanOutlineImporter()
     learning = learning_host or PluginLearningHost()
     observer = observation_agent or LearningObservationAgent()
+    sources = source_host or PluginSourceHost()
+    indexes = index_host or PluginKnowledgeIndexHost()
+    ingestor = ingestion_service or TextbookIngestionService(
+        runtime_provider, source_host=sources, index_host=indexes
+    )
 
     def runtime_host() -> PluginTurnHost:
         nonlocal host
         if host is None:
             host = PluginTurnHost()
         return host
+
+    async def create_textbook_upload(
+        body: TextbookUploadBody,
+        background_tasks: BackgroundTasks,
+        *,
+        existing_textbook_id: str | None = None,
+    ) -> dict[str, Any]:
+        try:
+            content = base64.b64decode(body.base64, validate=True)
+        except (binascii.Error, ValueError) as exc:
+            raise HTTPException(status_code=422, detail={"error_code": "textbook_source_invalid", "message": "textbook file is not valid base64"}) from exc
+        try:
+            saved = sources.save_attachment(filename=body.filename, content=content)
+            user_id = current_user_id()
+            async with runtime_provider.open_product() as runtime:
+                version, created = await runtime.textbooks.create_ingestion(
+                    user_id=user_id,
+                    textbook_id=f"textbook:{uuid.uuid4().hex}",
+                    version_id=f"textbook-version:{uuid.uuid4().hex}",
+                    job_id=f"textbook-job:{uuid.uuid4().hex}",
+                    idempotency_key=body.idempotency_key,
+                    title=body.title,
+                    metadata=body.metadata,
+                    filename=body.filename,
+                    mime_type=body.mime_type,
+                    size_bytes=len(content),
+                    content_hash=saved["source_hash"],
+                    host_source_ref=saved["source_ref"],
+                    existing_textbook_id=existing_textbook_id,
+                )
+                await runtime.connection.commit()
+            if created:
+                background_tasks.add_task(ingestor.run, user_id=user_id, version_id=version["version_id"])
+            return {"version": version, "created": created}
+        except TextbookNotFound as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+        except TextbookConflict as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail={"error_code": "textbook_source_invalid", "message": str(exc)}) from exc
+
+    @router.get("/textbooks")
+    async def list_textbooks(archival: Literal["active", "archived", "all"] = "active") -> dict[str, Any]:
+        archived = {"active": False, "archived": True, "all": None}[archival]
+        async with runtime_provider.open_product() as runtime:
+            items = await runtime.textbooks.list(user_id=current_user_id(), archived=archived)
+        return {"textbooks": items}
+
+    @router.post("/textbooks", status_code=202)
+    async def upload_textbook(body: TextbookUploadBody, background_tasks: BackgroundTasks) -> dict[str, Any]:
+        return await create_textbook_upload(body, background_tasks)
+
+    @router.post("/textbooks/{textbook_id}/versions", status_code=202)
+    async def upload_textbook_version(textbook_id: NonEmptyString, body: TextbookUploadBody, background_tasks: BackgroundTasks) -> dict[str, Any]:
+        return await create_textbook_upload(body, background_tasks, existing_textbook_id=textbook_id)
+
+    @router.get("/textbooks/{textbook_id}")
+    async def get_textbook(textbook_id: NonEmptyString) -> dict[str, Any]:
+        try:
+            async with runtime_provider.open_product() as runtime:
+                return await runtime.textbooks.get(user_id=current_user_id(), textbook_id=textbook_id)
+        except TextbookNotFound as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+    @router.get("/textbooks/{textbook_id}/versions/{version_id}")
+    async def get_textbook_version(textbook_id: NonEmptyString, version_id: NonEmptyString) -> dict[str, Any]:
+        try:
+            async with runtime_provider.open_product() as runtime:
+                version = await runtime.textbooks.get_version(user_id=current_user_id(), version_id=version_id)
+            if version["textbook_id"] != textbook_id:
+                raise TextbookNotFound("textbook version not found")
+            return version
+        except TextbookNotFound as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+    @router.post("/textbooks/{textbook_id}/archive")
+    async def archive_textbook(textbook_id: NonEmptyString) -> dict[str, Any]:
+        try:
+            async with runtime_provider.open_product() as runtime:
+                result = await runtime.textbooks.archive(user_id=current_user_id(), textbook_id=textbook_id)
+                await runtime.connection.commit()
+            return {"textbook": result}
+        except TextbookNotFound as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+    @router.post("/textbooks/ingestions/{job_id}/retry", status_code=202)
+    async def retry_textbook_ingestion(job_id: NonEmptyString, background_tasks: BackgroundTasks) -> dict[str, Any]:
+        user_id = current_user_id()
+        try:
+            async with runtime_provider.open_product() as runtime:
+                job = await runtime.textbooks.prepare_retry(user_id=user_id, job_id=job_id)
+                await runtime.connection.commit()
+            background_tasks.add_task(ingestor.run, user_id=user_id, version_id=job["version_id"])
+            return {"job": job}
+        except TextbookNotFound as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+        except TextbookConflict as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+    @router.post("/textbooks/{textbook_id}/versions/{version_id}/rebuild-index")
+    async def rebuild_textbook_index(textbook_id: NonEmptyString, version_id: NonEmptyString) -> dict[str, Any]:
+        async with runtime_provider.open_product() as runtime:
+            version = await runtime.textbooks.get_version(user_id=current_user_id(), version_id=version_id)
+        if version["textbook_id"] != textbook_id or not version["host_index_ref"]:
+            raise HTTPException(status_code=404, detail="textbook index not found")
+        return await indexes.rebuild(version["host_index_ref"])
 
     @router.post("/practice/start")
     async def start_practice(body: PracticeStartBody) -> dict[str, Any]:
