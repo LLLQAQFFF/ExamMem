@@ -7,9 +7,7 @@ from deeptutor.services.rag.pipelines.llamaindex import storage
 
 def test_structured_metadata_filters_are_exact_and_multi_value() -> None:
     metadata = {"source_ref": "source-a", "section_key": "chapter-2"}
-    assert storage._metadata_matches(
-        metadata, {"section_key": ("chapter-1", "chapter-2")}
-    )
+    assert storage._metadata_matches(metadata, {"section_key": ("chapter-1", "chapter-2")})
     assert not storage._metadata_matches(metadata, {"section_key": ("chapter-3",)})
     assert not storage._metadata_matches(metadata, {"source_ref": "source-b"})
 

@@ -32,7 +32,9 @@ def build_section_tree(
         path = [*(item["title"] for item in stack), title]
         key_material = "\x1f".join((version_id, *path, str(order))).encode()
         section_key = hashlib.sha256(key_material).hexdigest()[:24]
-        section_id = f"section:{hashlib.sha256((version_id + ':' + section_key).encode()).hexdigest()[:32]}"
+        section_id = (
+            f"section:{hashlib.sha256((version_id + ':' + section_key).encode()).hexdigest()[:32]}"
+        )
         content_start = line_number if inferred else line_number + 1
         content_end = headings[order + 1][0] if order + 1 < len(headings) else len(lines)
         content = "\n".join(lines[content_start:content_end]).strip()
@@ -43,7 +45,9 @@ def build_section_tree(
         end_page = (
             max(start_page, next_page - 1)
             if start_page is not None and next_page is not None
-            else maximum_page if start_page is not None else None
+            else maximum_page
+            if start_page is not None
+            else None
         )
         section = {
             "section_id": section_id,

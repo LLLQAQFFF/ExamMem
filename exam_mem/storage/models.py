@@ -192,7 +192,9 @@ textbook_versions = Table(
     CheckConstraint("version >= 1", name="ck_textbook_versions_version"),
     CheckConstraint("length(content_hash) = 64", name="ck_textbook_versions_hash"),
     CheckConstraint("size_bytes > 0", name="ck_textbook_versions_size"),
-    CheckConstraint("status IN ('queued','processing','completed','failed')", name="ck_textbook_versions_status"),
+    CheckConstraint(
+        "status IN ('queued','processing','completed','failed')", name="ck_textbook_versions_status"
+    ),
     CheckConstraint("jsonb_typeof(warnings) = 'array'", name="ck_textbook_versions_warnings_array"),
 )
 
@@ -244,15 +246,24 @@ textbook_ingestion_jobs = Table(
     Column("updated_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
     PrimaryKeyConstraint("job_id", name="pk_textbook_ingestion_jobs"),
     UniqueConstraint("user_id", "idempotency_key", name="uq_textbook_jobs_idempotency"),
-    CheckConstraint("stage IN ('saved','parsing','structuring','chunking','indexing','completed','failed')", name="ck_textbook_jobs_stage"),
+    CheckConstraint(
+        "stage IN ('saved','parsing','structuring','chunking','indexing','completed','failed')",
+        name="ck_textbook_jobs_stage",
+    ),
     CheckConstraint("progress >= 0 AND progress <= 100", name="ck_textbook_jobs_progress"),
     CheckConstraint("retry_count >= 0", name="ck_textbook_jobs_retries"),
     CheckConstraint("length(input_hash) = 64", name="ck_textbook_jobs_hash"),
-    CheckConstraint("jsonb_typeof(checkpoint) = 'object'", name="ck_textbook_jobs_checkpoint_object"),
+    CheckConstraint(
+        "jsonb_typeof(checkpoint) = 'object'", name="ck_textbook_jobs_checkpoint_object"
+    ),
     CheckConstraint("jsonb_typeof(output_refs) = 'object'", name="ck_textbook_jobs_refs_object"),
 )
 
-Index("ix_textbook_jobs_user_updated", textbook_ingestion_jobs.c.user_id, textbook_ingestion_jobs.c.updated_at)
+Index(
+    "ix_textbook_jobs_user_updated",
+    textbook_ingestion_jobs.c.user_id,
+    textbook_ingestion_jobs.c.updated_at,
+)
 
 study_plan_textbook_bindings = Table(
     "study_plan_textbook_bindings",
@@ -270,12 +281,26 @@ study_plan_textbook_bindings = Table(
     Column("confirmed_at", DateTime(timezone=True), nullable=True),
     Column("created_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
     PrimaryKeyConstraint("binding_id", name="pk_study_plan_textbook_bindings"),
-    ForeignKeyConstraint(["plan_id", "plan_version"], ["study_plan_versions.plan_id", "study_plan_versions.version"], name="fk_textbook_bindings_plan_version"),
-    UniqueConstraint("plan_id", "plan_version", "textbook_version_id", "revision", name="uq_textbook_bindings_revision"),
+    ForeignKeyConstraint(
+        ["plan_id", "plan_version"],
+        ["study_plan_versions.plan_id", "study_plan_versions.version"],
+        name="fk_textbook_bindings_plan_version",
+    ),
+    UniqueConstraint(
+        "plan_id",
+        "plan_version",
+        "textbook_version_id",
+        "revision",
+        name="uq_textbook_bindings_revision",
+    ),
     CheckConstraint("revision >= 1", name="ck_textbook_bindings_revision"),
     CheckConstraint("priority >= 0", name="ck_textbook_bindings_priority"),
-    CheckConstraint("role IN ('primary','supplement','reference')", name="ck_textbook_bindings_role"),
-    CheckConstraint("status IN ('candidate','confirmed','inactive')", name="ck_textbook_bindings_status"),
+    CheckConstraint(
+        "role IN ('primary','supplement','reference')", name="ck_textbook_bindings_role"
+    ),
+    CheckConstraint(
+        "status IN ('candidate','confirmed','inactive')", name="ck_textbook_bindings_status"
+    ),
 )
 
 objective_textbook_section_mappings = Table(
@@ -295,12 +320,25 @@ objective_textbook_section_mappings = Table(
     Column("confirmed_at", DateTime(timezone=True), nullable=True),
     Column("created_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
     PrimaryKeyConstraint("mapping_id", name="pk_objective_textbook_section_mappings"),
-    ForeignKeyConstraint(["plan_id", "plan_version"], ["study_plan_versions.plan_id", "study_plan_versions.version"], name="fk_textbook_mappings_plan_version"),
-    UniqueConstraint("plan_id", "plan_version", "objective_id", "textbook_section_id", "mapping_version", name="uq_textbook_mappings_version"),
+    ForeignKeyConstraint(
+        ["plan_id", "plan_version"],
+        ["study_plan_versions.plan_id", "study_plan_versions.version"],
+        name="fk_textbook_mappings_plan_version",
+    ),
+    UniqueConstraint(
+        "plan_id",
+        "plan_version",
+        "objective_id",
+        "textbook_section_id",
+        "mapping_version",
+        name="uq_textbook_mappings_version",
+    ),
     CheckConstraint("mapping_version >= 1", name="ck_textbook_mappings_version"),
     CheckConstraint("confidence >= 0 AND confidence <= 1", name="ck_textbook_mappings_confidence"),
     CheckConstraint("created_via IN ('manual','recommended')", name="ck_textbook_mappings_method"),
-    CheckConstraint("status IN ('candidate','confirmed','rejected')", name="ck_textbook_mappings_status"),
+    CheckConstraint(
+        "status IN ('candidate','confirmed','rejected')", name="ck_textbook_mappings_status"
+    ),
 )
 
 learning_source_snapshots = Table(
@@ -318,12 +356,18 @@ learning_source_snapshots = Table(
     Column("index_versions", JSONB, nullable=False),
     Column("created_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
     PrimaryKeyConstraint("snapshot_id", name="pk_learning_source_snapshots"),
-    ForeignKeyConstraint(["plan_id", "plan_version"], ["study_plan_versions.plan_id", "study_plan_versions.version"], name="fk_learning_snapshots_plan_version"),
+    ForeignKeyConstraint(
+        ["plan_id", "plan_version"],
+        ["study_plan_versions.plan_id", "study_plan_versions.version"],
+        name="fk_learning_snapshots_plan_version",
+    ),
     UniqueConstraint("user_id", "idempotency_key", name="uq_learning_snapshots_idempotency"),
     UniqueConstraint("user_id", "host_session_id", name="uq_learning_snapshots_session"),
     CheckConstraint("mode IN ('unbound','primary','compare')", name="ck_learning_snapshots_mode"),
     CheckConstraint("jsonb_typeof(sources) = 'array'", name="ck_learning_snapshots_sources_array"),
-    CheckConstraint("jsonb_typeof(index_versions) = 'object'", name="ck_learning_snapshots_indexes_object"),
+    CheckConstraint(
+        "jsonb_typeof(index_versions) = 'object'", name="ck_learning_snapshots_indexes_object"
+    ),
 )
 
 assessments = Table(
@@ -393,11 +437,21 @@ assessment_source_snapshots = Table(
     Column("index_versions", JSONB, nullable=False),
     Column("created_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
     PrimaryKeyConstraint("snapshot_id", name="pk_assessment_source_snapshots"),
-    ForeignKeyConstraint(["assessment_id", "assessment_version"], ["assessment_versions.assessment_id", "assessment_versions.version"], name="fk_assessment_snapshots_version"),
+    ForeignKeyConstraint(
+        ["assessment_id", "assessment_version"],
+        ["assessment_versions.assessment_id", "assessment_versions.version"],
+        name="fk_assessment_snapshots_version",
+    ),
     UniqueConstraint("user_id", "idempotency_key", name="uq_assessment_snapshots_idempotency"),
-    UniqueConstraint("user_id", "assessment_id", "assessment_version", name="uq_assessment_snapshots_version"),
-    CheckConstraint("jsonb_typeof(evidence) = 'array'", name="ck_assessment_snapshots_evidence_array"),
-    CheckConstraint("jsonb_typeof(index_versions) = 'object'", name="ck_assessment_snapshots_indexes_object"),
+    UniqueConstraint(
+        "user_id", "assessment_id", "assessment_version", name="uq_assessment_snapshots_version"
+    ),
+    CheckConstraint(
+        "jsonb_typeof(evidence) = 'array'", name="ck_assessment_snapshots_evidence_array"
+    ),
+    CheckConstraint(
+        "jsonb_typeof(index_versions) = 'object'", name="ck_assessment_snapshots_indexes_object"
+    ),
 )
 
 assessment_attempts = Table(

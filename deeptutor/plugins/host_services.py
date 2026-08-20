@@ -362,7 +362,12 @@ class PluginSourceHost:
                 ),
                 encoding="utf-8",
             )
-        return {"source_ref": source_ref, "source_hash": source_hash, "filename": safe_name, "size_bytes": len(content)}
+        return {
+            "source_ref": source_ref,
+            "source_hash": source_hash,
+            "filename": safe_name,
+            "size_bytes": len(content),
+        }
 
     async def parse_saved_source(self, source_ref: str) -> dict[str, Any]:
         """Parse a previously saved source through the shared ParseService."""
@@ -400,7 +405,13 @@ class PluginKnowledgeIndexHost:
     def index_ref(identity: str) -> str:
         return f"structured-{hashlib.sha256(identity.encode()).hexdigest()[:32]}"
 
-    async def build(self, *, index_ref: str, documents: tuple[dict[str, Any], ...], progress_callback: Any = None) -> dict[str, Any]:
+    async def build(
+        self,
+        *,
+        index_ref: str,
+        documents: tuple[dict[str, Any], ...],
+        progress_callback: Any = None,
+    ) -> dict[str, Any]:
         from deeptutor.knowledge.manager import KnowledgeBaseManager
         from deeptutor.services.path_service import get_path_service
         from deeptutor.services.rag.service import RAGService
@@ -418,7 +429,9 @@ class PluginKnowledgeIndexHost:
             path = inputs / f"document-{position:06d}.md"
             path.write_text(text, encoding="utf-8")
             path.with_suffix(path.suffix + ".metadata.json").write_text(
-                json.dumps(dict(document.get("metadata") or {}), ensure_ascii=False, sort_keys=True),
+                json.dumps(
+                    dict(document.get("metadata") or {}), ensure_ascii=False, sort_keys=True
+                ),
                 encoding="utf-8",
             )
             paths.append(str(path))
@@ -435,7 +448,9 @@ class PluginKnowledgeIndexHost:
             raise
         if not built:
             raise RuntimeError("Host knowledge index produced no searchable content")
-        manager.update_kb_status(name, "ready", {"stage": "complete", "percent": 100, "indexed_count": len(paths)})
+        manager.update_kb_status(
+            name, "ready", {"stage": "complete", "percent": 100, "indexed_count": len(paths)}
+        )
         return {"index_ref": name, "index_version": self._index_version(kb_dir)}
 
     async def rebuild(self, index_ref: str) -> dict[str, Any]:
@@ -446,10 +461,22 @@ class PluginKnowledgeIndexHost:
         documents: list[dict[str, Any]] = []
         for path in sorted(inputs.glob("*.md")):
             sidecar = path.with_suffix(path.suffix + ".metadata.json")
-            documents.append({"text": path.read_text(encoding="utf-8"), "metadata": json.loads(sidecar.read_text(encoding="utf-8"))})
+            documents.append(
+                {
+                    "text": path.read_text(encoding="utf-8"),
+                    "metadata": json.loads(sidecar.read_text(encoding="utf-8")),
+                }
+            )
         return await self.build(index_ref=name, documents=tuple(documents))
 
-    async def search(self, *, index_ref: str, query: str, metadata_filters: dict[str, tuple[str, ...]] | None = None, top_k: int = 5) -> dict[str, Any]:
+    async def search(
+        self,
+        *,
+        index_ref: str,
+        query: str,
+        metadata_filters: dict[str, tuple[str, ...]] | None = None,
+        top_k: int = 5,
+    ) -> dict[str, Any]:
         from deeptutor.services.path_service import get_path_service
         from deeptutor.services.rag.service import RAGService
 
@@ -469,7 +496,11 @@ class PluginKnowledgeIndexHost:
 
         name = self._index_name(index_ref)
         path = get_path_service().get_knowledge_bases_root() / name
-        return {"index_ref": name, "available": path.is_dir(), "index_version": self._index_version(path)}
+        return {
+            "index_ref": name,
+            "available": path.is_dir(),
+            "index_version": self._index_version(path),
+        }
 
     @staticmethod
     def _index_name(index_ref: str) -> str:

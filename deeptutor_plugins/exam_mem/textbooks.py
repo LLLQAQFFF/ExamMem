@@ -9,7 +9,13 @@ from exam_mem.textbooks import build_section_tree, section_documents
 
 
 class TextbookIngestionService:
-    def __init__(self, runtime_provider: Any, *, source_host: PluginSourceHost | None = None, index_host: PluginKnowledgeIndexHost | None = None) -> None:
+    def __init__(
+        self,
+        runtime_provider: Any,
+        *,
+        source_host: PluginSourceHost | None = None,
+        index_host: PluginKnowledgeIndexHost | None = None,
+    ) -> None:
         self._runtime_provider = runtime_provider
         self._sources = source_host or PluginSourceHost()
         self._indexes = index_host or PluginKnowledgeIndexHost()
@@ -38,7 +44,9 @@ class TextbookIngestionService:
                 blocks=parsed["blocks"],
             )
             async with self._runtime_provider.open_product() as runtime:
-                await runtime.textbooks.replace_sections(user_id=user_id, version_id=version_id, sections=sections)
+                await runtime.textbooks.replace_sections(
+                    user_id=user_id, version_id=version_id, sections=sections
+                )
                 await runtime.textbooks.advance_job(
                     user_id=user_id,
                     job_id=job_id,
@@ -62,7 +70,11 @@ class TextbookIngestionService:
                 job_id,
                 "indexing",
                 80,
-                {"safe_stage": "chunking", "section_count": len(sections), "chunk_count": len(documents)},
+                {
+                    "safe_stage": "chunking",
+                    "section_count": len(sections),
+                    "chunk_count": len(documents),
+                },
                 output_refs={"chunk_count": len(documents), "index_ref": index_ref},
             )
             index = await self._indexes.build(index_ref=index_ref, documents=documents)
@@ -71,7 +83,11 @@ class TextbookIngestionService:
                 job_id,
                 "completed",
                 100,
-                {"safe_stage": "completed", "section_count": len(sections), "chunk_count": len(documents)},
+                {
+                    "safe_stage": "completed",
+                    "section_count": len(sections),
+                    "chunk_count": len(documents),
+                },
                 output_refs=index,
                 host_index_ref=index["index_ref"],
                 index_version=index["index_version"],
@@ -91,9 +107,24 @@ class TextbookIngestionService:
         async with self._runtime_provider.open_product() as runtime:
             return await runtime.textbooks.get_version(user_id=user_id, version_id=version_id)
 
-    async def _advance(self, user_id: str, job_id: str, stage: str, progress: int, checkpoint: dict[str, Any], **kwargs: Any) -> None:
+    async def _advance(
+        self,
+        user_id: str,
+        job_id: str,
+        stage: str,
+        progress: int,
+        checkpoint: dict[str, Any],
+        **kwargs: Any,
+    ) -> None:
         async with self._runtime_provider.open_product() as runtime:
-            await runtime.textbooks.advance_job(user_id=user_id, job_id=job_id, stage=stage, progress=progress, checkpoint=checkpoint, **kwargs)
+            await runtime.textbooks.advance_job(
+                user_id=user_id,
+                job_id=job_id,
+                stage=stage,
+                progress=progress,
+                checkpoint=checkpoint,
+                **kwargs,
+            )
             await runtime.connection.commit()
 
 

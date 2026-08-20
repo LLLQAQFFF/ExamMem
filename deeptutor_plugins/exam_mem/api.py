@@ -234,7 +234,11 @@ class TextbookUploadBody(StrictApiModel):
     @model_validator(mode="after")
     def validate_file(self) -> TextbookUploadBody:
         suffix = self.filename.lower().rsplit(".", maxsplit=1)[-1]
-        allowed = {"pdf": {"application/pdf"}, "txt": {"text/plain"}, "md": {"text/markdown", "text/plain"}}
+        allowed = {
+            "pdf": {"application/pdf"},
+            "txt": {"text/plain"},
+            "md": {"text/markdown", "text/plain"},
+        }
         if suffix not in allowed or self.mime_type.lower() not in allowed[suffix]:
             raise ValueError("textbooks currently support only PDF, TXT and Markdown")
         return self
@@ -400,7 +404,13 @@ def build_router(
         try:
             content = base64.b64decode(body.base64, validate=True)
         except (binascii.Error, ValueError) as exc:
-            raise HTTPException(status_code=422, detail={"error_code": "textbook_source_invalid", "message": "textbook file is not valid base64"}) from exc
+            raise HTTPException(
+                status_code=422,
+                detail={
+                    "error_code": "textbook_source_invalid",
+                    "message": "textbook file is not valid base64",
+                },
+            ) from exc
         try:
             saved = sources.save_attachment(filename=body.filename, content=content)
             user_id = current_user_id()
@@ -422,43 +432,62 @@ def build_router(
                 )
                 await runtime.connection.commit()
             if created:
-                background_tasks.add_task(ingestor.run, user_id=user_id, version_id=version["version_id"])
+                background_tasks.add_task(
+                    ingestor.run, user_id=user_id, version_id=version["version_id"]
+                )
             return {"version": version, "created": created}
         except TextbookNotFound as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from exc
         except TextbookConflict as exc:
             raise HTTPException(status_code=409, detail=str(exc)) from exc
         except ValueError as exc:
-            raise HTTPException(status_code=422, detail={"error_code": "textbook_source_invalid", "message": str(exc)}) from exc
+            raise HTTPException(
+                status_code=422,
+                detail={"error_code": "textbook_source_invalid", "message": str(exc)},
+            ) from exc
 
     @router.get("/textbooks")
-    async def list_textbooks(archival: Literal["active", "archived", "all"] = "active") -> dict[str, Any]:
+    async def list_textbooks(
+        archival: Literal["active", "archived", "all"] = "active",
+    ) -> dict[str, Any]:
         archived = {"active": False, "archived": True, "all": None}[archival]
         async with runtime_provider.open_product() as runtime:
             items = await runtime.textbooks.list(user_id=current_user_id(), archived=archived)
         return {"textbooks": items}
 
     @router.post("/textbooks", status_code=202)
-    async def upload_textbook(body: TextbookUploadBody, background_tasks: BackgroundTasks) -> dict[str, Any]:
+    async def upload_textbook(
+        body: TextbookUploadBody, background_tasks: BackgroundTasks
+    ) -> dict[str, Any]:
         return await create_textbook_upload(body, background_tasks)
 
     @router.post("/textbooks/{textbook_id}/versions", status_code=202)
-    async def upload_textbook_version(textbook_id: NonEmptyString, body: TextbookUploadBody, background_tasks: BackgroundTasks) -> dict[str, Any]:
-        return await create_textbook_upload(body, background_tasks, existing_textbook_id=textbook_id)
+    async def upload_textbook_version(
+        textbook_id: NonEmptyString, body: TextbookUploadBody, background_tasks: BackgroundTasks
+    ) -> dict[str, Any]:
+        return await create_textbook_upload(
+            body, background_tasks, existing_textbook_id=textbook_id
+        )
 
     @router.get("/textbooks/{textbook_id}")
     async def get_textbook(textbook_id: NonEmptyString) -> dict[str, Any]:
         try:
             async with runtime_provider.open_product() as runtime:
-                return await runtime.textbooks.get(user_id=current_user_id(), textbook_id=textbook_id)
+                return await runtime.textbooks.get(
+                    user_id=current_user_id(), textbook_id=textbook_id
+                )
         except TextbookNotFound as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from exc
 
     @router.get("/textbooks/{textbook_id}/versions/{version_id}")
-    async def get_textbook_version(textbook_id: NonEmptyString, version_id: NonEmptyString) -> dict[str, Any]:
+    async def get_textbook_version(
+        textbook_id: NonEmptyString, version_id: NonEmptyString
+    ) -> dict[str, Any]:
         try:
             async with runtime_provider.open_product() as runtime:
-                version = await runtime.textbooks.get_version(user_id=current_user_id(), version_id=version_id)
+                version = await runtime.textbooks.get_version(
+                    user_id=current_user_id(), version_id=version_id
+                )
             if version["textbook_id"] != textbook_id:
                 raise TextbookNotFound("textbook version not found")
             return version
@@ -469,14 +498,18 @@ def build_router(
     async def archive_textbook(textbook_id: NonEmptyString) -> dict[str, Any]:
         try:
             async with runtime_provider.open_product() as runtime:
-                result = await runtime.textbooks.archive(user_id=current_user_id(), textbook_id=textbook_id)
+                result = await runtime.textbooks.archive(
+                    user_id=current_user_id(), textbook_id=textbook_id
+                )
                 await runtime.connection.commit()
             return {"textbook": result}
         except TextbookNotFound as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from exc
 
     @router.post("/textbooks/ingestions/{job_id}/retry", status_code=202)
-    async def retry_textbook_ingestion(job_id: NonEmptyString, background_tasks: BackgroundTasks) -> dict[str, Any]:
+    async def retry_textbook_ingestion(
+        job_id: NonEmptyString, background_tasks: BackgroundTasks
+    ) -> dict[str, Any]:
         user_id = current_user_id()
         try:
             async with runtime_provider.open_product() as runtime:
@@ -490,31 +523,49 @@ def build_router(
             raise HTTPException(status_code=409, detail=str(exc)) from exc
 
     @router.post("/textbooks/{textbook_id}/versions/{version_id}/rebuild-index")
-    async def rebuild_textbook_index(textbook_id: NonEmptyString, version_id: NonEmptyString) -> dict[str, Any]:
+    async def rebuild_textbook_index(
+        textbook_id: NonEmptyString, version_id: NonEmptyString
+    ) -> dict[str, Any]:
         async with runtime_provider.open_product() as runtime:
-            version = await runtime.textbooks.get_version(user_id=current_user_id(), version_id=version_id)
+            version = await runtime.textbooks.get_version(
+                user_id=current_user_id(), version_id=version_id
+            )
         if version["textbook_id"] != textbook_id or not version["host_index_ref"]:
             raise HTTPException(status_code=404, detail="textbook index not found")
         return await indexes.rebuild(version["host_index_ref"])
 
     @router.get("/study-plans/{plan_id}/versions/{plan_version}/textbooks")
-    async def list_textbook_bindings(plan_id: NonEmptyString, plan_version: Annotated[int, Field(ge=1)]) -> dict[str, Any]:
+    async def list_textbook_bindings(
+        plan_id: NonEmptyString, plan_version: Annotated[int, Field(ge=1)]
+    ) -> dict[str, Any]:
         try:
             async with runtime_provider.open_product() as runtime:
-                bindings = await runtime.grounded_learning.list_bindings(user_id=current_user_id(), plan_id=plan_id, plan_version=plan_version)
+                bindings = await runtime.grounded_learning.list_bindings(
+                    user_id=current_user_id(), plan_id=plan_id, plan_version=plan_version
+                )
             return {"bindings": bindings}
         except GroundedLearningNotFound as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from exc
 
     @router.post("/study-plans/{plan_id}/versions/{plan_version}/textbooks")
-    async def set_textbook_binding(plan_id: NonEmptyString, plan_version: Annotated[int, Field(ge=1)], body: TextbookBindingBody) -> dict[str, Any]:
+    async def set_textbook_binding(
+        plan_id: NonEmptyString,
+        plan_version: Annotated[int, Field(ge=1)],
+        body: TextbookBindingBody,
+    ) -> dict[str, Any]:
         try:
             async with runtime_provider.open_product() as runtime:
                 binding = await runtime.grounded_learning.set_binding(
-                    binding_id=_idempotent_record_id("binding", current_user_id(), body.idempotency_key),
-                    user_id=current_user_id(), plan_id=plan_id, plan_version=plan_version,
-                    textbook_version_id=body.textbook_version_id, role=body.role,
-                    priority=body.priority, status=body.status,
+                    binding_id=_idempotent_record_id(
+                        "binding", current_user_id(), body.idempotency_key
+                    ),
+                    user_id=current_user_id(),
+                    plan_id=plan_id,
+                    plan_version=plan_version,
+                    textbook_version_id=body.textbook_version_id,
+                    role=body.role,
+                    priority=body.priority,
+                    status=body.status,
                 )
                 await runtime.connection.commit()
             return {"binding": binding}
@@ -524,23 +575,43 @@ def build_router(
             raise HTTPException(status_code=409, detail=str(exc)) from exc
 
     @router.get("/study-plans/{plan_id}/versions/{plan_version}/textbook-mappings")
-    async def list_textbook_mappings(plan_id: NonEmptyString, plan_version: Annotated[int, Field(ge=1)], objective_id: str | None = None) -> dict[str, Any]:
+    async def list_textbook_mappings(
+        plan_id: NonEmptyString,
+        plan_version: Annotated[int, Field(ge=1)],
+        objective_id: str | None = None,
+    ) -> dict[str, Any]:
         try:
             async with runtime_provider.open_product() as runtime:
-                mappings = await runtime.grounded_learning.list_mappings(user_id=current_user_id(), plan_id=plan_id, plan_version=plan_version, objective_id=objective_id)
+                mappings = await runtime.grounded_learning.list_mappings(
+                    user_id=current_user_id(),
+                    plan_id=plan_id,
+                    plan_version=plan_version,
+                    objective_id=objective_id,
+                )
             return {"mappings": mappings}
         except GroundedLearningNotFound as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from exc
 
     @router.post("/study-plans/{plan_id}/versions/{plan_version}/textbook-mappings")
-    async def set_textbook_mapping(plan_id: NonEmptyString, plan_version: Annotated[int, Field(ge=1)], body: TextbookMappingBody) -> dict[str, Any]:
+    async def set_textbook_mapping(
+        plan_id: NonEmptyString,
+        plan_version: Annotated[int, Field(ge=1)],
+        body: TextbookMappingBody,
+    ) -> dict[str, Any]:
         try:
             async with runtime_provider.open_product() as runtime:
                 mapping = await runtime.grounded_learning.set_mapping(
-                    mapping_id=_idempotent_record_id("mapping", current_user_id(), body.idempotency_key),
-                    user_id=current_user_id(), plan_id=plan_id, plan_version=plan_version,
-                    objective_id=body.objective_id, textbook_section_id=body.textbook_section_id,
-                    confidence=body.confidence, created_via=body.created_via, status=body.status,
+                    mapping_id=_idempotent_record_id(
+                        "mapping", current_user_id(), body.idempotency_key
+                    ),
+                    user_id=current_user_id(),
+                    plan_id=plan_id,
+                    plan_version=plan_version,
+                    objective_id=body.objective_id,
+                    textbook_section_id=body.textbook_section_id,
+                    confidence=body.confidence,
+                    created_via=body.created_via,
+                    status=body.status,
                 )
                 await runtime.connection.commit()
             return {"mapping": mapping}
@@ -552,7 +623,9 @@ def build_router(
     @router.get("/learning-source-snapshots/{session_id}")
     async def get_learning_source_snapshot(session_id: NonEmptyString) -> dict[str, Any]:
         async with runtime_provider.open_product() as runtime:
-            snapshot = await runtime.grounded_learning.find_learning_snapshot(user_id=current_user_id(), host_session_id=session_id)
+            snapshot = await runtime.grounded_learning.find_learning_snapshot(
+                user_id=current_user_id(), host_session_id=session_id
+            )
         if snapshot is None:
             raise HTTPException(status_code=404, detail="learning source snapshot not found")
         return snapshot
@@ -857,7 +930,9 @@ def build_router(
         return {"assessments": items}
 
     @router.get("/assessments/{assessment_id}/versions/{version}/source-snapshot")
-    async def get_assessment_source_snapshot(assessment_id: NonEmptyString, version: Annotated[int, Field(ge=1)]) -> dict[str, Any]:
+    async def get_assessment_source_snapshot(
+        assessment_id: NonEmptyString, version: Annotated[int, Field(ge=1)]
+    ) -> dict[str, Any]:
         async with runtime_provider.open_product() as runtime:
             snapshot = await runtime.grounded_learning.find_assessment_snapshot(
                 user_id=current_user_id(), assessment_id=assessment_id, assessment_version=version
@@ -1109,7 +1184,9 @@ def build_router(
                             knowledge_bases,
                             filters=source_filters,
                         ):
-                            raise RuntimeError("Host learning knowledge sources could not be rebound")
+                            raise RuntimeError(
+                                "Host learning knowledge sources could not be rebound"
+                            )
                     await runtime.connection.commit()
                     return _objective_session_payload(
                         existing,
@@ -2299,9 +2376,7 @@ async def _generate_practice_questions(
                     "_persist_user_message": False,
                 },
                 attachments=tuple(item.model_dump(mode="json") for item in body.attachments),
-                knowledge_bases=tuple(
-                    (grounding_package or {}).get("knowledge_bases") or ()
-                ),
+                knowledge_bases=tuple((grounding_package or {}).get("knowledge_bases") or ()),
                 knowledge_source_filters=(grounding_package or {}).get("filters") or {},
             )
         )

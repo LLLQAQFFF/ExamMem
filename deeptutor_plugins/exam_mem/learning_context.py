@@ -156,7 +156,9 @@ def _render_source_snapshot(snapshot: dict[str, Any] | None, *, language: str) -
             else "[Textbook sources] No textbook is bound; label general knowledge as model-supplied."
         )
     lines = [
-        "[教材来源快照｜只读且版本固定]" if zh else "[Textbook source snapshot | read only and version-pinned]"
+        "[教材来源快照｜只读且版本固定]"
+        if zh
+        else "[Textbook source snapshot | read only and version-pinned]"
     ]
     for group in snapshot["sources"]:
         lines.append(
