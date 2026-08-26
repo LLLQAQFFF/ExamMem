@@ -27,10 +27,9 @@ interface TextbookGroundingPanelProps {
   planId: string;
   version: number;
   objectives: ObjectiveOption[];
-  generatedFromTextbook?: boolean;
 }
 
-export default function TextbookGroundingPanel({ planId, version, objectives, generatedFromTextbook = false }: TextbookGroundingPanelProps) {
+export default function TextbookGroundingPanel({ planId, version, objectives }: TextbookGroundingPanelProps) {
   const { i18n } = useTranslation();
   const zh = i18n.language?.toLowerCase().startsWith("zh");
   const tr = useCallback((cn: string, en: string) => (zh ? cn : en), [zh]);
@@ -42,10 +41,11 @@ export default function TextbookGroundingPanel({ planId, version, objectives, ge
   const [bindingPriority, setBindingPriority] = useState(0);
   const [objectiveId, setObjectiveId] = useState(objectives[0]?.id || "");
   const [sectionId, setSectionId] = useState("");
-  const [sections, setSections] = useState<TextbookSection[]>([]);
+  const [sectionsByVersionId, setSectionsByVersionId] = useState<Record<string, TextbookSection[]>>({});
   const [working, setWorking] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const confirmationIdempotencyKey = useRef<string | null>(null);
+  const sections = sectionsByVersionId[versionId] || [];
 
   const reload = useCallback(async () => {
     const [available, currentBindings, currentMappings] = await Promise.all([
@@ -71,11 +71,6 @@ export default function TextbookGroundingPanel({ planId, version, objectives, ge
   }, [objectiveId, objectives]);
 
   useEffect(() => {
-    const book = books.find((item) => item.versions.some((candidate) => candidate.version_id === versionId));
-    if (!book || !versionId) {
-      setSections([]);
-      return;
-    }
     const currentBinding = bindings.find((item) => item.textbook_version_id === versionId);
     if (currentBinding) {
       setBindingRole(currentBinding.role);
@@ -84,17 +79,68 @@ export default function TextbookGroundingPanel({ planId, version, objectives, ge
       setBindingRole(bindings.some((item) => item.role === "primary" && item.status === "confirmed") ? "supplement" : "primary");
       setBindingPriority(bindings.length);
     }
-    void getTextbookVersion(book.textbook_id, versionId)
-      .then((item) => {
-        setSections(item.sections || []);
-        setSectionId((current) => current || item.sections?.[0]?.section_id || "");
+
+    const relevantVersionIds = Array.from(
+      new Set([versionId, ...bindings.map((item) => item.textbook_version_id)].filter(Boolean)),
+    );
+    let cancelled = false;
+    void Promise.all(
+      relevantVersionIds.map(async (currentVersionId) => {
+        const book = books.find((item) => item.versions.some((candidate) => candidate.version_id === currentVersionId));
+        if (!book) return null;
+        const item = await getTextbookVersion(book.textbook_id, currentVersionId);
+        return [currentVersionId, item.sections || []] as const;
+      }),
+    )
+      .then((entries) => {
+        if (cancelled) return;
+        const nextSections: Record<string, TextbookSection[]> = {};
+        for (const entry of entries) {
+          if (entry) nextSections[entry[0]] = entry[1];
+        }
+        setSectionsByVersionId(nextSections);
+        setSectionId((current) => current || nextSections[versionId]?.[0]?.section_id || "");
       })
-      .catch((cause) => setError(String(cause)));
+      .catch((cause) => {
+        if (!cancelled) setError(String(cause));
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [bindings, books, versionId]);
 
   const completedVersions = useMemo(
     () => books.flatMap((book) => book.versions.filter((item) => item.status === "completed").map((item) => ({ book, version: item }))),
     [books],
+  );
+  const objectiveNames = useMemo(
+    () => new Map(objectives.map((item) => [item.id, item.name])),
+    [objectives],
+  );
+  const sectionDetails = useMemo(() => {
+    const details = new Map<string, { path: string; source: string; order: number }>();
+    for (const [currentVersionId, currentSections] of Object.entries(sectionsByVersionId)) {
+      const selected = completedVersions.find(({ version: item }) => item.version_id === currentVersionId);
+      const source = selected ? `${selected.book.title} v${selected.version.version}` : currentVersionId;
+      for (const section of currentSections) {
+        details.set(section.section_id, {
+          path: section.path.join(" / "),
+          source,
+          order: section.order,
+        });
+      }
+    }
+    return details;
+  }, [completedVersions, sectionsByVersionId]);
+  const mappingRows = useMemo(
+    () => [...mappings].sort((left, right) => {
+      const objectiveOrder = objectives.findIndex((item) => item.id === left.objective_id)
+        - objectives.findIndex((item) => item.id === right.objective_id);
+      if (objectiveOrder) return objectiveOrder;
+      return (sectionDetails.get(left.textbook_section_id)?.order ?? 0)
+        - (sectionDetails.get(right.textbook_section_id)?.order ?? 0);
+    }),
+    [mappings, objectives, sectionDetails],
   );
 
   const saveBinding = async () => {
@@ -152,13 +198,16 @@ export default function TextbookGroundingPanel({ planId, version, objectives, ge
 
   const confirmedCount = bindings.filter((item) => item.status === "confirmed").length;
   const suggestedCount = mappings.filter((item) => item.status === "candidate" && item.created_via === "recommended").length;
+  const mappedObjectiveCount = new Set(
+    mappings.filter((item) => item.status !== "rejected").map((item) => item.objective_id),
+  ).size;
   const hasSuggestedBinding = bindings.some((item) => item.status === "candidate");
 
   return (
     <section className="rounded-xl border border-indigo-500/20 bg-indigo-500/5 p-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2"><Link2 className="h-4 w-4 text-indigo-600" /><h3 className="text-sm font-semibold">{tr("教材绑定与章节映射", "Textbook bindings and section mappings")}</h3></div>
-        {generatedFromTextbook && (hasSuggestedBinding || suggestedCount) ? <button type="button" disabled={working} onClick={() => void confirmGeneratedScope()} className="rounded-lg bg-indigo-600 px-3 py-2 text-xs text-white disabled:opacity-50">{working ? <Loader2 className="inline h-3 w-3 animate-spin" /> : tr(`确认教材范围（${suggestedCount} 条章节建议）`, `Confirm textbook scope (${suggestedCount} section suggestions)`)}</button> : null}
+        {hasSuggestedBinding || suggestedCount ? <button type="button" disabled={working} onClick={() => void confirmGeneratedScope()} className="rounded-lg bg-indigo-600 px-3 py-2 text-xs text-white disabled:opacity-50">{working ? <Loader2 className="inline h-3 w-3 animate-spin" /> : tr(`确认教材范围（${suggestedCount} 条章节建议）`, `Confirm textbook scope (${suggestedCount} section suggestions)`)}</button> : null}
       </div>
       <p className="mt-1 text-xs text-[var(--muted-foreground)]">
         {confirmedCount
@@ -243,15 +292,43 @@ export default function TextbookGroundingPanel({ planId, version, objectives, ge
         </button>
       </div>
 
-      <div className="mt-3 flex flex-wrap gap-1">
-        {objectives.map((objective) => {
-          const confirmed = mappings.filter((item) => item.objective_id === objective.id && item.status === "confirmed").length;
-          return (
-            <span key={objective.id} className={`rounded-full px-2 py-1 text-[11px] ${confirmed ? "bg-emerald-500/10 text-emerald-700" : "bg-amber-500/10 text-amber-700"}`}>
-              {tr(`${objective.name} · ${confirmed} 章`, `${objective.name} · ${confirmed} sections`)}
-            </span>
-          );
-        })}
+      <div className="mt-3 overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--background)]/60">
+        <div className="flex items-center justify-between gap-3 border-b border-[var(--border)] px-3 py-2 text-[11px] text-[var(--muted-foreground)]">
+          <span>{tr("知识点 → 教材章节", "Objective → textbook section")}</span>
+          <span>{tr(`${mappedObjectiveCount}/${objectives.length} 个知识点 · ${mappingRows.length} 条映射`, `${mappedObjectiveCount}/${objectives.length} objectives · ${mappingRows.length} mappings`)}</span>
+        </div>
+        <div className="max-h-[360px] overflow-y-auto">
+          {mappingRows.map((mapping) => {
+            const section = sectionDetails.get(mapping.textbook_section_id);
+            const statusClass = mapping.status === "confirmed"
+              ? "bg-emerald-500/10 text-emerald-700"
+              : mapping.status === "rejected"
+                ? "bg-red-500/10 text-red-700"
+                : "bg-amber-500/10 text-amber-700";
+            const statusLabel = mapping.status === "confirmed"
+              ? tr("已确认", "Confirmed")
+              : mapping.status === "rejected"
+                ? tr("已拒绝", "Rejected")
+                : tr("推荐待确认", "Suggested");
+            return (
+              <div key={mapping.mapping_id} className="grid min-h-9 grid-cols-[minmax(0,1fr)_auto_minmax(0,1.4fr)_auto] items-center gap-2 border-b border-[var(--border)]/60 px-3 py-1.5 text-xs last:border-b-0">
+                <span className="truncate" title={objectiveNames.get(mapping.objective_id) || mapping.objective_id}>
+                  {objectiveNames.get(mapping.objective_id) || mapping.objective_id}
+                </span>
+                <span className="text-[var(--muted-foreground)]">→</span>
+                <span className="truncate" title={section ? `${section.source} / ${section.path}` : mapping.textbook_section_id}>
+                  {section ? `${section.source} / ${section.path}` : mapping.textbook_section_id}
+                </span>
+                <span className={`whitespace-nowrap rounded-full px-2 py-0.5 text-[10px] ${statusClass}`}>{statusLabel}</span>
+              </div>
+            );
+          })}
+          {!mappingRows.length ? (
+            <p className="px-3 py-4 text-center text-xs text-[var(--muted-foreground)]">
+              {tr("还没有章节映射，请在上方选择知识点和章节。", "No section mappings yet. Choose an objective and section above.")}
+            </p>
+          ) : null}
+        </div>
       </div>
     </section>
   );

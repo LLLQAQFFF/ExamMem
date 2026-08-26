@@ -295,7 +295,7 @@ class FakeTextbooks:
         }
 
     async def get_version(self, *, user_id, version_id):  # noqa: ANN001, ANN201
-        assert user_id == "study-user" and version_id == "version-1"
+        assert user_id == "study-user" and version_id in {"version-1", "version-2"}
         return {
             "version_id": version_id,
             "textbook_id": "textbook-1",
@@ -657,6 +657,67 @@ async def test_study_plan_file_contract_rejects_unplanned_ingestion_formats() ->
             mime_type="application/vnd.openxmlformats-officedocument.presentationml.presentation",
             base64="c2xpZGVz",
         )
+
+
+async def test_binding_textbook_to_existing_plan_creates_confirmable_recommendations() -> None:
+    provider = FakeProvider()
+    provider.runtime.textbooks.sections = [
+        {
+            "section_id": "limits",
+            "parent_section_id": None,
+            "order": 0,
+            "title": "函数极限",
+            "path": ["高等数学", "函数极限"],
+        }
+    ]
+    api = FastAPI()
+    api.include_router(
+        build_router(
+            provider,  # type: ignore[arg-type]
+            outline_importer=FakeImporter(),  # type: ignore[arg-type]
+            learning_host=FakeLearningHost(),  # type: ignore[arg-type]
+            observation_agent=FakeObservationAgent(),  # type: ignore[arg-type]
+        ),
+        prefix="/api/v1/exam-mem",
+    )
+
+    with _regular_user():
+        async with AsyncClient(transport=ASGITransport(app=api), base_url="http://test") as client:
+            imported = await client.post(
+                "/api/v1/exam-mem/study-plans/import",
+                json={
+                    "name": "2027 考研",
+                    "source_kind": "generated",
+                    "request": "考研数学一完整大纲",
+                },
+            )
+            plan_id = imported.json()["plan_id"]
+            await client.post(f"/api/v1/exam-mem/study-plans/{plan_id}/publish")
+            binding = await client.post(
+                f"/api/v1/exam-mem/study-plans/{plan_id}/versions/1/textbooks",
+                json={
+                    "textbook_version_id": "version-1",
+                    "role": "primary",
+                    "priority": 0,
+                    "status": "confirmed",
+                    "idempotency_key": "existing-plan-binding",
+                },
+            )
+            before_confirmation = await client.get(
+                f"/api/v1/exam-mem/study-plans/{plan_id}/versions/1/textbook-mappings"
+            )
+            confirmation = await client.post(
+                f"/api/v1/exam-mem/study-plans/{plan_id}/versions/1/"
+                "textbook-plan-suggestions/confirm",
+                json={"idempotency_key": "existing-plan-confirmation"},
+            )
+
+    assert binding.status_code == 200
+    assert before_confirmation.json()["mappings"][0]["textbook_section_id"] == "limits"
+    assert before_confirmation.json()["mappings"][0]["created_via"] == "recommended"
+    assert before_confirmation.json()["mappings"][0]["status"] == "candidate"
+    assert confirmation.json() == {"confirmed_bindings": 0, "confirmed_mappings": 1}
+    assert provider.runtime.grounded_learning.mappings[-1]["status"] == "confirmed"
 
 
 async def test_textbook_scope_creates_reviewable_plan_and_candidates_on_publish() -> None:

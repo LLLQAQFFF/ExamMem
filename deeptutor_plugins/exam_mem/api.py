@@ -86,7 +86,7 @@ from exam_mem.study import StudyPlanTree
 
 from .grounded_learning import GroundedLearningService, render_grounding_prompt
 from .study_plan import StudyPlanOutlineImporter
-from .textbook_study_plan import build_textbook_study_plan
+from .textbook_study_plan import build_textbook_study_plan, recommend_textbook_mappings
 from .textbooks import TextbookIngestionService
 
 NonEmptyString = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
@@ -645,13 +645,12 @@ def build_router(
         plan_version: Annotated[int, Field(ge=1)],
         body: TextbookBindingBody,
     ) -> dict[str, Any]:
+        user_id = current_user_id()
         try:
             async with runtime_provider.open_product() as runtime:
                 binding = await runtime.grounded_learning.set_binding(
-                    binding_id=_idempotent_record_id(
-                        "binding", current_user_id(), body.idempotency_key
-                    ),
-                    user_id=current_user_id(),
+                    binding_id=_idempotent_record_id("binding", user_id, body.idempotency_key),
+                    user_id=user_id,
                     plan_id=plan_id,
                     plan_version=plan_version,
                     textbook_version_id=body.textbook_version_id,
@@ -659,9 +658,52 @@ def build_router(
                     priority=body.priority,
                     status=body.status,
                 )
+                if body.status != "inactive":
+                    plan = await runtime.study_plans.get_version(
+                        user_id=user_id,
+                        plan_id=plan_id,
+                        version=plan_version,
+                    )
+                    textbook_version = await runtime.textbooks.get_version(
+                        user_id=user_id,
+                        version_id=body.textbook_version_id,
+                    )
+                    existing = {
+                        (item["objective_id"], item["textbook_section_id"])
+                        for item in await runtime.grounded_learning.list_mappings(
+                            user_id=user_id,
+                            plan_id=plan_id,
+                            plan_version=plan_version,
+                        )
+                    }
+                    tree = StudyPlanTree.model_validate(plan["tree"])
+                    for candidate in recommend_textbook_mappings(
+                        tree=tree,
+                        sections=textbook_version["sections"],
+                    ):
+                        pair = (candidate.objective_id, candidate.textbook_section_id)
+                        if pair in existing:
+                            continue
+                        await runtime.grounded_learning.set_mapping(
+                            mapping_id=_idempotent_record_id(
+                                "mapping",
+                                user_id,
+                                "binding-recommendation:"
+                                f"{plan_id}:{plan_version}:{body.textbook_version_id}:"
+                                f"{candidate.objective_id}:{candidate.textbook_section_id}",
+                            ),
+                            user_id=user_id,
+                            plan_id=plan_id,
+                            plan_version=plan_version,
+                            objective_id=candidate.objective_id,
+                            textbook_section_id=candidate.textbook_section_id,
+                            confidence=1.0,
+                            created_via="recommended",
+                            status="candidate",
+                        )
                 await runtime.connection.commit()
             return {"binding": binding}
-        except GroundedLearningNotFound as exc:
+        except (GroundedLearningNotFound, StudyPlanNotFound, TextbookNotFound) as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from exc
         except GroundedLearningConflict as exc:
             raise HTTPException(status_code=409, detail=str(exc)) from exc
@@ -721,34 +763,21 @@ def build_router(
         user_id = current_user_id()
         try:
             async with runtime_provider.open_product() as runtime:
-                version = await runtime.study_plans.get_version(
+                await runtime.study_plans.get_version(
                     user_id=user_id,
                     plan_id=plan_id,
                     version=plan_version,
                 )
-                if version["source_kind"] != "textbook":
-                    raise GroundedLearningConflict(
-                        "study-plan version was not generated from a textbook scope"
-                    )
-                metadata = version["source_metadata"]
-                textbook_version_id = str(metadata["textbook_version_id"])
                 bindings = await runtime.grounded_learning.list_bindings(
                     user_id=user_id,
                     plan_id=plan_id,
                     plan_version=plan_version,
                 )
-                binding = next(
-                    (
-                        item
-                        for item in bindings
-                        if item["textbook_version_id"] == textbook_version_id
-                    ),
-                    None,
-                )
-                if binding is None or binding["status"] == "inactive":
-                    raise GroundedLearningConflict("generated textbook binding is unavailable")
                 confirmed_bindings = 0
-                if binding["status"] != "confirmed":
+                for binding in bindings:
+                    if binding["status"] != "candidate":
+                        continue
+                    textbook_version_id = str(binding["textbook_version_id"])
                     await runtime.grounded_learning.set_binding(
                         binding_id=_idempotent_record_id(
                             "binding",
@@ -763,7 +792,7 @@ def build_router(
                         priority=binding["priority"],
                         status="confirmed",
                     )
-                    confirmed_bindings = 1
+                    confirmed_bindings += 1
 
                 mappings = await runtime.grounded_learning.list_mappings(
                     user_id=user_id,
@@ -774,15 +803,11 @@ def build_router(
                     (item["objective_id"], item["textbook_section_id"]): item for item in mappings
                 }
                 confirmed_mappings = 0
-                for candidate in _candidate_mappings_for_tree(metadata, version["tree"]):
-                    objective_id = str(candidate["objective_id"])
-                    section_id = str(candidate["textbook_section_id"])
-                    current_mapping = current_mappings.get((objective_id, section_id))
-                    if current_mapping is not None and current_mapping["status"] in {
-                        "confirmed",
-                        "rejected",
-                    }:
+                for mapping in current_mappings.values():
+                    if mapping["status"] != "candidate" or mapping["created_via"] != "recommended":
                         continue
+                    objective_id = str(mapping["objective_id"])
+                    section_id = str(mapping["textbook_section_id"])
                     await runtime.grounded_learning.set_mapping(
                         mapping_id=_idempotent_record_id(
                             "mapping",

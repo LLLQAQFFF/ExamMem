@@ -2,7 +2,11 @@ from __future__ import annotations
 
 import pytest
 
-from deeptutor_plugins.exam_mem.textbook_study_plan import build_textbook_study_plan
+from deeptutor_plugins.exam_mem.textbook_study_plan import (
+    build_textbook_study_plan,
+    recommend_textbook_mappings,
+)
+from exam_mem.study import ImportedOutline, materialize_outline
 
 SECTIONS = (
     {
@@ -219,3 +223,40 @@ def test_duplicate_leaf_titles_are_disambiguated_across_modules() -> None:
         "第二章 / 1. 背景",
     ]
     result.tree.taxonomy(subject.id, "ptextbook_v1")
+
+
+def test_existing_plan_recommendations_use_module_context_for_duplicate_titles() -> None:
+    tree = materialize_outline(
+        "existing-plan",
+        ImportedOutline.model_validate(
+            {
+                "name": "已有计划",
+                "subjects": [
+                    {
+                        "name": "人工智能",
+                        "modules": [
+                            {
+                                "name": "第一章",
+                                "knowledge_points": [{"name": "背景", "type": "concept"}],
+                            },
+                            {
+                                "name": "第二章",
+                                "knowledge_points": [{"name": "第二章 / 背景", "type": "concept"}],
+                            },
+                        ],
+                    }
+                ],
+            }
+        ),
+    )
+    sections = (
+        {"section_id": "chapter-1-background", "title": "背景", "path": ["第一章", "背景"]},
+        {"section_id": "chapter-2-background", "title": "背景", "path": ["第二章", "背景"]},
+    )
+
+    recommendations = recommend_textbook_mappings(tree=tree, sections=sections)
+
+    assert [item.textbook_section_id for item in recommendations] == [
+        "chapter-1-background",
+        "chapter-2-background",
+    ]

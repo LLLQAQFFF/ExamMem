@@ -278,7 +278,7 @@ export default function LearningPathsWorkbench() {
                 <div><h2 className="font-serif text-xl font-semibold">{selectedSubject.name}</h2><p className="mt-1 text-xs text-[var(--muted-foreground)]">{tr(`${detail.name} · 版本 ${detail.published.version} · 已发布考试范围`, `${detail.name} · v${detail.published.version} · published exam scope`)}</p></div>
                 <span className={`rounded-full px-3 py-1 text-xs ${detail.archived_at ? "bg-amber-500/10 text-amber-600" : "bg-emerald-500/10 text-emerald-600"}`}><Check className="mr-1 inline h-3 w-3" />{detail.archived_at ? tr("已归档，只读", "Archived, read-only") : tr("结构已锁定", "Structure locked")}</span>
               </div>
-              <TextbookGroundingPanel planId={detail.plan_id} version={detail.published.version} generatedFromTextbook={detail.published.source_kind === "textbook"} objectives={selectedSubject.modules.flatMap((item) => item.knowledge_points.map((point) => ({ id: point.id, name: point.name })))} />
+              <TextbookGroundingPanel planId={detail.plan_id} version={detail.published.version} objectives={selectedSubject.modules.flatMap((item) => item.knowledge_points.map((point) => ({ id: point.id, name: point.name })))} />
               {selectedSubject.modules.map((module) => (
                 <div key={module.id}>
                   <h3 className="mb-2 text-sm font-semibold">{module.name} <span className="font-normal text-[var(--muted-foreground)]">{module.knowledge_points.length} {tr("个知识点", "objectives")}</span></h3>

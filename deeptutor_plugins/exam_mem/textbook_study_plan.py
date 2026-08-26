@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import Any, Iterable
+import unicodedata
 
 from exam_mem.study import ImportedOutline, StudyPlanTree, materialize_outline
 
@@ -29,6 +30,10 @@ def _is_non_content_section(title: object) -> bool:
     return normalized in _NON_CONTENT_SECTION_TITLES or normalized.startswith("参考文献")
 
 
+def _label_key(value: object) -> str:
+    return " ".join(unicodedata.normalize("NFKC", str(value or "")).split()).casefold()
+
+
 @dataclass(frozen=True, slots=True)
 class TextbookPlanCandidate:
     objective_id: str
@@ -40,6 +45,54 @@ class TextbookStudyPlanDraft:
     tree: StudyPlanTree
     candidates: tuple[TextbookPlanCandidate, ...]
     scope_section_ids: tuple[str, ...]
+
+
+def recommend_textbook_mappings(
+    *, tree: StudyPlanTree, sections: Iterable[dict[str, Any]]
+) -> tuple[TextbookPlanCandidate, ...]:
+    """Recommend only uniquely identifiable objective-to-section matches."""
+
+    available = [dict(section) for section in sections]
+    recommendations: list[TextbookPlanCandidate] = []
+    for subject in tree.subjects:
+        for module in subject.modules:
+            module_key = _label_key(module.name)
+            for objective in module.knowledge_points:
+                objective_path = tuple(
+                    _label_key(part) for part in objective.name.split(" / ") if part.strip()
+                )
+                if not objective_path:
+                    continue
+                exact_path = [
+                    section
+                    for section in available
+                    if len(objective_path) > 1
+                    and tuple(_label_key(part) for part in section.get("path") or ())[
+                        -len(objective_path) :
+                    ]
+                    == objective_path
+                ]
+                matches = exact_path or [
+                    section
+                    for section in available
+                    if _label_key(section.get("title")) == objective_path[-1]
+                ]
+                if len(matches) > 1:
+                    matches = [
+                        section
+                        for section in matches
+                        if module_key
+                        in tuple(_label_key(part) for part in section.get("path") or ())[:-1]
+                    ]
+                if len(matches) != 1 or not matches[0].get("section_id"):
+                    continue
+                recommendations.append(
+                    TextbookPlanCandidate(
+                        objective_id=objective.id,
+                        textbook_section_id=str(matches[0]["section_id"]),
+                    )
+                )
+    return tuple(recommendations)
 
 
 def build_textbook_study_plan(
@@ -201,4 +254,5 @@ __all__ = [
     "TextbookPlanCandidate",
     "TextbookStudyPlanDraft",
     "build_textbook_study_plan",
+    "recommend_textbook_mappings",
 ]
