@@ -591,6 +591,14 @@ def get_embedding_client() -> Any:
     return host_embedding_client()
 
 
+def get_reranking_client() -> Any:
+    """Return the configured domain-neutral Host reranking client."""
+
+    from deeptutor.services.reranking import get_reranking_client as host_reranking_client
+
+    return host_reranking_client()
+
+
 __all__ = [
     "BaseCapability",
     "BaseTool",
@@ -614,5 +622,6 @@ __all__ = [
     "emit_capability_result",
     "extract_json_object",
     "get_embedding_client",
+    "get_reranking_client",
     "validate_embedding_batch",
 ]

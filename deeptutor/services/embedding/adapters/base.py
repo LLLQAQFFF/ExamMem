@@ -43,7 +43,9 @@ class EmbeddingRequest:
             - Cohere: Maps to 'input_type' ("search_document", "search_query", "classification", "clustering")
             - Jina: Maps to 'task' ("retrieval.passage", "retrieval.query", etc.)
             - Gemini Embedding 2: Maps to retrieval-specific text instructions
-            - OpenAI/Ollama: Ignored
+            - Ollama Qwen3 Embedding: Maps retrieval queries to the model's
+              documented ``Instruct``/``Query`` text format
+            - OpenAI: Ignored
         encoding_format: Output format ("float" or "base64"). ``None`` (the
             default) lets each adapter decide: OpenAI-compatible gateways omit
             the param entirely (several, e.g. SiliconFlow, return HTTP 400 when

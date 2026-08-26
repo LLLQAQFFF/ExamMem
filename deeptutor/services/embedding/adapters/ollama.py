@@ -12,8 +12,14 @@ from .base import BaseEmbeddingAdapter, EmbeddingRequest, EmbeddingResponse
 
 logger = logging.getLogger(__name__)
 
+_QWEN3_RETRIEVAL_INSTRUCTION = (
+    "Given a user query, retrieve relevant passages that directly answer the query"
+)
+
 
 class OllamaEmbeddingAdapter(BaseEmbeddingAdapter):
+    SUPPORTS_INPUT_TYPE = True
+
     MODELS_INFO = {
         "all-minilm": 384,
         "all-mpnet-base-v2": 768,
@@ -43,7 +49,7 @@ class OllamaEmbeddingAdapter(BaseEmbeddingAdapter):
 
         payload = {
             "model": request.model or self.model,
-            "input": request.texts,
+            "input": self._format_retrieval_texts(request),
         }
 
         dim_value = request.dimensions or self.dimensions
@@ -133,6 +139,15 @@ class OllamaEmbeddingAdapter(BaseEmbeddingAdapter):
                 "total_duration": data.get("total_duration", 0),
             },
         )
+
+    def _format_retrieval_texts(self, request: EmbeddingRequest) -> list[str]:
+        model = (request.model or self.model or "").lower().replace("_", "-")
+        if request.input_type != "search_query" or "qwen3-embedding" not in model:
+            return request.texts
+        return [
+            f"Instruct: {_QWEN3_RETRIEVAL_INSTRUCTION}\nQuery:{text}"
+            for text in request.texts
+        ]
 
     def get_model_info(self) -> Dict[str, Any]:
         return {

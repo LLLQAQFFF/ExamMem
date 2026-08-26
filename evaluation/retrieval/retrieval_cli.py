@@ -13,8 +13,11 @@ from pathlib import Path
 from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import create_async_engine
 
-from evaluation.backend_adapters import ConfiguredHostEmbeddingClient
-from evaluation.retrieval.contracts import RetrievalDataset
+from evaluation.backend_adapters import (
+    ConfiguredHostEmbeddingClient,
+    ConfiguredLocalRerankingClient,
+)
+from evaluation.retrieval.contracts import RetrievalDataset, RetrievalSplit
 from evaluation.retrieval.dataset_builder import build_scale_corpus
 from evaluation.retrieval.metrics import (
     EXAM_MEM_METRIC_CATALOG,
@@ -37,6 +40,17 @@ def _parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--hnsw-query-count", type=int, default=100)
+    parser.add_argument("--skip-hnsw-profile", action="store_true")
+    parser.add_argument(
+        "--reranker-model",
+        default="Qwen/Qwen3-Reranker-4B",
+    )
+    parser.add_argument("--reranker-device", default=None)
+    parser.add_argument(
+        "--reranker-4bit",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+    )
     return parser
 
 
@@ -44,16 +58,26 @@ async def _run(args: argparse.Namespace) -> dict[str, object]:
     database_url = os.environ.get("EXAM_MEM_DATABASE_URL")
     if not database_url:
         raise ValueError("EXAM_MEM_DATABASE_URL is required")
-    if args.hnsw_query_count < 100:
+    if not args.skip_hnsw_profile and args.hnsw_query_count < 100:
         raise ValueError("formal HNSW profile requires at least 100 queries")
     dataset = RetrievalDataset.model_validate_json(args.dataset.read_text(encoding="utf-8"))
     embedding_client = ConfiguredHostEmbeddingClient()
+    reranking_client = ConfiguredLocalRerankingClient(
+        args.reranker_model,
+        device=args.reranker_device,
+        load_in_4bit=args.reranker_4bit,
+    )
     engine = create_async_engine(database_url)
     try:
         async with engine.connect() as connection:
             database_name = str(await connection.scalar(text("select current_database()")))
-            if not database_name.startswith("exammem_retrieval_v2_final"):
-                raise ValueError("retrieval evaluation requires the final isolated database")
+            if dataset.split is RetrievalSplit.TEST:
+                if not database_name.startswith("exammem_retrieval_v2_final"):
+                    raise ValueError("test retrieval requires the final isolated database")
+                if args.skip_hnsw_profile:
+                    raise ValueError("test retrieval cannot skip the formal HNSW profile")
+            elif not database_name.startswith("exammem_retrieval_v2_dev"):
+                raise ValueError("dev retrieval requires an isolated dev database")
             memory_count = int(
                 await connection.scalar(select(func.count()).select_from(learning_memories)) or 0
             )
@@ -67,46 +91,49 @@ async def _run(args: argparse.Namespace) -> dict[str, object]:
                 connection,
                 dataset,
                 embedding_client,
+                reranking_client,
                 embedding_batch_size=32,
                 progress=semantic_progress,
             )
 
-            scale = build_scale_corpus(10_000)
-            profile_scope = scale[0].memory.scope
-            profile_candidate_count = int(
-                await connection.scalar(
-                    select(func.count())
-                    .select_from(learning_memories)
-                    .where(
-                        learning_memories.c.user_id == profile_scope.user_id,
-                        learning_memories.c.exam_id == profile_scope.exam_id,
-                        learning_memories.c.subject_id == profile_scope.subject_id,
-                        learning_memories.c.memory_namespace
-                        == profile_scope.memory_namespace.value,
-                        learning_memories.c.lifecycle_state.in_(("active", "contested")),
-                        learning_memories.c.content_embedding.is_not(None),
+            hnsw = None
+            if not args.skip_hnsw_profile:
+                scale = build_scale_corpus(10_000)
+                profile_scope = scale[0].memory.scope
+                profile_candidate_count = int(
+                    await connection.scalar(
+                        select(func.count())
+                        .select_from(learning_memories)
+                        .where(
+                            learning_memories.c.user_id == profile_scope.user_id,
+                            learning_memories.c.exam_id == profile_scope.exam_id,
+                            learning_memories.c.subject_id == profile_scope.subject_id,
+                            learning_memories.c.memory_namespace
+                            == profile_scope.memory_namespace.value,
+                            learning_memories.c.lifecycle_state.in_(("active", "contested")),
+                            learning_memories.c.content_embedding.is_not(None),
+                        )
                     )
+                    or 0
                 )
-                or 0
-            )
-            await connection.commit()
-            if profile_candidate_count != 10_000:
-                raise ValueError("HNSW profile requires exactly 10,000 candidates in one Scope")
-            hnsw_queries = _hnsw_queries(scale, args.hnsw_query_count)
+                await connection.commit()
+                if profile_candidate_count != 10_000:
+                    raise ValueError("HNSW profile requires exactly 10,000 candidates in one Scope")
+                hnsw_queries = _hnsw_queries(scale, args.hnsw_query_count)
 
-            def hnsw_progress(done: int, total: int) -> None:
-                if done == total or done % 25 == 0:
-                    print(f"HNSW profile: {done}/{total}", flush=True)
+                def hnsw_progress(done: int, total: int) -> None:
+                    if done == total or done % 25 == 0:
+                        print(f"HNSW profile: {done}/{total}", flush=True)
 
-            hnsw = await evaluate_hnsw_profile(
-                connection,
-                scope=profile_scope,
-                queries=hnsw_queries,
-                embedding_client=embedding_client,
-                top_k=5,
-                embedding_batch_size=32,
-                progress=hnsw_progress,
-            )
+                hnsw = await evaluate_hnsw_profile(
+                    connection,
+                    scope=profile_scope,
+                    queries=hnsw_queries,
+                    embedding_client=embedding_client,
+                    top_k=5,
+                    embedding_batch_size=32,
+                    progress=hnsw_progress,
+                )
             migration_head = str(
                 await connection.scalar(text("select version_num from alembic_version"))
             )
@@ -122,6 +149,8 @@ async def _run(args: argparse.Namespace) -> dict[str, object]:
         "database_memory_count": memory_count,
         "embedding_provider": embedding_client.version,
         "embedding_call_count": embedding_client.call_count,
+        "reranking_provider": reranking_client.version,
+        "reranking_call_count": reranking_client.call_count,
         "semantic": {
             "query_count": len(dataset.queries),
             "elapsed_ms": semantic.elapsed_ms,
@@ -129,13 +158,16 @@ async def _run(args: argparse.Namespace) -> dict[str, object]:
                 {**score.model_dump(mode="json"), **_metric_status(score)}
                 for score in semantic.metrics.scores
             ],
+            "diagnostics": [
+                score.model_dump(mode="json") for score in semantic.metrics.diagnostics
+            ],
             "production_latency": semantic.metrics.production_latency.model_dump(mode="json"),
             "exact_latency": semantic.metrics.exact_latency.model_dump(mode="json"),
             "observations": [
                 observation.model_dump(mode="json") for observation in semantic.observations
             ],
         },
-        "hnsw_profile": {
+        "hnsw_profile": ({
             "query_count": len(hnsw.observations),
             "candidate_count": hnsw.candidate_count,
             "production_mean_exact_agreement_at_k": (hnsw.production_mean_exact_agreement_at_k),
@@ -157,7 +189,7 @@ async def _run(args: argparse.Namespace) -> dict[str, object]:
             "passes_control_ann_recall_gate": hnsw.control_mean_ann_recall_at_k >= 0.95,
             "passes_control_plan_gate": hnsw.control_hnsw_plan_rate == 1.0,
             "observations": [asdict(observation) for observation in hnsw.observations],
-        },
+        } if hnsw is not None else None),
     }
 
 

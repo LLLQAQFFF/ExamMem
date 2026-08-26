@@ -22,7 +22,7 @@ from exam_mem.contracts import (
     StudentModel,
 )
 from exam_mem.domain.candidate_query import CandidateMatchReason, build_candidate_query
-from exam_mem.domain.slot_key import validate_slot_key
+from exam_mem.domain.taxonomy import Taxonomy, load_taxonomy
 from exam_mem.lifecycle import (
     LifecycleApplier,
     LifecycleCandidateSnapshot,
@@ -38,6 +38,13 @@ from exam_mem.lifecycle import (
     resolve_validated_relation_output,
 )
 from exam_mem.lifecycle.state_machine import non_mutating_answer_reason
+from exam_mem.retrieval import (
+    LearningMemoryRetrievalService,
+    MemoryRetrievalResult,
+    RetrievalPolicy,
+    RetrievalRerankingClient,
+    build_learning_memory_retrieval_service,
+)
 from exam_mem.storage.event_repository import AppendStatus, LearningEventRepository
 from exam_mem.storage.memory_repository import LearningMemoryRepository
 from exam_mem.storage.student_model_repository import StudentModelRepository
@@ -73,6 +80,10 @@ class LifecycleMemoryBackend:
         applier: LifecycleApplier,
         trace_id: str | None = None,
         embedding_client: LifecycleEmbeddingClient | None = None,
+        reranking_client: RetrievalRerankingClient | None = None,
+        taxonomy: Taxonomy | None = None,
+        retrieval_policy: RetrievalPolicy | None = None,
+        retrieval_service: LearningMemoryRetrievalService | None = None,
         event_page_size: int = 1000,
     ) -> None:
         if trace_id is not None and not trace_id.strip():
@@ -86,6 +97,13 @@ class LifecycleMemoryBackend:
         self._applier = applier
         self._trace_id = trace_id
         self._embedding_client = embedding_client
+        self._retrieval_service = retrieval_service or build_learning_memory_retrieval_service(
+            memory_repository=memory_repository,
+            embedding_client=embedding_client,
+            reranking_client=reranking_client,
+            taxonomy=taxonomy or load_taxonomy("math1_v1"),
+            policy=retrieval_policy,
+        )
         self._event_page_size = event_page_size
         self._projection_requests: list[ProjectionRefreshRequest] = []
         self._event_append_statuses: dict[str, AppendStatus] = {}
@@ -181,35 +199,18 @@ class LifecycleMemoryBackend:
         query: str,
         top_k: int,
     ) -> list[LearningMemory]:
+        result = await self.retrieve_scored(scope, query, top_k)
+        return [item.memory for item in result.items]
+
+    async def retrieve_scored(
+        self,
+        scope: MemoryScope,
+        query: str,
+        top_k: int,
+    ) -> MemoryRetrievalResult:
         if top_k < 1:
             raise ValueError("top_k must be greater than or equal to 1")
-        try:
-            slot_key = str(validate_slot_key(query))
-        except ValueError:
-            slot_key = None
-        if slot_key is not None:
-            if slot_key.partition(":")[0] != scope.memory_namespace.value:
-                raise ValueError("retrieval slot_key namespace must match scope")
-            candidates = await self._memory_repository.find_candidates(
-                build_candidate_query(
-                    scope=scope,
-                    slot_key=slot_key,
-                    match_reason=CandidateMatchReason.EXACT_SLOT,
-                )
-            )
-            return candidates[:top_k]
-
-        if not query.strip():
-            raise ValueError("retrieval query must not be blank")
-        if self._embedding_client is None:
-            raise ValueError("semantic lifecycle retrieval requires an embedding client")
-        embeddings = await self._embedding_client.embed(
-            [query],
-            input_type="search_query",
-        )
-        if len(embeddings) != 1:
-            raise ValueError("embedding client must return exactly one query vector")
-        return await self._memory_repository.find_similar(scope, embeddings[0], top_k)
+        return await self._retrieval_service.retrieve(scope, query, top_k)
 
     async def snapshot(self, context: LearningContext) -> dict[str, JsonValue]:
         memories: list[LearningMemory] = []

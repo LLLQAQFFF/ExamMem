@@ -8,7 +8,7 @@
   "dataset_version": "exam_mem_semantic_retrieval_v2",
   "frozen_test_sha256": "14c9e0730449671a74b3bc7ff66dea490f550e4a8f4b885f762b6b15c044ddb5",
   "generated_at": "2026-08-25T00:00:00Z",
-  "metric_catalog_sha256": "76a80f3fb4128753fae4ce44521ee705f4d8117831ec72bed560e8ebb23e0ef1",
+  "metric_catalog_sha256": "09e273ab785cf4a537e935fac1a3f5ceddf89655e237df6af59d2e74cd368250",
   "protocol_version": "semantic_retrieval_v2",
   "records": [
     {

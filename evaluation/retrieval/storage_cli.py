@@ -33,6 +33,7 @@ def _parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--scale-size", type=int, default=10_000)
+    parser.add_argument("--skip-scale", action="store_true")
     return parser
 
 
@@ -77,20 +78,22 @@ async def _run(args: argparse.Namespace) -> dict[str, object]:
             )
             storage_metrics = compute_storage_metrics([*semantic.observations, *invalid])
 
-            scale_records = build_scale_corpus(args.scale_size)
+            scale = None
+            if not args.skip_scale:
+                scale_records = build_scale_corpus(args.scale_size)
 
-            def scale_progress(done: int, total: int) -> None:
-                if done == total or done % 1000 == 0:
-                    print(f"scale storage: {done}/{total}", flush=True)
+                def scale_progress(done: int, total: int) -> None:
+                    if done == total or done % 1000 == 0:
+                        print(f"scale storage: {done}/{total}", flush=True)
 
-            scale = await ingest_scale_corpus(
-                connection,
-                scale_records,
-                embedding_client,
-                batch_size=64,
-                transaction_size=240,
-                progress=scale_progress,
-            )
+                scale = await ingest_scale_corpus(
+                    connection,
+                    scale_records,
+                    embedding_client,
+                    batch_size=64,
+                    transaction_size=240,
+                    progress=scale_progress,
+                )
             memory_count = int(
                 await connection.scalar(select(func.count()).select_from(learning_memories)) or 0
             )
@@ -133,12 +136,16 @@ async def _run(args: argparse.Namespace) -> dict[str, object]:
         },
         "invalid_observations": [item.model_dump(mode="json") for item in invalid],
         "storage_metrics": [score.model_dump(mode="json") for score in storage_metrics],
-        "scale": {
-            "memory_count": scale.memory_count,
-            "event_count": scale.event_count,
-            "embedding_dimension": scale.embedding_dimension,
-            "elapsed_ms": scale.elapsed_ms,
-        },
+        "scale": (
+            {
+                "memory_count": scale.memory_count,
+                "event_count": scale.event_count,
+                "embedding_dimension": scale.embedding_dimension,
+                "elapsed_ms": scale.elapsed_ms,
+            }
+            if scale is not None
+            else None
+        ),
         "database_counts": {"learning_memories": memory_count, "learning_events": event_count},
         "learning_memories_total_bytes": table_bytes,
         "learning_memories_indexes": {

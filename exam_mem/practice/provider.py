@@ -9,7 +9,11 @@ from typing import AsyncIterator, Callable, Sequence
 
 from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine, create_async_engine
 
-from deeptutor.plugins.host_services import UnifiedContext, get_embedding_client
+from deeptutor.plugins.host_services import (
+    UnifiedContext,
+    get_embedding_client,
+    get_reranking_client,
+)
 from exam_mem.backends import (
     BackendMode,
     MemoryBackend,
@@ -631,6 +635,7 @@ def _postgres_backend(  # noqa: ANN001
             ),
             trace_id=trace_id,
             embedding_client=embedding_client,
+            reranking_client=get_reranking_client(),
         )
 
     providers = {

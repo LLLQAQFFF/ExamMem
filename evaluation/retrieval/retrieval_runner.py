@@ -19,6 +19,13 @@ from evaluation.retrieval.metrics import (
     compute_retrieval_metrics,
 )
 from exam_mem.contracts import LearningMemory, LifecycleState, MemoryScope
+from exam_mem.domain import load_taxonomy
+from exam_mem.retrieval import (
+    LearningMemoryRetrievalService,
+    RetrievalDecision,
+    RetrievalPolicy,
+    build_learning_memory_retrieval_service,
+)
 from exam_mem.storage.memory_repository import PostgresLearningMemoryRepository
 
 
@@ -29,6 +36,16 @@ class EmbeddingClient(Protocol):
         *,
         input_type: str | None = None,
     ) -> list[list[float]]: ...
+
+
+class RerankingClient(Protocol):
+    async def score(
+        self,
+        *,
+        query: str,
+        documents: Sequence[str],
+        instruction: str,
+    ) -> list[float]: ...
 
 
 @dataclass(frozen=True, slots=True)
@@ -74,12 +91,23 @@ async def evaluate_semantic_retrieval(
     connection: AsyncConnection,
     dataset: RetrievalDataset,
     embedding_client: EmbeddingClient,
+    reranking_client: RerankingClient | None,
     *,
     embedding_batch_size: int = 32,
+    retrieval_policy: RetrievalPolicy | None = None,
     progress: Callable[[int, int], None] | None = None,
 ) -> SemanticRetrievalResult:
-    """Evaluate every frozen query without applying a score threshold or Gold reranking."""
+    """Evaluate every query through the production retrieval decision service."""
     started = perf_counter()
+    repository = PostgresLearningMemoryRepository(connection)
+    policy = retrieval_policy or RetrievalPolicy()
+    retrieval_service = build_learning_memory_retrieval_service(
+        memory_repository=repository,
+        embedding_client=embedding_client,
+        reranking_client=reranking_client,
+        taxonomy=load_taxonomy("math1_v1"),
+        policy=policy,
+    )
     vectors = await _embed_queries(
         dataset.queries,
         embedding_client,
@@ -94,11 +122,19 @@ async def evaluate_semantic_retrieval(
             candidate_count,
             exact_ms,
         ) = await _exact_query(connection, query, vector)
-        production_memories, production_distances, plan, production_ms = await _production_query(
+        (
+            production_memories,
+            production_distances,
+            relevance_scores,
+            retrieval_decision,
+            plan,
+            production_ms,
+        ) = await _production_semantic_query(
             connection,
-            query.scope,
+            retrieval_service,
+            query,
             vector,
-            query.top_k,
+            repository_limit=max(query.top_k, policy.candidate_limit),
         )
         production_ids = [memory.memory_id for memory in production_memories]
         archived = [
@@ -113,6 +149,8 @@ async def evaluate_semantic_retrieval(
                 production_result_ids=production_ids,
                 exact_result_ids=exact_ids,
                 production_distances=production_distances,
+                production_relevance_scores=relevance_scores,
+                retrieval_decision=retrieval_decision.value,
                 exact_distances=exact_distances,
                 judged_memory_distances=judged_distances,
                 archived_or_invalidated_result_ids=archived,
@@ -176,7 +214,7 @@ async def evaluate_hnsw_profile(
             top_k,
             judged_ids=(),
         )
-        production_memories, _, plan, production_ms = await _production_query(
+        production_memories, _, plan, production_ms = await _production_repository_query(
             connection,
             scope,
             vector,
@@ -321,7 +359,55 @@ async def _exact_scope_query(
     )
 
 
-async def _production_query(
+async def _production_semantic_query(
+    connection: AsyncConnection,
+    retrieval_service: LearningMemoryRetrievalService,
+    query: RetrievalQuery,
+    vector: Sequence[float],
+    *,
+    repository_limit: int,
+) -> tuple[
+    list[LearningMemory],
+    list[float],
+    list[float],
+    RetrievalDecision,
+    dict[str, Any] | None,
+    float,
+]:
+    await connection.rollback()
+    started = perf_counter()
+    result = await retrieval_service.retrieve(
+        query.scope,
+        query.text,
+        query.top_k,
+        query_embedding=vector,
+    )
+    elapsed_ms = (perf_counter() - started) * 1000.0
+    plan = (
+        None
+        if result.decision
+        in {
+            RetrievalDecision.INSUFFICIENT_REFERENCE,
+            RetrievalDecision.OUT_OF_SCOPE_TARGET,
+        }
+        else await _production_plan(
+            connection,
+            query.scope,
+            vector,
+            result_limit=repository_limit,
+        )
+    )
+    return (
+        [item.memory for item in result.items],
+        [item.distance for item in result.items],
+        [item.relevance_score or 0.0 for item in result.items],
+        result.decision,
+        plan,
+        elapsed_ms,
+    )
+
+
+async def _production_repository_query(
     connection: AsyncConnection,
     scope: MemoryScope,
     vector: Sequence[float],
@@ -330,29 +416,34 @@ async def _production_query(
     await connection.rollback()
     repository = PostgresLearningMemoryRepository(connection)
     started = perf_counter()
-    memories = await repository.find_similar(scope, vector, top_k)
+    scored = await repository.find_similar_scored(scope, vector, top_k)
     elapsed_ms = (perf_counter() - started) * 1000.0
-    result_ids = [memory.memory_id for memory in memories]
+    plan = await _production_plan(connection, scope, vector, result_limit=top_k)
+    return (
+        [item.memory for item in scored],
+        [item.distance for item in scored],
+        plan,
+        elapsed_ms,
+    )
+
+
+async def _production_plan(
+    connection: AsyncConnection,
+    scope: MemoryScope,
+    vector: Sequence[float],
+    *,
+    result_limit: int,
+) -> dict[str, Any]:
     parameters = _scope_parameters(
         scope,
         vector_literal=_vector_literal(vector),
-        top_k=top_k,
+        top_k=result_limit,
     )
-    distance_rows = (
-        (
-            await connection.execute(
-                text(_DISTANCES_FOR_IDS_SQL),
-                {**parameters, "result_ids": result_ids},
-            )
-        ).all()
-        if result_ids
-        else []
-    )
-    distance_by_id = {str(memory_id): float(distance) for memory_id, distance in distance_rows}
-    plan_value = await connection.scalar(text(_EXPLAIN_SQL), parameters)
+    parameters["candidate_limit"] = result_limit * 4
+    plan_value = await connection.scalar(text(_PRODUCTION_EXPLAIN_SQL), parameters)
     plan = _normalize_plan(plan_value)
     await connection.rollback()
-    return memories, [distance_by_id[memory_id] for memory_id in result_ids], plan, elapsed_ms
+    return plan
 
 
 async def _hnsw_control_query(
@@ -372,6 +463,8 @@ async def _hnsw_control_query(
         await connection.execute(text("set local enable_seqscan = off"))
         await connection.execute(text("set local enable_bitmapscan = off"))
         await connection.execute(text("set local enable_sort = off"))
+        await connection.execute(text("set local hnsw.iterative_scan = 'strict_order'"))
+        await connection.execute(text("set local hnsw.ef_search = 100"))
         started = perf_counter()
         rows = (await connection.execute(text(_HNSW_CONTROL_SQL), parameters)).all()
         elapsed_ms = (perf_counter() - started) * 1000.0
@@ -446,12 +539,23 @@ select memory_id, content_embedding <=> cast(:query_vector as vector) as distanc
 from learning_memories
 where {_SCOPE_WHERE} and memory_id = any(cast(:judged_ids as text[]))
 """
-_DISTANCES_FOR_IDS_SQL = f"""
-select memory_id, content_embedding <=> cast(:query_vector as vector) as distance
+_PRODUCTION_RANKED_SQL = f"""
+with nearest_memories as materialized (
+    select memory_id, content_embedding <=> cast(:query_vector as vector) as retrieval_distance
+    from learning_memories
+    where {_SCOPE_WHERE}
+    order by content_embedding <=> cast(:query_vector as vector)
+    limit :candidate_limit
+)
+select learning_memories.memory_id, nearest_memories.retrieval_distance
 from learning_memories
-where {_SCOPE_WHERE} and memory_id = any(cast(:result_ids as text[]))
+join nearest_memories using (memory_id)
+order by nearest_memories.retrieval_distance, learning_memories.memory_id
+limit :top_k
 """
-_EXPLAIN_SQL = "explain (analyze, buffers, format json) " + _RANKED_SQL
+_PRODUCTION_EXPLAIN_SQL = (
+    "explain (analyze, buffers, format json) " + _PRODUCTION_RANKED_SQL
+)
 _HNSW_CONTROL_SQL = f"""
 select memory_id
 from learning_memories

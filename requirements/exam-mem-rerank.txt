@@ -1,0 +1,5 @@
+# Optional local cross-encoder used by ExamMem semantic retrieval.
+# Install a host-compatible PyTorch wheel first, then this file.
+sentence-transformers>=5.1,<6.0
+accelerate>=1.10,<2.0
+bitsandbytes>=0.48,<0.50; platform_system == "Linux"

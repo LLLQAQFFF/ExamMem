@@ -601,6 +601,11 @@ async def test_vector_search_writes_vectors_and_filters_scope_before_distance() 
                     content_embedding=_basis_vector(0),
                 )
 
+                scored = await repository.find_similar_scored(
+                    rank.scope,
+                    _basis_vector(0),
+                    10,
+                )
                 similar = await repository.find_similar(
                     rank.scope,
                     _basis_vector(0),
@@ -616,6 +621,13 @@ async def test_vector_search_writes_vectors_and_filters_scope_before_distance() 
                     rank.memory_id,
                     determinant.memory_id,
                 ]
+                assert [item.memory.memory_id for item in scored] == [
+                    rank.memory_id,
+                    determinant.memory_id,
+                ]
+                assert scored[0].distance == pytest.approx(0.0)
+                assert scored[0].similarity == pytest.approx(1.0)
+                assert scored[1].distance == pytest.approx(1.0)
                 assert [memory.memory_id for memory in top_one] == [rank.memory_id]
                 with pytest.raises(ValueError, match="1024 dimensions"):
                     await repository.find_similar(rank.scope, [1.0], 10)

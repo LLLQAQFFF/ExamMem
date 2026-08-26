@@ -7,7 +7,7 @@ from datetime import datetime
 import math
 from typing import Any, Protocol, runtime_checkable
 
-from sqlalchemy import Select, func, insert, select, update
+from sqlalchemy import Select, func, insert, select, text, update
 from sqlalchemy.dialects.postgresql import insert as postgresql_insert
 from sqlalchemy.ext.asyncio import AsyncConnection
 
@@ -16,6 +16,7 @@ from exam_mem.contracts import LearningMemory, LifecycleState, MemoryScope
 from exam_mem.domain.candidate_query import CANDIDATE_LIFECYCLE_STATES, CandidateQuery
 from exam_mem.domain.slot_key import validate_slot_key
 from exam_mem.lifecycle.contracts import LifecycleCandidateSnapshot, LifecycleMemorySnapshot
+from exam_mem.retrieval.contracts import ScoredLearningMemory
 
 from .models import (
     LEARNING_MEMORY_EMBEDDING_DIMENSION,
@@ -123,6 +124,13 @@ class LearningMemoryRepository(Protocol):
         limit: int,
     ) -> list[LearningMemory]: ...
 
+    async def find_similar_scored(
+        self,
+        scope: MemoryScope,
+        query_embedding: Sequence[float],
+        limit: int,
+    ) -> list[ScoredLearningMemory]: ...
+
 
 class PostgresLearningMemoryRepository:
     """Read L2 state through mandatory four-dimensional Scope predicates."""
@@ -225,12 +233,29 @@ class PostgresLearningMemoryRepository:
         query_embedding: Sequence[float],
         limit: int,
     ) -> list[LearningMemory]:
+        return [
+            item.memory
+            for item in await self.find_similar_scored(scope, query_embedding, limit)
+        ]
+
+    async def find_similar_scored(
+        self,
+        scope: MemoryScope,
+        query_embedding: Sequence[float],
+        limit: int,
+    ) -> list[ScoredLearningMemory]:
         if limit < 1:
             raise ValueError("limit must be greater than or equal to 1")
         validated_embedding = _validate_embedding(query_embedding)
+        await self._connection.execute(text("set local hnsw.iterative_scan = 'strict_order'"))
+        await self._connection.execute(text("set local hnsw.ef_search = 100"))
         distance = learning_memories.c.content_embedding.cosine_distance(validated_embedding)
-        statement = (
-            select(learning_memories)
+        candidate_limit = limit * 4
+        nearest = (
+            select(
+                learning_memories.c.memory_id,
+                distance.label("retrieval_distance"),
+            )
             .where(
                 *_scope_predicates(scope),
                 learning_memories.c.lifecycle_state.in_(
@@ -238,10 +263,32 @@ class PostgresLearningMemoryRepository:
                 ),
                 learning_memories.c.content_embedding.is_not(None),
             )
-            .order_by(distance, learning_memories.c.memory_id)
+            .order_by(distance)
+            .limit(candidate_limit)
+            .cte("nearest_memories")
+            .prefix_with("MATERIALIZED")
+        )
+        statement = (
+            select(
+                learning_memories,
+                nearest.c.retrieval_distance,
+            )
+            .join(nearest, nearest.c.memory_id == learning_memories.c.memory_id)
+            .order_by(
+                nearest.c.retrieval_distance,
+                learning_memories.c.memory_id,
+            )
             .limit(limit)
         )
-        return await self._load_memories(statement)
+        rows = [dict(row) for row in (await self._connection.execute(statement)).mappings()]
+        snapshots = await self._lifecycle_snapshots_from_rows(rows)
+        return [
+            ScoredLearningMemory(
+                memory=snapshot.memory,
+                distance=float(row["retrieval_distance"]),
+            )
+            for row, snapshot in zip(rows, snapshots, strict=True)
+        ]
 
     async def insert_version(
         self,
@@ -578,6 +625,12 @@ class PostgresLearningMemoryRepository:
         statement: Select[Any],
     ) -> list[LifecycleMemorySnapshot]:
         rows = [dict(row) for row in (await self._connection.execute(statement)).mappings()]
+        return await self._lifecycle_snapshots_from_rows(rows)
+
+    async def _lifecycle_snapshots_from_rows(
+        self,
+        rows: list[dict[str, Any]],
+    ) -> list[LifecycleMemorySnapshot]:
         if not rows:
             return []
 

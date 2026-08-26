@@ -183,6 +183,14 @@ parse = [
     "deeptutor[parse-liteparse]",
 ]
 
+# Local instruction-aware reranking for ExamMem semantic retrieval. PyTorch is
+# selected separately because the correct CPU/CUDA wheel is host-specific.
+exam-mem-rerank = [
+    "sentence-transformers>=5.1,<6.0",
+    "accelerate>=1.10,<2.0",
+    "bitsandbytes>=0.48,<0.50; platform_system == 'Linux'",
+]
+
 # Legacy alias kept for one release: `pip install deeptutor[tutorbot]`.
 tutorbot = ["deeptutor[partners]"]
 

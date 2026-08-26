@@ -26,6 +26,7 @@ from deeptutor.services.memory import MemoryStore, memory_path_service_override
 from deeptutor.services.memory.paths import L3_SLOTS
 from deeptutor.services.memory.trace import TraceEvent, iter_by_ids, iter_since
 from deeptutor.services.path_service import PathService
+from deeptutor.services.reranking import LocalCrossEncoderRerankingClient
 from evaluation.contracts.case import ActionType, EvaluationCase, EvaluationQuery, VersionRelation
 from evaluation.contracts.trace import (
     LLMCallTrace,
@@ -381,6 +382,40 @@ class ConfiguredHostEmbeddingClient:
     ) -> list[list[float]]:
         self.call_count += 1
         return await self._client.embed(texts, input_type=input_type)
+
+
+class ConfiguredLocalRerankingClient:
+    """Tracked local cross-encoder used by the retrieval-v2 evaluation."""
+
+    def __init__(
+        self,
+        model_name: str,
+        *,
+        device: str | None = None,
+        load_in_4bit: bool = False,
+    ) -> None:
+        self._client = LocalCrossEncoderRerankingClient(
+            model_name,
+            device=device,
+            batch_size=8,
+            load_in_4bit=load_in_4bit,
+        )
+        self.version = self._client.version
+        self.call_count = 0
+
+    async def score(
+        self,
+        *,
+        query: str,
+        documents: Sequence[str],
+        instruction: str,
+    ) -> list[float]:
+        self.call_count += 1
+        return await self._client.score(
+            query=query,
+            documents=documents,
+            instruction=instruction,
+        )
 
 
 class TrackedRelationCompletion:
@@ -1063,6 +1098,7 @@ class NoMemoryEvaluationSession:
 __all__ = [
     "DeepTutorNativeEvaluationClient",
     "ConfiguredHostEmbeddingClient",
+    "ConfiguredLocalRerankingClient",
     "DeterministicHashEmbeddingClient",
     "EvaluationBackendError",
     "NativeEvaluationSession",

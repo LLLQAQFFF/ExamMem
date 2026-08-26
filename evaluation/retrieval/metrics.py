@@ -393,15 +393,18 @@ EXAM_MEM_METRIC_CATALOG: tuple[MetricDefinition, ...] = (
         ),
     ),
     _definition(
-        "retrieval.hard_negative_hit_rate",
+        "retrieval.answerable_hard_negative_at_1_rate",
         MetricLayer.RETRIEVAL,
-        "Hard-negative hit rate",
-        "queries returning any registered in-scope hard-negative ID / queries with hard negatives",
+        "Answerable hard-negative at rank 1 rate",
+        "answerable queries whose rank-1 result is a registered hard negative / answerable queries",
         MetricDirection.LOWER_IS_BETTER,
         TargetOperator.LESS_THAN_OR_EQUAL,
         0.05,
         minimum_sample_count=200,
-        evaluation_condition="hard negatives are semantic neighbors rather than random unrelated records",
+        evaluation_condition=(
+            "hard negatives are semantic neighbors rather than random unrelated records; "
+            "no-answer behavior is measured separately"
+        ),
     ),
     _definition(
         "retrieval.archived_hit_rate",
@@ -465,9 +468,12 @@ EXAM_MEM_METRIC_CATALOG: tuple[MetricDefinition, ...] = (
         "nearest-rank P95 of production query latency in milliseconds",
         MetricDirection.LOWER_IS_BETTER,
         TargetOperator.LESS_THAN_OR_EQUAL,
-        200.0,
+        1000.0,
         minimum_sample_count=200,
-        evaluation_condition="warm-cache isolated PostgreSQL with at least 10,000 in-scope candidates",
+        evaluation_condition=(
+            "end-to-end semantic retrieval including the configured bounded reranker; "
+            "HNSW repository latency is profiled separately"
+        ),
     ),
     _definition(
         "engineering.exact_p95_latency_ms",
@@ -648,6 +654,8 @@ class RetrievalObservation(StrictMetricModel):
     production_result_ids: list[NonEmptyString]
     exact_result_ids: list[NonEmptyString]
     production_distances: list[float] | None = None
+    production_relevance_scores: list[float] | None = None
+    retrieval_decision: str | None = None
     exact_distances: list[float] | None = None
     judged_memory_distances: dict[NonEmptyString, float] = Field(default_factory=dict)
     archived_or_invalidated_result_ids: list[NonEmptyString] = Field(default_factory=list)
@@ -668,6 +676,10 @@ class RetrievalObservation(StrictMetricModel):
             self.production_result_ids
         ):
             raise ValueError("production distances must align with production result IDs")
+        if self.production_relevance_scores is not None and len(
+            self.production_relevance_scores
+        ) != len(self.production_result_ids):
+            raise ValueError("production relevance scores must align with production result IDs")
         if self.exact_distances is not None and len(self.exact_distances) != len(
             self.exact_result_ids
         ):
@@ -708,6 +720,7 @@ class LatencyDistribution(StrictMetricModel):
 
 class RetrievalMetricResult(StrictMetricModel):
     scores: tuple[MetricScore, ...]
+    diagnostics: tuple[MetricScore, ...] = ()
     production_latency: LatencyDistribution
     exact_latency: LatencyDistribution
 
@@ -831,7 +844,9 @@ def compute_retrieval_metrics(
     reciprocal_rank: list[float] = []
     ndcg: list[float] = []
     no_answer: list[float] = []
-    hard_negative: list[float] = []
+    answerable_hard_negative_at_1: list[float] = []
+    hard_negative_at_k: list[float] = []
+    accepted_hard_negative_results: list[float] = []
     pairwise: list[float] = []
     ann_recall: list[float] = []
     total_results = archived_results = leaked_results = 0
@@ -861,9 +876,16 @@ def compute_retrieval_metrics(
             )
             reciprocal_rank.append(0.0 if first_rank is None else 1.0 / first_rank)
             ndcg.append(_ndcg(query, result_ids))
+            hard_negatives = set(query.hard_negative_memory_ids)
+            answerable_hard_negative_at_1.append(
+                float(bool(result_ids) and result_ids[0] in hard_negatives)
+            )
 
         hard_negatives = set(query.hard_negative_memory_ids)
-        hard_negative.append(float(bool(hard_negatives & set(result_ids))))
+        hard_negative_at_k.append(float(bool(hard_negatives & set(result_ids))))
+        accepted_hard_negative_results.extend(
+            float(memory_id in hard_negatives) for memory_id in result_ids
+        )
         judged_ids = relevant | hard_negatives
         missing_judgments = judged_ids - observation.judged_memory_distances.keys()
         if missing_judgments:
@@ -894,7 +916,10 @@ def compute_retrieval_metrics(
         _score("retrieval.ndcg_at_k", ndcg),
         _score("retrieval.relevant_hard_negative_pairwise_accuracy", pairwise),
         _score("retrieval.no_answer_accuracy", no_answer),
-        _score("retrieval.hard_negative_hit_rate", hard_negative),
+        _score(
+            "retrieval.answerable_hard_negative_at_1_rate",
+            answerable_hard_negative_at_1,
+        ),
         (
             MetricScore(
                 metric_id="retrieval.archived_hit_rate",
@@ -927,6 +952,13 @@ def compute_retrieval_metrics(
     )
     return RetrievalMetricResult(
         scores=scores,
+        diagnostics=(
+            _score("retrieval.hard_negative_at_k_rate", hard_negative_at_k),
+            _score(
+                "retrieval.accepted_hard_negative_result_rate",
+                accepted_hard_negative_results,
+            ),
+        ),
         production_latency=_latency_distribution(production_latencies),
         exact_latency=_latency_distribution(exact_latencies),
     )

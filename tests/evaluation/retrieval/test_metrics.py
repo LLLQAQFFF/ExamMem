@@ -39,7 +39,7 @@ def _check_metric_catalog_preserves_v1_and_preregisters_storage_and_retrieval_v2
         "retrieval.mrr",
         "retrieval.ndcg_at_k",
         "retrieval.no_answer_accuracy",
-        "retrieval.hard_negative_hit_rate",
+        "retrieval.answerable_hard_negative_at_1_rate",
         "retrieval.relevant_hard_negative_pairwise_accuracy",
         "retrieval.archived_hit_rate",
         "retrieval.ann_recall_at_k",
@@ -268,11 +268,14 @@ def _check_retrieval_metrics_score_independent_dimensions() -> None:
     assert scores["retrieval.mrr"] == 1.0
     assert scores["retrieval.ndcg_at_k"] == 1.0
     assert scores["retrieval.no_answer_accuracy"] == 1.0
-    assert scores["retrieval.hard_negative_hit_rate"] == 0.5
+    assert scores["retrieval.answerable_hard_negative_at_1_rate"] == 0.0
     assert scores["retrieval.relevant_hard_negative_pairwise_accuracy"] == 1.0
     assert abs(scores["retrieval.archived_hit_rate"] - (1 / 3)) < 1e-12
     assert scores["isolation.cross_scope_leakage_rate"] == 0.0
     assert scores["retrieval.ann_recall_at_k"] == 1.0
+    diagnostics = {score.metric_id: score.value for score in report.diagnostics}
+    assert diagnostics["retrieval.hard_negative_at_k_rate"] == 0.5
+    assert abs(diagnostics["retrieval.accepted_hard_negative_result_rate"] - (1 / 3)) < 1e-12
     assert report.production_latency.p95_ms == 8.0
     assert report.exact_latency.p95_ms == 25.0
 

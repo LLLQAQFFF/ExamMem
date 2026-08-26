@@ -155,6 +155,71 @@ async def test_ollama_url_verbatim(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 @pytest.mark.asyncio
+async def test_ollama_qwen3_formats_queries_but_not_documents(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    captured = _capture_url(monkeypatch)
+    adapter = OllamaEmbeddingAdapter(
+        {
+            "api_key": "",
+            "base_url": CUSTOM_URL,
+            "model": "qwen3-embedding:0.6b",
+            "dimensions": 1024,
+            "request_timeout": 5,
+        }
+    )
+
+    await adapter.embed(
+        EmbeddingRequest(
+            texts=["矩阵秩掌握得怎么样？"],
+            model="qwen3-embedding:0.6b",
+            input_type="search_query",
+        )
+    )
+    assert captured["json"]["input"] == [
+        "Instruct: Given a user query, retrieve relevant passages that directly answer the query\n"
+        "Query:矩阵秩掌握得怎么样？"
+    ]
+
+    await adapter.embed(
+        EmbeddingRequest(
+            texts=['{"slot_key":"mastery:math1.linear_algebra.matrix_rank"}'],
+            model="qwen3-embedding:0.6b",
+            input_type="search_document",
+        )
+    )
+    assert captured["json"]["input"] == [
+        '{"slot_key":"mastery:math1.linear_algebra.matrix_rank"}'
+    ]
+
+
+@pytest.mark.asyncio
+async def test_ollama_non_qwen_models_keep_role_tagged_text_unchanged(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    captured = _capture_url(monkeypatch)
+    adapter = OllamaEmbeddingAdapter(
+        {
+            "api_key": "",
+            "base_url": CUSTOM_URL,
+            "model": "nomic-embed-text",
+            "dimensions": 768,
+            "request_timeout": 5,
+        }
+    )
+
+    await adapter.embed(
+        EmbeddingRequest(
+            texts=["matrix rank"],
+            model="nomic-embed-text",
+            input_type="search_query",
+        )
+    )
+
+    assert captured["json"]["input"] == ["matrix rank"]
+
+
+@pytest.mark.asyncio
 async def test_cohere_url_verbatim(monkeypatch: pytest.MonkeyPatch) -> None:
     captured = _capture_url(monkeypatch)
 

@@ -22,5 +22,6 @@
 - [评测方法](./evaluation/methodology.md)：数据契约、五种 Backend、指标和防泄漏方法。
 - [Stage08 开发集失败/混合基线](./evaluation/stage08-dev.md)。
 - [Stage09 一次性冻结测试](./evaluation/stage09-frozen-test.md)。
+- [Memory 语义检索 v2 修复方案](./evaluation/semantic-retrieval-v2-remediation.zh-CN.md)：故障阶段、修复调用链和验收目标。
 
 求职话术、逐 checkpoint 工作记录、完整 trace dump 和原始运行目录不属于公开技术文档。
