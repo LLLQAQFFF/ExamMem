@@ -50,7 +50,12 @@ def test_whole_textbook_becomes_modules_and_independent_objectives() -> None:
     assert [module.name for module in subject.modules] == ["第一章 基础", "第二章 应用"]
     assert [
         objective.name for module in subject.modules for objective in module.knowledge_points
-    ] == ["基本概念", "基本方法", "第二章 应用"]
+    ] == ["基本概念", "基本方法", "第二章 应用（4）"]
+    # The projected exam taxonomy must also satisfy its global label contract.
+    subject_taxonomy = result.tree.taxonomy(subject.id, "ptextbook_v1")
+    assert len({node.name_zh.casefold() for node in subject_taxonomy.nodes}) == len(
+        subject_taxonomy.nodes
+    )
     assert result.tree.subjects[0].id != "chapter-1"
     assert result.scope_section_ids == (
         "chapter-1",
@@ -95,7 +100,7 @@ def test_selected_leaf_becomes_one_objective() -> None:
 
     module = result.tree.subjects[0].modules[0]
     assert module.name == "基本概念"
-    assert [item.name for item in module.knowledge_points] == ["基本概念"]
+    assert [item.name for item in module.knowledge_points] == ["第一章 基础 / 基本概念"]
     assert [item.textbook_section_id for item in result.candidates] == ["section-1-1"]
 
 
@@ -162,5 +167,55 @@ def test_front_and_back_matter_are_not_projected_as_learning_objectives() -> Non
         objective.name
         for module in result.tree.subjects[0].modules
         for objective in module.knowledge_points
-    ] == ["第一章 基础"]
+    ] == ["第一章 基础（4）"]
     assert {candidate.textbook_section_id for candidate in result.candidates} == {"chapter"}
+
+
+def test_duplicate_leaf_titles_are_disambiguated_across_modules() -> None:
+    sections = (
+        {
+            "section_id": "chapter-1",
+            "parent_section_id": None,
+            "order": 0,
+            "title": "第一章",
+            "path": ["第一章"],
+        },
+        {
+            "section_id": "chapter-1-background",
+            "parent_section_id": "chapter-1",
+            "order": 1,
+            "title": "1. 背景",
+            "path": ["第一章", "1. 背景"],
+        },
+        {
+            "section_id": "chapter-2",
+            "parent_section_id": None,
+            "order": 2,
+            "title": "第二章",
+            "path": ["第二章"],
+        },
+        {
+            "section_id": "chapter-2-background",
+            "parent_section_id": "chapter-2",
+            "order": 3,
+            "title": "1. 背景",
+            "path": ["第二章", "1. 背景"],
+        },
+    )
+
+    result = build_textbook_study_plan(
+        plan_id="plan-duplicate-leaf",
+        plan_name="教材学习计划",
+        textbook_title="教材",
+        sections=sections,
+        scope_section_id=None,
+    )
+
+    subject = result.tree.subjects[0]
+    assert [
+        objective.name for module in subject.modules for objective in module.knowledge_points
+    ] == [
+        "1. 背景",
+        "第二章 / 1. 背景",
+    ]
+    result.tree.taxonomy(subject.id, "ptextbook_v1")

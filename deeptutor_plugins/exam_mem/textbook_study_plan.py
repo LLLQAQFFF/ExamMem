@@ -70,6 +70,13 @@ def build_textbook_study_plan(
         roots = [by_id[scope_section_id]]
 
     module_specs: list[tuple[str, list[tuple[str, tuple[str, ...]]]]] = []
+    # Taxonomy validates labels globally, including subject/module labels.
+    # Reserve those labels before assigning objective names so a leaf cannot
+    # collide with its module (or with a label from another module).
+    used_names: set[str] = {
+        " ".join(label.split()).casefold()
+        for label in [textbook_title, *(str(root["title"]) for root in roots)]
+    }
     total_objectives = 0
     for root in roots:
         descendants = _descendants(root, children)
@@ -83,7 +90,6 @@ def build_textbook_study_plan(
             )
         ]
         objectives: list[tuple[str, tuple[str, ...]]] = []
-        used_names: set[str] = set()
         for leaf in leaves:
             if _is_non_content_section(leaf.get("title")):
                 continue
