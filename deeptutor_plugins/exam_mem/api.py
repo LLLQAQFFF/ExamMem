@@ -95,6 +95,24 @@ _SUBJECT_ID = "math_1"
 logger = logging.getLogger(__name__)
 
 
+def _candidate_mappings_for_tree(
+    metadata: dict[str, Any], tree: dict[str, Any]
+) -> tuple[dict[str, Any], ...]:
+    """Keep textbook suggestions aligned with the editable study-plan tree."""
+    objective_ids = {
+        str(objective["id"])
+        for subject in tree.get("subjects", [])
+        for module in subject.get("modules", [])
+        for objective in module.get("knowledge_points", [])
+        if isinstance(objective, dict) and "id" in objective
+    }
+    return tuple(
+        candidate
+        for candidate in metadata.get("candidate_mappings", [])
+        if isinstance(candidate, dict) and str(candidate.get("objective_id")) in objective_ids
+    )
+
+
 class StrictApiModel(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
@@ -756,7 +774,7 @@ def build_router(
                     (item["objective_id"], item["textbook_section_id"]): item for item in mappings
                 }
                 confirmed_mappings = 0
-                for candidate in metadata["candidate_mappings"]:
+                for candidate in _candidate_mappings_for_tree(metadata, version["tree"]):
                     objective_id = str(candidate["objective_id"])
                     section_id = str(candidate["textbook_section_id"])
                     current_mapping = current_mappings.get((objective_id, section_id))
@@ -1313,7 +1331,9 @@ def build_router(
                         priority=0,
                         status="candidate",
                     )
-                    for candidate in metadata["candidate_mappings"]:
+                    for candidate in _candidate_mappings_for_tree(
+                        metadata, plan["published"]["tree"]
+                    ):
                         objective_id = str(candidate["objective_id"])
                         section_id = str(candidate["textbook_section_id"])
                         await runtime.grounded_learning.set_mapping(

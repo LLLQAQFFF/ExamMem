@@ -7,6 +7,27 @@ from typing import Any, Iterable
 
 from exam_mem.study import ImportedOutline, StudyPlanTree, materialize_outline
 
+_NON_CONTENT_SECTION_TITLES = frozenset(
+    {
+        "作者简介",
+        "内容简介",
+        "前言",
+        "序",
+        "序言",
+        "目录",
+        "出版说明",
+        "索引",
+        "致谢",
+        "后记",
+    }
+)
+
+
+def _is_non_content_section(title: object) -> bool:
+    """Identify common book front/back matter that should not be objectives."""
+    normalized = "".join(str(title or "").split()).casefold()
+    return normalized in _NON_CONTENT_SECTION_TITLES or normalized.startswith("参考文献")
+
 
 @dataclass(frozen=True, slots=True)
 class TextbookPlanCandidate:
@@ -64,6 +85,8 @@ def build_textbook_study_plan(
         objectives: list[tuple[str, tuple[str, ...]]] = []
         used_names: set[str] = set()
         for leaf in leaves:
+            if _is_non_content_section(leaf.get("title")):
+                continue
             name = str(leaf["title"])
             normalized = " ".join(name.split()).casefold()
             if normalized in used_names:
@@ -84,6 +107,8 @@ def build_textbook_study_plan(
                 )
             )
         total_objectives += len(objectives)
+        if not objectives:
+            continue
         if total_objectives > 2_000:
             raise ValueError("selected textbook scope exceeds 2000 learning objectives")
         for offset in range(0, len(objectives), 200):
@@ -92,6 +117,9 @@ def build_textbook_study_plan(
             if len(objectives) > 200:
                 label = f"{label}（{offset // 200 + 1}）"
             module_specs.append((label, batch))
+
+    if not module_specs:
+        raise ValueError("selected textbook scope has no content sections")
 
     outline = ImportedOutline.model_validate(
         {

@@ -11,7 +11,11 @@ import pytest
 
 from deeptutor.multi_user.context import reset_current_user, set_current_user
 from deeptutor.multi_user.models import CurrentUser, UserScope
-from deeptutor_plugins.exam_mem.api import StudyPlanImportBody, build_router
+from deeptutor_plugins.exam_mem.api import (
+    StudyPlanImportBody,
+    _candidate_mappings_for_tree,
+    build_router,
+)
 from deeptutor_plugins.exam_mem.learning_context import ExamMemLearningContextContributor
 from deeptutor_plugins.exam_mem.sdk import ExamMemTextbookLearningSDK
 from deeptutor_plugins.exam_mem.study_plan import ImportedStudyPlan
@@ -707,4 +711,28 @@ async def test_textbook_scope_creates_reviewable_plan_and_candidates_on_publish(
     assert provider.runtime.grounded_learning.bindings[-1]["status"] == "confirmed"
     assert all(
         item["status"] == "confirmed" for item in provider.runtime.grounded_learning.mappings[-2:]
+    )
+
+
+def test_deleted_objectives_do_not_keep_textbook_mapping_suggestions() -> None:
+    tree = {
+        "subjects": [
+            {
+                "modules": [
+                    {
+                        "knowledge_points": [{"id": "kept"}],
+                    }
+                ]
+            }
+        ]
+    }
+    metadata = {
+        "candidate_mappings": [
+            {"objective_id": "kept", "textbook_section_id": "section-1"},
+            {"objective_id": "deleted", "textbook_section_id": "section-2"},
+        ]
+    }
+
+    assert _candidate_mappings_for_tree(metadata, tree) == (
+        {"objective_id": "kept", "textbook_section_id": "section-1"},
     )

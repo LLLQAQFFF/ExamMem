@@ -17,6 +17,7 @@ import {
   Plus,
   Save,
   Sparkles,
+  Trash2,
   X,
 } from "lucide-react";
 import Link from "next/link";
@@ -316,10 +317,22 @@ function DraftEditor({ tree, setTree, tr, working, onSave, onPublish }: { tree: 
     else next.subjects[subjectIndex].modules[moduleIndex].knowledge_points[objectiveIndex].name = name;
     setTree(next);
   };
+  const removeObjective = (subjectIndex: number, moduleIndex: number, objectiveIndex: number) => {
+    const next = structuredClone(tree);
+    const subject = next.subjects[subjectIndex];
+    subject.modules[moduleIndex].knowledge_points.splice(objectiveIndex, 1);
+    if (subject.modules[moduleIndex].knowledge_points.length === 0) {
+      subject.modules.splice(moduleIndex, 1);
+    }
+    if (subject.modules.length === 0) {
+      next.subjects.splice(subjectIndex, 1);
+    }
+    if (next.subjects.length > 0) setTree(next);
+  };
   return <div className="space-y-5">
-    <div className="flex flex-wrap items-start justify-between gap-3"><div><h2 className="font-serif text-xl font-semibold">{tr("确认解析结果", "Review parsed outline")}</h2><p className="mt-1 text-xs text-[var(--muted-foreground)]">{tr("发布前可修正标题。发布后会生成不可变的考试范围版本。", "Correct titles before publishing. Publishing creates an immutable exam-scope version.")}</p></div><div className="flex gap-2"><button type="button" disabled={working} onClick={() => void onSave()} className="inline-flex items-center gap-2 rounded-lg border border-[var(--border)] px-3 py-2 text-sm"><Save className="h-4 w-4" />{tr("保存草稿", "Save draft")}</button><button type="button" disabled={working} onClick={() => void onPublish()} className="inline-flex items-center gap-2 rounded-lg bg-[var(--primary)] px-3 py-2 text-sm text-[var(--primary-foreground)]"><Check className="h-4 w-4" />{tr("发布为考试范围", "Publish exam scope")}</button></div></div>
+    <div className="flex flex-wrap items-start justify-between gap-3"><div><h2 className="font-serif text-xl font-semibold">{tr("确认解析结果", "Review parsed outline")}</h2><p className="mt-1 text-xs text-[var(--muted-foreground)]">{tr("发布前可修正标题或删除不属于学习范围的条目。发布后会生成不可变的考试范围版本。", "Correct titles or remove items outside the learning scope before publishing. Publishing creates an immutable exam-scope version.")}</p></div><div className="flex gap-2"><button type="button" disabled={working} onClick={() => void onSave()} className="inline-flex items-center gap-2 rounded-lg border border-[var(--border)] px-3 py-2 text-sm"><Save className="h-4 w-4" />{tr("保存草稿", "Save draft")}</button><button type="button" disabled={working} onClick={() => void onPublish()} className="inline-flex items-center gap-2 rounded-lg bg-[var(--primary)] px-3 py-2 text-sm text-[var(--primary-foreground)]"><Check className="h-4 w-4" />{tr("发布为考试范围", "Publish exam scope")}</button></div></div>
     <label className="block text-xs text-[var(--muted-foreground)]">{tr("计划名称", "Plan name")}<input value={tree.name} onChange={(event) => setTree({ ...tree, name: event.target.value })} className="mt-1 w-full rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-sm" /></label>
-    {tree.subjects.map((subject, subjectIndex) => <div key={subject.id} className="rounded-xl border border-[var(--border)] p-4"><input value={subject.name} onChange={(event) => update(subjectIndex, null, null, event.target.value)} className="w-full bg-transparent text-base font-semibold outline-none" />{subject.modules.map((module, moduleIndex) => <div key={module.id} className="mt-4 border-l-2 border-[var(--primary)]/20 pl-4"><input value={module.name} onChange={(event) => update(subjectIndex, moduleIndex, null, event.target.value)} className="w-full bg-transparent text-sm font-medium outline-none" /><div className="mt-2 grid gap-2 md:grid-cols-2">{module.knowledge_points.map((objective, objectiveIndex) => <label key={objective.id} className="rounded-lg bg-[var(--muted)]/40 p-2 text-[11px] text-[var(--muted-foreground)]">{objective.type}<input value={objective.name} onChange={(event) => update(subjectIndex, moduleIndex, objectiveIndex, event.target.value)} className="mt-1 w-full bg-transparent text-sm text-[var(--foreground)] outline-none" /></label>)}</div></div>)}</div>)}
+    {tree.subjects.map((subject, subjectIndex) => <div key={subject.id} className="rounded-xl border border-[var(--border)] p-4"><input value={subject.name} onChange={(event) => update(subjectIndex, null, null, event.target.value)} className="w-full bg-transparent text-base font-semibold outline-none" />{subject.modules.map((module, moduleIndex) => <div key={module.id} className="mt-4 border-l-2 border-[var(--primary)]/20 pl-4"><input value={module.name} onChange={(event) => update(subjectIndex, moduleIndex, null, event.target.value)} className="w-full bg-transparent text-sm font-medium outline-none" /><div className="mt-2 grid gap-2 md:grid-cols-2">{module.knowledge_points.map((objective, objectiveIndex) => <div key={objective.id} className="rounded-lg bg-[var(--muted)]/40 p-2 text-[11px] text-[var(--muted-foreground)]"><div className="flex items-center justify-between gap-2"><span>{objective.type}</span><button type="button" disabled={working || (tree.subjects.length === 1 && subject.modules.length === 1 && module.knowledge_points.length === 1)} onClick={() => removeObjective(subjectIndex, moduleIndex, objectiveIndex)} title={tr("删除此学习目标", "Remove this objective")} aria-label={tr("删除此学习目标", "Remove this objective")} className="rounded p-1 text-red-500 hover:bg-red-500/10 disabled:cursor-not-allowed disabled:opacity-30"><Trash2 className="h-3.5 w-3.5" /></button></div><input value={objective.name} onChange={(event) => update(subjectIndex, moduleIndex, objectiveIndex, event.target.value)} className="mt-1 w-full bg-transparent text-sm text-[var(--foreground)] outline-none" /></div>)}</div></div>)}</div>)}
   </div>;
 }
 

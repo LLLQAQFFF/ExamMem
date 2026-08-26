@@ -108,3 +108,59 @@ def test_unknown_scope_is_rejected() -> None:
             sections=SECTIONS,
             scope_section_id="other-book-section",
         )
+
+
+def test_front_and_back_matter_are_not_projected_as_learning_objectives() -> None:
+    sections = (
+        {
+            "section_id": "author",
+            "parent_section_id": None,
+            "order": 0,
+            "title": "作者简介",
+            "path": ["作者简介"],
+        },
+        {
+            "section_id": "preface",
+            "parent_section_id": None,
+            "order": 1,
+            "title": "前言",
+            "path": ["前言"],
+        },
+        {
+            "section_id": "toc",
+            "parent_section_id": None,
+            "order": 2,
+            "title": "目录",
+            "path": ["目录"],
+        },
+        {
+            "section_id": "chapter",
+            "parent_section_id": None,
+            "order": 3,
+            "title": "第一章 基础",
+            "path": ["第一章 基础"],
+        },
+        {
+            "section_id": "references",
+            "parent_section_id": None,
+            "order": 4,
+            "title": "参考文献指南",
+            "path": ["参考文献指南"],
+        },
+    )
+
+    result = build_textbook_study_plan(
+        plan_id="plan-front-matter",
+        plan_name="教材学习计划",
+        textbook_title="教材",
+        sections=sections,
+        scope_section_id=None,
+    )
+
+    assert [module.name for module in result.tree.subjects[0].modules] == ["第一章 基础"]
+    assert [
+        objective.name
+        for module in result.tree.subjects[0].modules
+        for objective in module.knowledge_points
+    ] == ["第一章 基础"]
+    assert {candidate.textbook_section_id for candidate in result.candidates} == {"chapter"}
