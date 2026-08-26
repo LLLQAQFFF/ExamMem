@@ -149,16 +149,16 @@ jobs:
         env:
           POSTGRES_USER: exammem_test
           POSTGRES_PASSWORD: exammem-test-only
-          POSTGRES_DB: exammem_test
+          POSTGRES_DB: exammem_retrieval_v2_tests
         ports:
           - 5432:5432
         options: >-
-          --health-cmd "pg_isready -U exammem_test -d exammem_test"
+          --health-cmd "pg_isready -U exammem_test -d exammem_retrieval_v2_tests"
           --health-interval 5s
           --health-timeout 5s
           --health-retries 12
     env:
-      EXAM_MEM_DATABASE_URL: postgresql+asyncpg://exammem_test:exammem-test-only@127.0.0.1:5432/exammem_test
+      EXAM_MEM_DATABASE_URL: postgresql+asyncpg://exammem_test:exammem-test-only@127.0.0.1:5432/exammem_retrieval_v2_tests
     strategy:
       fail-fast: false
       matrix:
