@@ -43,10 +43,7 @@ def test_pdf_outline_recovers_hierarchy_pages_and_page_content() -> None:
         {"level": 3, "title": "2. 会议", "page": 19},
         {"level": 2, "title": "第2章 定理证明", "page": 37},
     ]
-    pages = [
-        {"page_number": page, "text": f"第 {page} 页正文"}
-        for page in range(1, 41)
-    ]
+    pages = [{"page_number": page, "text": f"第 {page} 页正文"} for page in range(1, 41)]
     pages[13]["text"] = "第1章 起源\n章导言\n1. 背景\n第 14 页正文"
     pages[18]["text"] = "2. 会议\n第 19 页正文"
     pages[36]["text"] = "第2章 定理证明\n第 37 页正文"
@@ -81,15 +78,9 @@ def test_pdf_outline_recovers_hierarchy_pages_and_page_content() -> None:
 def test_numeric_page_bookmarks_are_not_treated_as_chapters() -> None:
     outline = [
         {"level": 1, "title": "目录", "page": 6},
-        *(
-            {"level": 1, "title": str(page), "page": page}
-            for page in range(7, 40)
-        ),
+        *({"level": 1, "title": str(page), "page": page} for page in range(7, 40)),
     ]
-    pages = [
-        {"page_number": page, "text": f"第 {page} 页"}
-        for page in range(1, 40)
-    ]
+    pages = [{"page_number": page, "text": f"第 {page} 页"} for page in range(1, 40)]
 
     sections = build_section_tree(
         version_id="version-numeric-outline",

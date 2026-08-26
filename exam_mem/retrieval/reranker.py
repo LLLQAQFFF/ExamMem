@@ -10,9 +10,7 @@ from exam_mem.contracts import ErrorPatternValue, LearningMemory, MasteryValue
 
 from .contracts import RetrievalIntent, ScoredLearningMemory
 
-RERANK_INSTRUCTION = (
-    "Given a user query, retrieve relevant passages that directly answer the query"
-)
+RERANK_INSTRUCTION = "Given a user query, retrieve relevant passages that directly answer the query"
 
 
 class RetrievalEmbeddingClient(Protocol):
@@ -96,10 +94,7 @@ class HostLearningMemoryReranker:
             else ""
         )
         if isinstance(memory.value, MasteryValue):
-            evidence = (
-                f"掌握状态：{memory.value.level.value}；"
-                f"掌握分数：{memory.value.score:.3f}"
-            )
+            evidence = f"掌握状态：{memory.value.level.value}；掌握分数：{memory.value.score:.3f}"
         elif isinstance(memory.value, ErrorPatternValue):
             evidence = f"错误表现：{memory.value.summary}"
         else:

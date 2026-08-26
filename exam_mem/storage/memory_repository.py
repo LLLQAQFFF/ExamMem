@@ -234,8 +234,7 @@ class PostgresLearningMemoryRepository:
         limit: int,
     ) -> list[LearningMemory]:
         return [
-            item.memory
-            for item in await self.find_similar_scored(scope, query_embedding, limit)
+            item.memory for item in await self.find_similar_scored(scope, query_embedding, limit)
         ]
 
     async def find_similar_scored(

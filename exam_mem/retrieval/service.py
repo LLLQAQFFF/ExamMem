@@ -151,9 +151,7 @@ class LearningMemoryRetrievalService:
         return MemoryRetrievalResult(
             items=accepted,
             decision=(
-                RetrievalDecision.ANSWERED
-                if accepted
-                else RetrievalDecision.BELOW_CONFIDENCE
+                RetrievalDecision.ANSWERED if accepted else RetrievalDecision.BELOW_CONFIDENCE
             ),
             intent=intent,
         )

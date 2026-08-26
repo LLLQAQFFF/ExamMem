@@ -301,6 +301,7 @@ class FakeTextbooks:
             "sections": self.sections,
         }
 
+
 class FakeGroundingService:
     async def evidence_package(self, **_kwargs):  # noqa: ANN003, ANN201
         return {
@@ -678,9 +679,7 @@ async def test_textbook_scope_creates_reviewable_plan_and_candidates_on_publish(
                 idempotency_key="textbook-plan-1",
             )
             plan_id = created["plan_id"]
-            published = await client.post(
-                f"/api/v1/exam-mem/study-plans/{plan_id}/publish"
-            )
+            published = await client.post(f"/api/v1/exam-mem/study-plans/{plan_id}/publish")
             confirmation = await sdk.confirm_textbook_plan_suggestions(
                 plan_id=plan_id,
                 plan_version=1,
@@ -690,9 +689,7 @@ async def test_textbook_scope_creates_reviewable_plan_and_candidates_on_publish(
     draft = created["draft"]
     assert draft["source_kind"] == "textbook"
     assert draft["tree"]["subjects"][0]["id"] != "chapter-1"
-    assert draft["tree"]["subjects"][0]["modules"][0]["knowledge_points"][0][
-        "name"
-    ] == "基本概念"
+    assert draft["tree"]["subjects"][0]["modules"][0]["knowledge_points"][0]["name"] == "基本概念"
     assert draft["source_metadata"]["scope_section_ids"] == [
         "chapter-1",
         "section-1-1",
@@ -701,16 +698,13 @@ async def test_textbook_scope_creates_reviewable_plan_and_candidates_on_publish(
     assert provider.runtime.grounded_learning.bindings[0]["status"] == "candidate"
     assert provider.runtime.grounded_learning.bindings[0]["textbook_version_id"] == "version-1"
     assert {
-        item["textbook_section_id"]
-        for item in provider.runtime.grounded_learning.mappings
+        item["textbook_section_id"] for item in provider.runtime.grounded_learning.mappings
     } == {"chapter-1", "section-1-1"}
     assert all(
-        item["created_via"] == "recommended"
-        for item in provider.runtime.grounded_learning.mappings
+        item["created_via"] == "recommended" for item in provider.runtime.grounded_learning.mappings
     )
     assert confirmation == {"confirmed_bindings": 1, "confirmed_mappings": 2}
     assert provider.runtime.grounded_learning.bindings[-1]["status"] == "confirmed"
     assert all(
-        item["status"] == "confirmed"
-        for item in provider.runtime.grounded_learning.mappings[-2:]
+        item["status"] == "confirmed" for item in provider.runtime.grounded_learning.mappings[-2:]
     )

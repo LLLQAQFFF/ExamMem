@@ -39,6 +39,7 @@ async def test_plugin_source_host_returns_neutral_pdf_navigation(
             )
 
     monkeypatch.setattr("deeptutor.services.parsing.get_parse_service", lambda: ParseService())
+
     async def run_inline(function, *args):  # noqa: ANN001, ANN202
         return function(*args)
 

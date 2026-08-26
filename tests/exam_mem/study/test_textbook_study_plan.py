@@ -49,9 +49,7 @@ def test_whole_textbook_becomes_modules_and_independent_objectives() -> None:
     assert subject.name == "人工智能简史"
     assert [module.name for module in subject.modules] == ["第一章 基础", "第二章 应用"]
     assert [
-        objective.name
-        for module in subject.modules
-        for objective in module.knowledge_points
+        objective.name for module in subject.modules for objective in module.knowledge_points
     ] == ["基本概念", "基本方法", "第二章 应用"]
     assert result.tree.subjects[0].id != "chapter-1"
     assert result.scope_section_ids == (

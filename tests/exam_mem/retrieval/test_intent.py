@@ -20,9 +20,7 @@ def test_resolver_extracts_specific_taxonomy_and_mastery_constraints() -> None:
         "正定二次型存在冲突；请检索其中声称仍处在改善阶段的分支。",
     )
 
-    assert intent.knowledge_point_ids == (
-        "math1.linear_algebra.positive_definite_quadratic_form",
-    )
+    assert intent.knowledge_point_ids == ("math1.linear_algebra.positive_definite_quadratic_form",)
     assert intent.mastery_level == "improving"
     assert intent.explicit_target is True
     assert intent.unknown_explicit_target is False

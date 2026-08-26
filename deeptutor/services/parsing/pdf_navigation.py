@@ -27,9 +27,7 @@ def extract_pdf_navigation(source_path: str | Path) -> dict[str, tuple[dict[str,
                     "page": int(page),
                 }
                 for level, title, page in document.get_toc(simple=True)
-                if int(level) > 0
-                and 1 <= int(page) <= page_count
-                and _clean_title(title)
+                if int(level) > 0 and 1 <= int(page) <= page_count and _clean_title(title)
             )
             pages = tuple(
                 {

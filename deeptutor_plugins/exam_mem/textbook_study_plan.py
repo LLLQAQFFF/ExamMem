@@ -44,11 +44,7 @@ def build_textbook_study_plan(
         children.setdefault(parent_id, []).append(section)
 
     if scope_section_id is None:
-        roots = [
-            section
-            for section in ordered
-            if section.get("parent_section_id") not in by_id
-        ]
+        roots = [section for section in ordered if section.get("parent_section_id") not in by_id]
     else:
         roots = [by_id[scope_section_id]]
 
@@ -119,9 +115,7 @@ def build_textbook_study_plan(
     )
     tree = materialize_outline(plan_id, outline)
     candidates: list[TextbookPlanCandidate] = []
-    for module, (_, objective_specs) in zip(
-        tree.subjects[0].modules, module_specs, strict=True
-    ):
+    for module, (_, objective_specs) in zip(tree.subjects[0].modules, module_specs, strict=True):
         for objective, (_, section_ids) in zip(
             module.knowledge_points, objective_specs, strict=True
         ):
@@ -136,9 +130,7 @@ def build_textbook_study_plan(
         tree=tree,
         candidates=tuple(candidates),
         scope_section_ids=tuple(
-            str(section["section_id"])
-            for root in roots
-            for section in _descendants(root, children)
+            str(section["section_id"]) for root in roots for section in _descendants(root, children)
         ),
     )
 

@@ -104,9 +104,7 @@ class TaxonomyRetrievalIntentResolver:
             knowledge_point_id
             for start, end, label, knowledge_point_id in occurrences
             if not any(
-                other_start <= start
-                and end <= other_end
-                and len(other_label) > len(label)
+                other_start <= start and end <= other_end and len(other_label) > len(label)
                 for other_start, other_end, other_label, _ in occurrences
             )
         }

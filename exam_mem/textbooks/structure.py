@@ -162,8 +162,7 @@ def _usable_outline(
         if level > 0 and page in available_pages and title:
             entries.append({"level": level, "title": title, "page": page})
     if len(entries) < 2 or any(
-        current["page"] > following["page"]
-        for current, following in zip(entries, entries[1:])
+        current["page"] > following["page"] for current, following in zip(entries, entries[1:])
     ):
         return ()
 
@@ -211,9 +210,7 @@ def _outline_content(
 
     chunks = [start_text[start_offset:].strip()]
     chunks.extend(
-        text
-        for page in range(start_page + 1, end_page + 1)
-        if (text := page_text.get(page, ""))
+        text for page in range(start_page + 1, end_page + 1) if (text := page_text.get(page, ""))
     )
     return "\n\n".join(chunk for chunk in chunks if chunk).strip()
 
@@ -241,9 +238,7 @@ def _clean_title(value: object) -> str:
     return " ".join(clean.split())
 
 
-def _outline_end_page(
-    entries: tuple[dict[str, Any], ...], position: int, maximum_page: int
-) -> int:
+def _outline_end_page(entries: tuple[dict[str, Any], ...], position: int, maximum_page: int) -> int:
     current = entries[position]
     start_page = int(current["page"])
     level = int(current["level"])

@@ -515,9 +515,7 @@ def build_router(
         plan_id = _idempotent_record_id("study-plan", user_id, body.idempotency_key)
         try:
             async with runtime_provider.open_product() as runtime:
-                textbook = await runtime.textbooks.get(
-                    user_id=user_id, textbook_id=textbook_id
-                )
+                textbook = await runtime.textbooks.get(user_id=user_id, textbook_id=textbook_id)
                 version = await runtime.textbooks.get_version(
                     user_id=user_id, version_id=version_id
                 )
@@ -696,9 +694,7 @@ def build_router(
         except GroundedLearningConflict as exc:
             raise HTTPException(status_code=409, detail=str(exc)) from exc
 
-    @router.post(
-        "/study-plans/{plan_id}/versions/{plan_version}/textbook-plan-suggestions/confirm"
-    )
+    @router.post("/study-plans/{plan_id}/versions/{plan_version}/textbook-plan-suggestions/confirm")
     async def confirm_textbook_plan_suggestions(
         plan_id: NonEmptyString,
         plan_version: Annotated[int, Field(ge=1)],
@@ -732,9 +728,7 @@ def build_router(
                     None,
                 )
                 if binding is None or binding["status"] == "inactive":
-                    raise GroundedLearningConflict(
-                        "generated textbook binding is unavailable"
-                    )
+                    raise GroundedLearningConflict("generated textbook binding is unavailable")
                 confirmed_bindings = 0
                 if binding["status"] != "confirmed":
                     await runtime.grounded_learning.set_binding(
@@ -759,8 +753,7 @@ def build_router(
                     plan_version=plan_version,
                 )
                 current_mappings = {
-                    (item["objective_id"], item["textbook_section_id"]): item
-                    for item in mappings
+                    (item["objective_id"], item["textbook_section_id"]): item for item in mappings
                 }
                 confirmed_mappings = 0
                 for candidate in metadata["candidate_mappings"]:
