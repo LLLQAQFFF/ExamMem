@@ -86,6 +86,7 @@ from exam_mem.study import StudyPlanTree
 
 from .grounded_learning import GroundedLearningService, render_grounding_prompt
 from .study_plan import StudyPlanOutlineImporter
+from .textbook_study_plan import build_textbook_study_plan
 from .textbooks import TextbookIngestionService
 
 NonEmptyString = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
@@ -220,6 +221,16 @@ class TextbookMappingBody(StrictApiModel):
     confidence: Annotated[float, Field(ge=0.0, le=1.0)]
     created_via: Literal["manual", "recommended"]
     status: Literal["candidate", "confirmed", "rejected"]
+    idempotency_key: NonEmptyString
+
+
+class TextbookStudyPlanBody(StrictApiModel):
+    name: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=200)]
+    section_id: NonEmptyString | None = None
+    idempotency_key: NonEmptyString
+
+
+class TextbookPlanConfirmationBody(StrictApiModel):
     idempotency_key: NonEmptyString
 
 
@@ -494,6 +505,71 @@ def build_router(
         except TextbookNotFound as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from exc
 
+    @router.post("/textbooks/{textbook_id}/versions/{version_id}/study-plans")
+    async def create_study_plan_from_textbook(
+        textbook_id: NonEmptyString,
+        version_id: NonEmptyString,
+        body: TextbookStudyPlanBody,
+    ) -> dict[str, Any]:
+        user_id = current_user_id()
+        plan_id = _idempotent_record_id("study-plan", user_id, body.idempotency_key)
+        try:
+            async with runtime_provider.open_product() as runtime:
+                textbook = await runtime.textbooks.get(
+                    user_id=user_id, textbook_id=textbook_id
+                )
+                version = await runtime.textbooks.get_version(
+                    user_id=user_id, version_id=version_id
+                )
+                if version["textbook_id"] != textbook_id:
+                    raise TextbookNotFound("textbook version not found")
+                if textbook["archived_at"] is not None:
+                    raise TextbookConflict("archived textbooks cannot create new study plans")
+                if version["status"] != "completed":
+                    raise TextbookConflict(
+                        "only completed textbook versions can create study plans"
+                    )
+                generated = build_textbook_study_plan(
+                    plan_id=plan_id,
+                    plan_name=body.name,
+                    textbook_title=textbook["title"],
+                    sections=version["sections"],
+                    scope_section_id=body.section_id,
+                )
+                source_metadata = {
+                    "textbook_id": textbook_id,
+                    "textbook_version_id": version_id,
+                    "textbook_version": version["version"],
+                    "scope_section_id": body.section_id,
+                    "scope_section_ids": list(generated.scope_section_ids),
+                    "candidate_mappings": [
+                        {
+                            "objective_id": candidate.objective_id,
+                            "textbook_section_id": candidate.textbook_section_id,
+                        }
+                        for candidate in generated.candidates
+                    ],
+                    "sha256": version["content_hash"],
+                }
+                plan = await runtime.study_plans.create_draft(
+                    user_id=user_id,
+                    plan_id=plan_id,
+                    tree=generated.tree,
+                    source_kind="textbook",
+                    source_metadata=source_metadata,
+                )
+                await runtime.connection.commit()
+            return plan
+        except TextbookNotFound as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+        except (TextbookConflict, StudyPlanConflict) as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+        except ValueError as exc:
+            raise HTTPException(
+                status_code=422,
+                detail={"error_code": "textbook_plan_scope_invalid", "message": str(exc)},
+            ) from exc
+
     @router.post("/textbooks/{textbook_id}/archive")
     async def archive_textbook(textbook_id: NonEmptyString) -> dict[str, Any]:
         try:
@@ -618,6 +694,108 @@ def build_router(
         except GroundedLearningNotFound as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from exc
         except GroundedLearningConflict as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+    @router.post(
+        "/study-plans/{plan_id}/versions/{plan_version}/textbook-plan-suggestions/confirm"
+    )
+    async def confirm_textbook_plan_suggestions(
+        plan_id: NonEmptyString,
+        plan_version: Annotated[int, Field(ge=1)],
+        body: TextbookPlanConfirmationBody,
+    ) -> dict[str, Any]:
+        user_id = current_user_id()
+        try:
+            async with runtime_provider.open_product() as runtime:
+                version = await runtime.study_plans.get_version(
+                    user_id=user_id,
+                    plan_id=plan_id,
+                    version=plan_version,
+                )
+                if version["source_kind"] != "textbook":
+                    raise GroundedLearningConflict(
+                        "study-plan version was not generated from a textbook scope"
+                    )
+                metadata = version["source_metadata"]
+                textbook_version_id = str(metadata["textbook_version_id"])
+                bindings = await runtime.grounded_learning.list_bindings(
+                    user_id=user_id,
+                    plan_id=plan_id,
+                    plan_version=plan_version,
+                )
+                binding = next(
+                    (
+                        item
+                        for item in bindings
+                        if item["textbook_version_id"] == textbook_version_id
+                    ),
+                    None,
+                )
+                if binding is None or binding["status"] == "inactive":
+                    raise GroundedLearningConflict(
+                        "generated textbook binding is unavailable"
+                    )
+                confirmed_bindings = 0
+                if binding["status"] != "confirmed":
+                    await runtime.grounded_learning.set_binding(
+                        binding_id=_idempotent_record_id(
+                            "binding",
+                            user_id,
+                            f"{body.idempotency_key}:binding:{textbook_version_id}",
+                        ),
+                        user_id=user_id,
+                        plan_id=plan_id,
+                        plan_version=plan_version,
+                        textbook_version_id=textbook_version_id,
+                        role=binding["role"],
+                        priority=binding["priority"],
+                        status="confirmed",
+                    )
+                    confirmed_bindings = 1
+
+                mappings = await runtime.grounded_learning.list_mappings(
+                    user_id=user_id,
+                    plan_id=plan_id,
+                    plan_version=plan_version,
+                )
+                current_mappings = {
+                    (item["objective_id"], item["textbook_section_id"]): item
+                    for item in mappings
+                }
+                confirmed_mappings = 0
+                for candidate in metadata["candidate_mappings"]:
+                    objective_id = str(candidate["objective_id"])
+                    section_id = str(candidate["textbook_section_id"])
+                    current_mapping = current_mappings.get((objective_id, section_id))
+                    if current_mapping is not None and current_mapping["status"] in {
+                        "confirmed",
+                        "rejected",
+                    }:
+                        continue
+                    await runtime.grounded_learning.set_mapping(
+                        mapping_id=_idempotent_record_id(
+                            "mapping",
+                            user_id,
+                            f"{body.idempotency_key}:mapping:{objective_id}:{section_id}",
+                        ),
+                        user_id=user_id,
+                        plan_id=plan_id,
+                        plan_version=plan_version,
+                        objective_id=objective_id,
+                        textbook_section_id=section_id,
+                        confidence=1.0,
+                        created_via="recommended",
+                        status="confirmed",
+                    )
+                    confirmed_mappings += 1
+                await runtime.connection.commit()
+            return {
+                "confirmed_bindings": confirmed_bindings,
+                "confirmed_mappings": confirmed_mappings,
+            }
+        except (StudyPlanNotFound, GroundedLearningNotFound) as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+        except (GroundedLearningConflict, KeyError, TypeError) as exc:
             raise HTTPException(status_code=409, detail=str(exc)) from exc
 
     @router.get("/learning-source-snapshots/{session_id}")
@@ -1120,11 +1298,55 @@ def build_router(
     async def publish_study_plan(plan_id: NonEmptyString) -> dict[str, Any]:
         try:
             async with runtime_provider.open_product() as runtime:
-                plan = await runtime.study_plans.publish(user_id=current_user_id(), plan_id=plan_id)
+                user_id = current_user_id()
+                current = await runtime.study_plans.get(user_id=user_id, plan_id=plan_id)
+                draft = current.get("draft")
+                plan = await runtime.study_plans.publish(user_id=user_id, plan_id=plan_id)
+                if draft is not None and draft["source_kind"] == "textbook":
+                    metadata = draft["source_metadata"]
+                    plan_version = int(plan["published"]["version"])
+                    textbook_version_id = str(metadata["textbook_version_id"])
+                    await runtime.grounded_learning.set_binding(
+                        binding_id=_idempotent_record_id(
+                            "binding",
+                            user_id,
+                            f"textbook-plan:{plan_id}:{plan_version}:{textbook_version_id}",
+                        ),
+                        user_id=user_id,
+                        plan_id=plan_id,
+                        plan_version=plan_version,
+                        textbook_version_id=textbook_version_id,
+                        role="primary",
+                        priority=0,
+                        status="candidate",
+                    )
+                    for candidate in metadata["candidate_mappings"]:
+                        objective_id = str(candidate["objective_id"])
+                        section_id = str(candidate["textbook_section_id"])
+                        await runtime.grounded_learning.set_mapping(
+                            mapping_id=_idempotent_record_id(
+                                "mapping",
+                                user_id,
+                                f"textbook-plan:{plan_id}:{plan_version}:{objective_id}:{section_id}",
+                            ),
+                            user_id=user_id,
+                            plan_id=plan_id,
+                            plan_version=plan_version,
+                            objective_id=objective_id,
+                            textbook_section_id=section_id,
+                            confidence=1.0,
+                            created_via="recommended",
+                            status="candidate",
+                        )
                 await runtime.connection.commit()
         except StudyPlanNotFound as exc:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
-        except (StudyPlanConflict, ValueError) as exc:
+        except (
+            StudyPlanConflict,
+            GroundedLearningConflict,
+            GroundedLearningNotFound,
+            ValueError,
+        ) as exc:
             raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
         return plan
 
@@ -2669,5 +2891,7 @@ __all__ = [
     "PracticeStartBody",
     "StudyPlanDraftBody",
     "StudyPlanImportBody",
+    "TextbookPlanConfirmationBody",
+    "TextbookStudyPlanBody",
     "build_router",
 ]

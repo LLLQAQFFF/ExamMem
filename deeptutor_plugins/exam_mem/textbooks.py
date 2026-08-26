@@ -42,6 +42,8 @@ class TextbookIngestionService:
                 version_id=version_id,
                 markdown=str(parsed["markdown"]),
                 blocks=parsed["blocks"],
+                outline=parsed.get("outline", ()),
+                pages=parsed.get("pages", ()),
             )
             async with self._runtime_provider.open_product() as runtime:
                 await runtime.textbooks.replace_sections(

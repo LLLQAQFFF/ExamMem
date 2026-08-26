@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+from types import SimpleNamespace
+
+import pymupdf
 import pytest
 
 from deeptutor.app.facade import TurnRequest
@@ -9,6 +12,45 @@ from deeptutor.plugins import host_services
 def test_plugin_host_services_expose_json_and_embedding_validation() -> None:
     assert host_services.extract_json_object('prefix {"ok": true} suffix') == {"ok": True}
     assert host_services.validate_embedding_batch([[1, 2.5]], expected_count=1) == [[1.0, 2.5]]
+
+
+@pytest.mark.asyncio
+async def test_plugin_source_host_returns_neutral_pdf_navigation(
+    monkeypatch: pytest.MonkeyPatch, tmp_path
+) -> None:
+    source = tmp_path / "original.pdf"
+    document = pymupdf.open()
+    page = document.new_page()
+    page.insert_text((72, 72), "Chapter one")
+    document.set_toc([[1, "Chapter one", 1]])
+    document.save(source)
+    document.close()
+
+    class ParseService:
+        def parse(self, path):  # noqa: ANN001, ANN201
+            assert path == source
+            return SimpleNamespace(
+                source_hash="a" * 64,
+                parser_signature="parser-v1",
+                engine="fixture",
+                markdown="# Chapter one",
+                blocks=None,
+                asset_dir=None,
+            )
+
+    monkeypatch.setattr("deeptutor.services.parsing.get_parse_service", lambda: ParseService())
+    async def run_inline(function, *args):  # noqa: ANN001, ANN202
+        return function(*args)
+
+    monkeypatch.setattr(host_services.asyncio, "to_thread", run_inline)
+    host = host_services.PluginSourceHost()
+    monkeypatch.setattr(host, "_source_root", lambda _source_ref: tmp_path)
+
+    parsed = await host.parse_saved_source("source:" + "a" * 64)
+
+    assert parsed["outline"] == ({"level": 1, "title": "Chapter one", "page": 1},)
+    assert parsed["pages"][0]["page_number"] == 1
+    assert "Chapter one" in parsed["pages"][0]["text"]
 
 
 def test_turn_facade_carries_only_explicit_mastery_path_identity() -> None:

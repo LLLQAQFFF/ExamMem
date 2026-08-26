@@ -167,6 +167,44 @@ async def test_study_plan_publish_taxonomy_and_session_link_are_transactional() 
         await engine.dispose()
 
 
+async def test_textbook_study_plan_source_is_idempotent_and_publishable() -> None:
+    engine = create_async_engine(_database_url_or_skip())
+    plan_id = f"textbook-plan-{uuid.uuid4().hex}"
+    user_id = f"user-{uuid.uuid4().hex}"
+    metadata = {
+        "textbook_version_id": "version-fixture",
+        "scope_section_id": None,
+        "candidate_mappings": [],
+    }
+    try:
+        async with engine.connect() as connection:
+            transaction = await connection.begin()
+            repository = PostgresStudyPlanRepository(connection)
+            try:
+                created = await repository.create_draft(
+                    user_id=user_id,
+                    plan_id=plan_id,
+                    tree=_tree(plan_id),
+                    source_kind="textbook",
+                    source_metadata=metadata,
+                )
+                replay = await repository.create_draft(
+                    user_id=user_id,
+                    plan_id=plan_id,
+                    tree=_tree(plan_id),
+                    source_kind="textbook",
+                    source_metadata=metadata,
+                )
+                assert replay["plan_id"] == created["plan_id"]
+                assert replay["draft"]["source_kind"] == "textbook"
+                published = await repository.publish(user_id=user_id, plan_id=plan_id)
+                assert published["published"]["source_kind"] == "textbook"
+            finally:
+                await transaction.rollback()
+    finally:
+        await engine.dispose()
+
+
 async def test_assessment_versions_and_repeated_attempts_keep_one_blueprint() -> None:
     engine = create_async_engine(_database_url_or_skip())
     user_id = f"user-{uuid.uuid4().hex}"

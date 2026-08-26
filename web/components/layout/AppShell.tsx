@@ -7,12 +7,12 @@ import {
   useEffect,
   useState,
 } from "react";
-import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Menu } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useDevice } from "@/hooks/useDevice";
+import { ProductBrand } from "@/components/common/ProductBrand";
 import type { ReactNode } from "react";
 
 /* Lets the sidebar dismiss the drawer after a nav click without every layout
@@ -111,20 +111,7 @@ export default function AppShell({ sidebar, children }: AppShellProps) {
               <Menu size={18} strokeWidth={1.7} />
             </button>
             <Link href="/" className="flex items-center gap-1.5">
-              <Image
-                src="/logo.png"
-                alt="DeepTutor"
-                width={20}
-                height={20}
-                className="h-5 w-5"
-              />
-              <Image
-                src="/banner.png"
-                alt="DeepTutor"
-                width={897}
-                height={236}
-                className="h-[18px] w-auto"
-              />
+              <ProductBrand iconSize={20} wordmarkClassName="text-[17px]" />
             </Link>
           </div>
 

@@ -372,12 +372,14 @@ class PluginSourceHost:
     async def parse_saved_source(self, source_ref: str) -> dict[str, Any]:
         """Parse a previously saved source through the shared ParseService."""
         from deeptutor.services.parsing import get_parse_service
+        from deeptutor.services.parsing.pdf_navigation import extract_pdf_navigation
 
         root = self._source_root(source_ref)
         paths = [path for path in root.glob("original.*") if path.is_file()]
         if len(paths) != 1:
             raise FileNotFoundError("structured source is unavailable")
         parsed = await asyncio.to_thread(get_parse_service().parse, paths[0])
+        navigation = await asyncio.to_thread(extract_pdf_navigation, paths[0])
         return {
             "source_ref": source_ref,
             "source_hash": parsed.source_hash,
@@ -385,6 +387,8 @@ class PluginSourceHost:
             "engine": parsed.engine,
             "markdown": parsed.markdown,
             "blocks": parsed.blocks or [],
+            "outline": navigation["outline"],
+            "pages": navigation["pages"],
             "asset_ref": None if parsed.asset_dir is None else str(parsed.asset_dir),
         }
 

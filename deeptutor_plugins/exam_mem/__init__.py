@@ -104,7 +104,7 @@ class ExamMemPlugin(BaseFullStackPlugin):
             migration=MigrationContribution(
                 config_path="exam_mem/storage/alembic.ini",
                 versions_path="exam_mem/storage/migrations/versions",
-                expected_head="0014_textbook_grounding",
+                expected_head="0015_textbook_plan_source",
             ),
             metadata={
                 "product_surface": "exam_practice",

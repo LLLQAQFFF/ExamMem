@@ -79,11 +79,15 @@ class FakeStudyPlans:
         self.published = False
         self.archived_at = None
         self.link = None
+        self.source_kind = "generated"
+        self.source_metadata = {"sha256": "0" * 64}
 
     async def create_draft(self, *, user_id, plan_id, tree, source_kind, source_metadata):  # noqa: ANN001, ANN201
         assert user_id == "study-user"
         self.plan_id = plan_id
         self.tree = tree
+        self.source_kind = source_kind
+        self.source_metadata = source_metadata
         return self._payload()
 
     async def list(self, *, user_id, archived=False):  # noqa: ANN001, ANN201, FBT002
@@ -162,8 +166,8 @@ class FakeStudyPlans:
             "version": 1,
             "tree": self.tree.model_dump(mode="json"),
             "taxonomy_versions": {subject.id: "ptest_s001_v1"},
-            "source_kind": "generated",
-            "source_metadata": {"sha256": "0" * 64},
+            "source_kind": self.source_kind,
+            "source_metadata": self.source_metadata,
             "content_hash": "1" * 64,
             "published_at": NOW.isoformat(),
         }
@@ -172,8 +176,8 @@ class FakeStudyPlans:
         assert self.tree is not None
         source = {
             "tree": self.tree.model_dump(mode="json"),
-            "source_kind": "generated",
-            "source_metadata": {"sha256": "0" * 64},
+            "source_kind": self.source_kind,
+            "source_metadata": self.source_metadata,
             "content_hash": "1" * 64,
         }
         return {
@@ -201,6 +205,7 @@ class FakeRuntime:
         self.observations = FakeObservations()
         self.learning_profiles = FakeLearningProfiles()
         self.grounded_learning = FakeGroundedLearning()
+        self.textbooks = FakeTextbooks()
         self.connection = FakeConnection()
 
 
@@ -258,6 +263,43 @@ class FakeGroundedLearning:
         }
         return self.snapshot, True
 
+
+class FakeTextbooks:
+    sections = [
+        {
+            "section_id": "chapter-1",
+            "parent_section_id": None,
+            "order": 0,
+            "title": "第一章 基础",
+            "path": ["第一章 基础"],
+        },
+        {
+            "section_id": "section-1-1",
+            "parent_section_id": "chapter-1",
+            "order": 1,
+            "title": "基本概念",
+            "path": ["第一章 基础", "基本概念"],
+        },
+    ]
+
+    async def get(self, *, user_id, textbook_id):  # noqa: ANN001, ANN201
+        assert user_id == "study-user" and textbook_id == "textbook-1"
+        return {
+            "textbook_id": textbook_id,
+            "title": "人工智能简史",
+            "archived_at": None,
+        }
+
+    async def get_version(self, *, user_id, version_id):  # noqa: ANN001, ANN201
+        assert user_id == "study-user" and version_id == "version-1"
+        return {
+            "version_id": version_id,
+            "textbook_id": "textbook-1",
+            "version": 1,
+            "status": "completed",
+            "content_hash": "a" * 64,
+            "sections": self.sections,
+        }
 
 class FakeGroundingService:
     async def evidence_package(self, **_kwargs):  # noqa: ANN003, ANN201
@@ -610,3 +652,65 @@ async def test_study_plan_file_contract_rejects_unplanned_ingestion_formats() ->
             mime_type="application/vnd.openxmlformats-officedocument.presentationml.presentation",
             base64="c2xpZGVz",
         )
+
+
+async def test_textbook_scope_creates_reviewable_plan_and_candidates_on_publish() -> None:
+    provider = FakeProvider()
+    api = FastAPI()
+    api.include_router(
+        build_router(
+            provider,  # type: ignore[arg-type]
+            outline_importer=FakeImporter(),  # type: ignore[arg-type]
+            learning_host=FakeLearningHost(),  # type: ignore[arg-type]
+            observation_agent=FakeObservationAgent(),  # type: ignore[arg-type]
+        ),
+        prefix="/api/v1/exam-mem",
+    )
+
+    with _regular_user():
+        async with AsyncClient(transport=ASGITransport(app=api), base_url="http://test") as client:
+            sdk = ExamMemTextbookLearningSDK(client)
+            created = await sdk.create_study_plan_from_textbook(
+                textbook_id="textbook-1",
+                textbook_version_id="version-1",
+                name="第一章学习计划",
+                section_id="chapter-1",
+                idempotency_key="textbook-plan-1",
+            )
+            plan_id = created["plan_id"]
+            published = await client.post(
+                f"/api/v1/exam-mem/study-plans/{plan_id}/publish"
+            )
+            confirmation = await sdk.confirm_textbook_plan_suggestions(
+                plan_id=plan_id,
+                plan_version=1,
+                idempotency_key="confirm-textbook-plan-1",
+            )
+
+    draft = created["draft"]
+    assert draft["source_kind"] == "textbook"
+    assert draft["tree"]["subjects"][0]["id"] != "chapter-1"
+    assert draft["tree"]["subjects"][0]["modules"][0]["knowledge_points"][0][
+        "name"
+    ] == "基本概念"
+    assert draft["source_metadata"]["scope_section_ids"] == [
+        "chapter-1",
+        "section-1-1",
+    ]
+    assert published.status_code == 200
+    assert provider.runtime.grounded_learning.bindings[0]["status"] == "candidate"
+    assert provider.runtime.grounded_learning.bindings[0]["textbook_version_id"] == "version-1"
+    assert {
+        item["textbook_section_id"]
+        for item in provider.runtime.grounded_learning.mappings
+    } == {"chapter-1", "section-1-1"}
+    assert all(
+        item["created_via"] == "recommended"
+        for item in provider.runtime.grounded_learning.mappings
+    )
+    assert confirmation == {"confirmed_bindings": 1, "confirmed_mappings": 2}
+    assert provider.runtime.grounded_learning.bindings[-1]["status"] == "confirmed"
+    assert all(
+        item["status"] == "confirmed"
+        for item in provider.runtime.grounded_learning.mappings[-2:]
+    )

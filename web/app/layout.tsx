@@ -21,14 +21,14 @@ const fontSerif = Lora({
 });
 
 export const metadata: Metadata = {
-  title: "DeepTutor",
-  description: "Agent-native intelligent learning companion",
+  title: "ExamMem",
+  description: "Textbook-grounded intelligent learning companion",
   icons: {
     icon: [
-      { url: "/favicon-16x16.png", sizes: "16x16", type: "image/png" },
-      { url: "/favicon-32x32.png", sizes: "32x32", type: "image/png" },
+      { url: "/exammem-favicon-16x16.png", sizes: "16x16", type: "image/png" },
+      { url: "/exammem-favicon-32x32.png", sizes: "32x32", type: "image/png" },
     ],
-    apple: "/apple-touch-icon.png",
+    apple: "/exammem-apple-touch-icon.png",
   },
 };
 

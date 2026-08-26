@@ -30,7 +30,7 @@ export interface StudyPlanTree {
 
 export interface StudyPlanSource {
   tree: StudyPlanTree;
-  source_kind: "file" | "url" | "generated";
+  source_kind: "file" | "url" | "generated" | "textbook";
   source_metadata: Record<string, unknown>;
   content_hash: string;
 }

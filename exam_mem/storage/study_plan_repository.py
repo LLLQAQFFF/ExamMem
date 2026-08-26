@@ -43,6 +43,29 @@ class PostgresStudyPlanRepository:
         source_kind: str,
         source_metadata: dict[str, Any],
     ) -> dict[str, Any]:
+        existing = (
+            (
+                await self._connection.execute(
+                    select(study_plans).where(
+                        study_plans.c.user_id == user_id,
+                        study_plans.c.plan_id == plan_id,
+                    )
+                )
+            )
+            .mappings()
+            .one_or_none()
+        )
+        if existing is not None:
+            hydrated = await self._hydrate(existing)
+            draft = hydrated["draft"]
+            if (
+                draft is not None
+                and draft["tree"] == tree.model_dump(mode="json")
+                and draft["source_kind"] == source_kind
+                and draft["source_metadata"] == source_metadata
+            ):
+                return hydrated
+            raise StudyPlanConflict("study-plan creation idempotency key conflicts")
         now = datetime.now(timezone.utc)
         payload = tree.model_dump(mode="json")
         content_hash = _payload_hash(payload)

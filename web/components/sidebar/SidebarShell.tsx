@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
@@ -31,6 +30,7 @@ import { VersionBadge } from "@/components/sidebar/VersionBadge";
 import type { SessionSummary } from "@/lib/session-api";
 import { Tooltip } from "@/components/ui/Tooltip";
 import { useCapabilityAccess } from "@/components/access/CapabilityAccessContext";
+import { ProductBrand } from "@/components/common/ProductBrand";
 import type { Capability } from "@/lib/capability-routes";
 import {
   loadPluginNavigation,
@@ -238,16 +238,10 @@ export function SidebarShell({
         <div className="relative mb-2 flex h-9 w-9 items-center justify-center">
           <Link
             href="/"
-            aria-label="DeepTutor"
+            aria-label="ExamMem"
             className="flex items-center justify-center transition-opacity duration-150 group-hover/sb:opacity-0"
           >
-            <Image
-              src="/logo.png"
-              alt="DeepTutor"
-              width={22}
-              height={22}
-              className="h-[22px] w-[22px] rounded-md"
-            />
+            <ProductBrand compact />
           </Link>
           <button
             onClick={() => setCollapsed(false)}
@@ -408,21 +402,7 @@ export function SidebarShell({
       {/* Header: logo + collapse toggle */}
       <div className="flex h-14 items-center justify-between px-4">
         <Link href="/" className="group flex items-center gap-1.5">
-          <Image
-            src="/logo.png"
-            alt="DeepTutor"
-            width={22}
-            height={22}
-            className="h-[22px] w-[22px] transition-transform duration-200 group-hover:scale-105"
-          />
-          <Image
-            src="/banner.png"
-            alt="DeepTutor"
-            width={897}
-            height={236}
-            priority
-            className="h-[22px] w-auto transition-transform duration-200 group-hover:scale-105"
-          />
+          <ProductBrand className="transition-transform duration-200 group-hover:scale-105" />
         </Link>
         {/* The rail is a desktop affordance; in the drawer the scrim and the
             top-bar toggle already own "make this go away". */}

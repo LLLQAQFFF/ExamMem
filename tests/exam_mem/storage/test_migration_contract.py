@@ -29,7 +29,7 @@ def test_alembic_configuration_does_not_store_a_database_url() -> None:
 def test_migration_chain_has_one_linear_head() -> None:
     scripts = _script_directory()
 
-    assert scripts.get_heads() == ["0014_textbook_grounding"]
+    assert scripts.get_heads() == ["0015_textbook_plan_source"]
     assert scripts.get_revision("0001_learning_memory_schema").down_revision is None
     assert (
         scripts.get_revision("0002_append_only_records").down_revision
@@ -64,6 +64,7 @@ def test_migration_chain_has_one_linear_head() -> None:
     )
     assert scripts.get_revision("0013_textbook_library").down_revision == "0012_study_plan_archival"
     assert scripts.get_revision("0014_textbook_grounding").down_revision == "0013_textbook_library"
+    assert scripts.get_revision("0015_textbook_plan_source").down_revision == "0014_textbook_grounding"
 
 
 def test_revision_ids_fit_the_alembic_version_column() -> None:

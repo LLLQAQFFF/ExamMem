@@ -67,7 +67,7 @@ study_plan_drafts = Table(
     Column("updated_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
     PrimaryKeyConstraint("plan_id", name="pk_study_plan_drafts"),
     CheckConstraint(
-        "source_kind IN ('file', 'url', 'generated')",
+        "source_kind IN ('file', 'url', 'generated', 'textbook')",
         name="ck_study_plan_drafts_source_kind",
     ),
     CheckConstraint("jsonb_typeof(tree) = 'object'", name="ck_study_plan_drafts_tree_object"),
@@ -92,7 +92,7 @@ study_plan_versions = Table(
     PrimaryKeyConstraint("plan_id", "version", name="pk_study_plan_versions"),
     CheckConstraint("version >= 1", name="ck_study_plan_versions_version"),
     CheckConstraint(
-        "source_kind IN ('file', 'url', 'generated')",
+        "source_kind IN ('file', 'url', 'generated', 'textbook')",
         name="ck_study_plan_versions_source_kind",
     ),
     CheckConstraint("jsonb_typeof(tree) = 'object'", name="ck_study_plan_versions_tree_object"),

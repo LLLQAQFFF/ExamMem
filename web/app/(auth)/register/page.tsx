@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useTranslation } from "react-i18next";
 import { register, checkIsFirstUser, fetchAuthStatus } from "@/lib/auth";
+import { ProductBrand } from "@/components/common/ProductBrand";
 
 export default function RegisterPage() {
   const { t } = useTranslation();
@@ -55,9 +56,11 @@ export default function RegisterPage() {
     <div className="w-full max-w-sm">
       {/* Logo / Title */}
       <div className="text-center mb-8">
-        <h1 className="font-serif text-2xl font-semibold text-[var(--foreground)] tracking-tight">
-          DeepTutor
-        </h1>
+        <ProductBrand
+          className="justify-center"
+          iconSize={36}
+          wordmarkClassName="text-2xl"
+        />
         <p className="mt-1 text-sm text-[var(--muted-foreground)]">
           {t("Create your account")}
         </p>
@@ -184,7 +187,7 @@ export default function RegisterPage() {
       </p>
 
       <p className="mt-3 text-center text-xs text-[var(--muted-foreground)]">
-        DeepTutor · Agent-Native Learning
+        {t("ExamMem · Textbook-Grounded Learning")}
       </p>
     </div>
   );

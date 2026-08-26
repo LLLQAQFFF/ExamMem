@@ -39,6 +39,42 @@ class ExamMemTextbookLearningSDK:
         )
         return self._payload(response)["binding"]
 
+    async def create_study_plan_from_textbook(
+        self,
+        *,
+        textbook_id: str,
+        textbook_version_id: str,
+        name: str,
+        section_id: str | None,
+        idempotency_key: str,
+    ) -> dict[str, Any]:
+        response = await self._client.post(
+            f"{self._api_prefix}/textbooks/{textbook_id}/versions/{textbook_version_id}/study-plans",
+            json={
+                "name": name,
+                "section_id": section_id,
+                "idempotency_key": idempotency_key,
+            },
+        )
+        return self._payload(response)
+
+    async def confirm_textbook_plan_suggestions(
+        self,
+        *,
+        plan_id: str,
+        plan_version: int,
+        idempotency_key: str,
+    ) -> dict[str, int]:
+        response = await self._client.post(
+            f"{self._api_prefix}/study-plans/{plan_id}/versions/{plan_version}/textbook-plan-suggestions/confirm",
+            json={"idempotency_key": idempotency_key},
+        )
+        payload = self._payload(response)
+        return {
+            "confirmed_bindings": int(payload["confirmed_bindings"]),
+            "confirmed_mappings": int(payload["confirmed_mappings"]),
+        }
+
     async def list_textbook_bindings(
         self, *, plan_id: str, plan_version: int
     ) -> list[dict[str, Any]]:

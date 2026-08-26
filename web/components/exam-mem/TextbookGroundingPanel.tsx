@@ -1,10 +1,11 @@
 "use client";
 
 import { Link2, Loader2 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import {
+  confirmTextbookPlanSuggestions,
   getTextbookVersion,
   listTextbookBindings,
   listTextbookMappings,
@@ -26,9 +27,10 @@ interface TextbookGroundingPanelProps {
   planId: string;
   version: number;
   objectives: ObjectiveOption[];
+  generatedFromTextbook?: boolean;
 }
 
-export default function TextbookGroundingPanel({ planId, version, objectives }: TextbookGroundingPanelProps) {
+export default function TextbookGroundingPanel({ planId, version, objectives, generatedFromTextbook = false }: TextbookGroundingPanelProps) {
   const { i18n } = useTranslation();
   const zh = i18n.language?.toLowerCase().startsWith("zh");
   const tr = useCallback((cn: string, en: string) => (zh ? cn : en), [zh]);
@@ -43,6 +45,7 @@ export default function TextbookGroundingPanel({ planId, version, objectives }: 
   const [sections, setSections] = useState<TextbookSection[]>([]);
   const [working, setWorking] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const confirmationIdempotencyKey = useRef<string | null>(null);
 
   const reload = useCallback(async () => {
     const [available, currentBindings, currentMappings] = await Promise.all([
@@ -133,13 +136,29 @@ export default function TextbookGroundingPanel({ planId, version, objectives }: 
     }
   };
 
+  const confirmGeneratedScope = async () => {
+    setWorking(true);
+    setError(null);
+    try {
+      confirmationIdempotencyKey.current ||= crypto.randomUUID();
+      await confirmTextbookPlanSuggestions(planId, version, confirmationIdempotencyKey.current);
+      await reload();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : String(cause));
+    } finally {
+      setWorking(false);
+    }
+  };
+
   const confirmedCount = bindings.filter((item) => item.status === "confirmed").length;
+  const suggestedCount = mappings.filter((item) => item.status === "candidate" && item.created_via === "recommended").length;
+  const hasSuggestedBinding = bindings.some((item) => item.status === "candidate");
 
   return (
     <section className="rounded-xl border border-indigo-500/20 bg-indigo-500/5 p-4">
-      <div className="flex items-center gap-2">
-        <Link2 className="h-4 w-4 text-indigo-600" />
-        <h3 className="text-sm font-semibold">{tr("教材绑定与章节映射", "Textbook bindings and section mappings")}</h3>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex items-center gap-2"><Link2 className="h-4 w-4 text-indigo-600" /><h3 className="text-sm font-semibold">{tr("教材绑定与章节映射", "Textbook bindings and section mappings")}</h3></div>
+        {generatedFromTextbook && (hasSuggestedBinding || suggestedCount) ? <button type="button" disabled={working} onClick={() => void confirmGeneratedScope()} className="rounded-lg bg-indigo-600 px-3 py-2 text-xs text-white disabled:opacity-50">{working ? <Loader2 className="inline h-3 w-3 animate-spin" /> : tr(`确认教材范围（${suggestedCount} 条章节建议）`, `Confirm textbook scope (${suggestedCount} section suggestions)`)}</button> : null}
       </div>
       <p className="mt-1 text-xs text-[var(--muted-foreground)]">
         {confirmedCount

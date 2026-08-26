@@ -101,6 +101,22 @@ export async function archiveTextbook(textbookId: string): Promise<void> {
   await jsonOrError(await apiFetch(apiUrl(`/api/v1/exam-mem/textbooks/${encodeURIComponent(textbookId)}/archive`), { method: "POST" }));
 }
 
+export async function createStudyPlanFromTextbook(
+  textbookId: string,
+  versionId: string,
+  body: { name: string; section_id: string | null; idempotency_key: string },
+): Promise<{ plan_id: string }> {
+  const response = await apiFetch(
+    apiUrl(`/api/v1/exam-mem/textbooks/${encodeURIComponent(textbookId)}/versions/${encodeURIComponent(versionId)}/study-plans`),
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    },
+  );
+  return jsonOrError<{ plan_id: string }>(response);
+}
+
 export async function listTextbookBindings(planId: string, version: number): Promise<TextbookBinding[]> {
   const response = await apiFetch(apiUrl(`/api/v1/exam-mem/study-plans/${encodeURIComponent(planId)}/versions/${version}/textbooks`));
   return (await jsonOrError<{ bindings: TextbookBinding[] }>(response)).bindings;
@@ -119,4 +135,20 @@ export async function listTextbookMappings(planId: string, version: number): Pro
 export async function setTextbookMapping(planId: string, version: number, body: Omit<TextbookMapping, "mapping_id" | "mapping_version">): Promise<TextbookMapping> {
   const response = await apiFetch(apiUrl(`/api/v1/exam-mem/study-plans/${encodeURIComponent(planId)}/versions/${version}/textbook-mappings`), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...body, idempotency_key: crypto.randomUUID() }) });
   return (await jsonOrError<{ mapping: TextbookMapping }>(response)).mapping;
+}
+
+export async function confirmTextbookPlanSuggestions(
+  planId: string,
+  version: number,
+  idempotencyKey: string,
+): Promise<{ confirmed_bindings: number; confirmed_mappings: number }> {
+  const response = await apiFetch(
+    apiUrl(`/api/v1/exam-mem/study-plans/${encodeURIComponent(planId)}/versions/${version}/textbook-plan-suggestions/confirm`),
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ idempotency_key: idempotencyKey }),
+    },
+  );
+  return jsonOrError<{ confirmed_bindings: number; confirmed_mappings: number }>(response);
 }
