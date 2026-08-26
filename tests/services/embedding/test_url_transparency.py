@@ -188,9 +188,7 @@ async def test_ollama_qwen3_formats_queries_but_not_documents(
             input_type="search_document",
         )
     )
-    assert captured["json"]["input"] == [
-        '{"slot_key":"mastery:math1.linear_algebra.matrix_rank"}'
-    ]
+    assert captured["json"]["input"] == ['{"slot_key":"mastery:math1.linear_algebra.matrix_rank"}']
 
 
 @pytest.mark.asyncio

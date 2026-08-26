@@ -137,6 +137,4 @@ async def test_local_cross_encoder_passes_instruction_and_normalizes_logits() ->
             "prompt": "instruction",
         }
     ]
-    assert scores == pytest.approx(
-        [1.0 / (1.0 + math.exp(-2.0)), 1.0 / (1.0 + math.exp(2.0))]
-    )
+    assert scores == pytest.approx([1.0 / (1.0 + math.exp(-2.0)), 1.0 / (1.0 + math.exp(2.0))])

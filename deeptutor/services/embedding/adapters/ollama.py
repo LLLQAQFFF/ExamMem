@@ -144,10 +144,7 @@ class OllamaEmbeddingAdapter(BaseEmbeddingAdapter):
         model = (request.model or self.model or "").lower().replace("_", "-")
         if request.input_type != "search_query" or "qwen3-embedding" not in model:
             return request.texts
-        return [
-            f"Instruct: {_QWEN3_RETRIEVAL_INSTRUCTION}\nQuery:{text}"
-            for text in request.texts
-        ]
+        return [f"Instruct: {_QWEN3_RETRIEVAL_INSTRUCTION}\nQuery:{text}" for text in request.texts]
 
     def get_model_info(self) -> Dict[str, Any]:
         return {

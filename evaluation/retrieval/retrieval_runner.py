@@ -553,9 +553,7 @@ join nearest_memories using (memory_id)
 order by nearest_memories.retrieval_distance, learning_memories.memory_id
 limit :top_k
 """
-_PRODUCTION_EXPLAIN_SQL = (
-    "explain (analyze, buffers, format json) " + _PRODUCTION_RANKED_SQL
-)
+_PRODUCTION_EXPLAIN_SQL = "explain (analyze, buffers, format json) " + _PRODUCTION_RANKED_SQL
 _HNSW_CONTROL_SQL = f"""
 select memory_id
 from learning_memories

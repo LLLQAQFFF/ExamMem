@@ -167,29 +167,33 @@ async def _run(args: argparse.Namespace) -> dict[str, object]:
                 observation.model_dump(mode="json") for observation in semantic.observations
             ],
         },
-        "hnsw_profile": ({
-            "query_count": len(hnsw.observations),
-            "candidate_count": hnsw.candidate_count,
-            "production_mean_exact_agreement_at_k": (hnsw.production_mean_exact_agreement_at_k),
-            "production_hnsw_plan_rate": hnsw.production_hnsw_plan_rate,
-            "measured_production_ann_recall_at_k": (hnsw.measured_production_ann_recall_at_k),
-            "control_mean_ann_recall_at_k": hnsw.control_mean_ann_recall_at_k,
-            "control_hnsw_plan_rate": hnsw.control_hnsw_plan_rate,
-            "production_p95_latency_ms": hnsw.production_p95_latency_ms,
-            "exact_p95_latency_ms": hnsw.exact_p95_latency_ms,
-            "control_p95_latency_ms": hnsw.control_p95_latency_ms,
-            "control_is_forced_planner_diagnostic": True,
-            "elapsed_ms": hnsw.elapsed_ms,
-            "passes_production_ann_recall_gate": (
-                None
-                if hnsw.measured_production_ann_recall_at_k is None
-                else hnsw.measured_production_ann_recall_at_k >= 0.95
-            ),
-            "passes_production_plan_gate": hnsw.production_hnsw_plan_rate == 1.0,
-            "passes_control_ann_recall_gate": hnsw.control_mean_ann_recall_at_k >= 0.95,
-            "passes_control_plan_gate": hnsw.control_hnsw_plan_rate == 1.0,
-            "observations": [asdict(observation) for observation in hnsw.observations],
-        } if hnsw is not None else None),
+        "hnsw_profile": (
+            {
+                "query_count": len(hnsw.observations),
+                "candidate_count": hnsw.candidate_count,
+                "production_mean_exact_agreement_at_k": (hnsw.production_mean_exact_agreement_at_k),
+                "production_hnsw_plan_rate": hnsw.production_hnsw_plan_rate,
+                "measured_production_ann_recall_at_k": (hnsw.measured_production_ann_recall_at_k),
+                "control_mean_ann_recall_at_k": hnsw.control_mean_ann_recall_at_k,
+                "control_hnsw_plan_rate": hnsw.control_hnsw_plan_rate,
+                "production_p95_latency_ms": hnsw.production_p95_latency_ms,
+                "exact_p95_latency_ms": hnsw.exact_p95_latency_ms,
+                "control_p95_latency_ms": hnsw.control_p95_latency_ms,
+                "control_is_forced_planner_diagnostic": True,
+                "elapsed_ms": hnsw.elapsed_ms,
+                "passes_production_ann_recall_gate": (
+                    None
+                    if hnsw.measured_production_ann_recall_at_k is None
+                    else hnsw.measured_production_ann_recall_at_k >= 0.95
+                ),
+                "passes_production_plan_gate": hnsw.production_hnsw_plan_rate == 1.0,
+                "passes_control_ann_recall_gate": hnsw.control_mean_ann_recall_at_k >= 0.95,
+                "passes_control_plan_gate": hnsw.control_hnsw_plan_rate == 1.0,
+                "observations": [asdict(observation) for observation in hnsw.observations],
+            }
+            if hnsw is not None
+            else None
+        ),
     }
 
 

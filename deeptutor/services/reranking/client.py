@@ -49,8 +49,8 @@ class HostRerankingClient:
         documents: Sequence[str],
         instruction: str,
     ) -> list[float]:
-        normalized_query, normalized_documents, normalized_instruction = (
-            _normalize_request(query, documents, instruction)
+        normalized_query, normalized_documents, normalized_instruction = _normalize_request(
+            query, documents, instruction
         )
 
         schema = _response_schema(len(normalized_documents))
@@ -88,8 +88,7 @@ class HostRerankingClient:
                 if len(evidence.scores) != len(normalized_documents):
                     raise ValueError("reranker score count must match document count")
                 if any(
-                    not math.isfinite(score) or not 0.0 <= score <= 1.0
-                    for score in evidence.scores
+                    not math.isfinite(score) or not 0.0 <= score <= 1.0 for score in evidence.scores
                 ):
                     raise ValueError("reranker scores must be finite values from 0 to 1")
                 return evidence.scores
@@ -124,10 +123,7 @@ class LocalCrossEncoderRerankingClient:
         if batch_size < 1:
             raise ValueError("reranking batch_size must be greater than or equal to 1")
         self.model_name = model_name.strip()
-        self.version = (
-            f"sentence_transformers:{self.model_name}"
-            f"{':nf4' if load_in_4bit else ''}"
-        )
+        self.version = f"sentence_transformers:{self.model_name}{':nf4' if load_in_4bit else ''}"
         self._device = device
         self._batch_size = batch_size
         self._local_files_only = local_files_only
@@ -143,8 +139,8 @@ class LocalCrossEncoderRerankingClient:
         documents: Sequence[str],
         instruction: str,
     ) -> list[float]:
-        normalized_query, normalized_documents, normalized_instruction = (
-            _normalize_request(query, documents, instruction)
+        normalized_query, normalized_documents, normalized_instruction = _normalize_request(
+            query, documents, instruction
         )
         return await asyncio.to_thread(
             self._score_sync,
