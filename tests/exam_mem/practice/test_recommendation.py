@@ -5,13 +5,19 @@ from datetime import datetime, timezone
 from pydantic import ValidationError
 import pytest
 
-from exam_mem.contracts import LearningContext, LearningMemory
+from exam_mem.contracts import EvidenceQuality, LearningContext, LearningEvent, LearningMemory
 from exam_mem.practice import (
+    DeepTutorRecommendationSelector,
     Question,
+    Recommendation,
+    RecommendationAction,
     RecommendationCandidate,
     RecommendationFeatures,
     RecommendationPolicyV1,
     RecommendationPolicyV1Config,
+    actionable_scores,
+    has_actionable_signal,
+    has_actionable_trigger,
 )
 
 NOW = datetime(2026, 8, 12, 12, 0, tzinfo=timezone.utc)
@@ -206,3 +212,159 @@ def test_no_memory_fallback_has_explicit_reason_and_no_fake_source() -> None:
     assert recommendation.reason_codes == ["syllabus_fallback"]
     assert recommendation.source_memory_ids == []
     assert recommendation.target_difficulty == question.difficulty
+
+
+def test_no_recommendation_is_explicit_and_cannot_claim_question_or_memory() -> None:
+    recommendation = RecommendationPolicyV1().build_no_recommendation()
+
+    assert recommendation.action_type is RecommendationAction.NO_RECOMMENDATION
+    assert recommendation.question_id is None
+    assert recommendation.target_knowledge_point_id is None
+    assert recommendation.source_memory_ids == []
+
+    with pytest.raises(ValidationError, match="must not contain a question"):
+        Recommendation.model_validate(
+            recommendation.model_dump(mode="json") | {"question_id": "question:invalid"}
+        )
+
+
+def test_early_forgetting_risk_alone_does_not_force_a_recommendation() -> None:
+    candidate = _candidate(
+        features=RecommendationFeatures(
+            weakness=0.0,
+            stable_error=0.0,
+            forgetting_risk=0.49,
+            active_plan_priority=0.0,
+            coverage_gap=1.0,
+        )
+    )
+    scores = RecommendationPolicyV1().rank(context=CONTEXT, candidates=[candidate])
+
+    assert has_actionable_signal(scores) is False
+
+
+def test_due_forgetting_risk_opens_the_recommendation_gate() -> None:
+    candidate = _candidate(
+        features=RecommendationFeatures(
+            weakness=0.0,
+            stable_error=0.0,
+            forgetting_risk=0.5,
+            active_plan_priority=0.0,
+            coverage_gap=0.0,
+        )
+    )
+    scores = RecommendationPolicyV1().rank(context=CONTEXT, candidates=[candidate])
+
+    assert has_actionable_signal(scores) is True
+    assert actionable_scores(scores) == scores
+
+
+@pytest.mark.parametrize(
+    ("quality", "expected"),
+    [
+        (EvidenceQuality(confidence=0.49, reasons=["low_grader_confidence"]), False),
+        (
+            EvidenceQuality(
+                confidence=1.0,
+                is_temporary_exception=True,
+                reasons=["external_disruption"],
+            ),
+            False,
+        ),
+        (EvidenceQuality(confidence=0.5, reasons=["low_grader_confidence"]), True),
+    ],
+)
+def test_recommendation_gate_rejects_non_durable_trigger_evidence(
+    quality: EvidenceQuality, expected: bool
+) -> None:
+    event = LearningEvent(
+        event_id="event:recommendation:gate",
+        idempotency_key="idem:recommendation:gate",
+        context=CONTEXT,
+        session_id="session:recommendation:gate",
+        question_id="question:recommendation:gate",
+        knowledge_point_ids=["math1.probability.bayes"],
+        difficulty=0.5,
+        answer_correct=False,
+        evidence_quality=quality,
+        occurred_at=NOW,
+    )
+
+    assert has_actionable_trigger(event) is expected
+
+
+def test_actionable_candidates_exclude_coverage_only_ties() -> None:
+    plan = _candidate(
+        knowledge_point_id="math1.probability.bayes",
+        features=RecommendationFeatures(
+            weakness=0.0,
+            stable_error=0.0,
+            forgetting_risk=0.0,
+            active_plan_priority=1.0,
+            coverage_gap=0.0,
+        ),
+    )
+    coverage_only = _candidate(
+        knowledge_point_id="math1.linear_algebra.eigenvalue",
+        features=RecommendationFeatures(
+            weakness=0.0,
+            stable_error=0.0,
+            forgetting_risk=0.0,
+            active_plan_priority=0.0,
+            coverage_gap=1.0,
+        ),
+    )
+    policy = RecommendationPolicyV1()
+    scores = policy.rank(context=CONTEXT, candidates=[coverage_only, plan])
+
+    filtered = actionable_scores(scores)
+
+    assert [score.candidate.target_knowledge_point_id for score in filtered] == [
+        "math1.probability.bayes"
+    ]
+    question = Question(
+        question_id="question:plan:001",
+        stem="Apply Bayes' theorem.",
+        knowledge_point_ids=["math1.probability.bayes"],
+        difficulty=0.5,
+        reference_answer="Use Bayes' theorem.",
+        grading_rubric={"required_steps": ["apply_bayes"]},
+    )
+    assert (
+        policy.build_recommendation(filtered[0], question).action_type
+        is RecommendationAction.RECOMMEND_KNOWLEDGE_POINT
+    )
+
+
+@pytest.mark.asyncio
+async def test_llm_selector_selects_only_from_bounded_candidates() -> None:
+    calls: list[str] = []
+
+    async def completion(**kwargs):  # noqa: ANN003
+        calls.append(kwargs["prompt"])
+        return '{"target_knowledge_point_id":"math1.probability.bayes","confidence":0.9}'
+
+    score = RecommendationPolicyV1().rank(context=CONTEXT, candidates=[_candidate()])[0]
+    selected = await DeepTutorRecommendationSelector(completion).select([score])
+
+    assert selected is not None
+    assert selected.target_knowledge_point_id == "math1.probability.bayes"
+    assert '"target_knowledge_point_id":"math1.probability.bayes"' in calls[0]
+
+
+@pytest.mark.asyncio
+async def test_llm_selector_low_confidence_falls_back_to_rules() -> None:
+    async def completion(**kwargs):  # noqa: ANN003
+        return '{"target_knowledge_point_id":"math1.probability.bayes","confidence":0.2}'
+
+    score = RecommendationPolicyV1().rank(context=CONTEXT, candidates=[_candidate()])[0]
+    assert await DeepTutorRecommendationSelector(completion).select([score]) is None
+
+
+@pytest.mark.asyncio
+async def test_llm_selector_rejects_unknown_candidate_id() -> None:
+    async def completion(**kwargs):  # noqa: ANN003
+        return '{"target_knowledge_point_id":"invented.point","confidence":0.9}'
+
+    score = RecommendationPolicyV1().rank(context=CONTEXT, candidates=[_candidate()])[0]
+    assert await DeepTutorRecommendationSelector(completion).select([score]) is None

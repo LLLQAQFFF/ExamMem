@@ -38,6 +38,7 @@ from exam_mem.practice.plan_transitions import (
 from exam_mem.practice.provider import (
     PracticeRuntimeConfigurationError,
     PracticeRuntimeProvider,
+    _forgetting_risk,
     _plan_sources_by_knowledge_point,
     _recommendation_candidate,
 )
@@ -471,3 +472,40 @@ async def test_active_plan_priority_comes_from_scoped_provenance_not_goal_text()
 
     assert candidate.features.active_plan_priority == 1.0
     assert candidate.source_memories == (plan,)
+
+
+async def test_forgetting_risk_is_pinned_to_the_decision_time() -> None:
+    memory = _plan_memory()
+
+    assert _forgetting_risk([memory], as_of=NOW) == pytest.approx(2 / 30)
+    assert _forgetting_risk([memory], as_of=NOW + timedelta(days=13)) == 0.5
+
+
+async def test_improving_mastery_remains_an_actionable_review_signal() -> None:
+    memory = LearningMemory.model_validate(
+        {
+            "memory_id": "mastery:improving:v1",
+            "scope": MemoryScope(**CONTEXT.model_dump(), memory_namespace="mastery"),
+            "slot_key": "mastery:math1.probability.bayes",
+            "value": {"type": "mastery", "level": "improving", "score": 0.6},
+            "confidence": 0.8,
+            "evidence_count": 2,
+            "lifecycle_state": "active",
+            "version": 1,
+            "valid_from": NOW,
+            "valid_to": None,
+            "superseded_by": None,
+            "provenance": ["event:improving:001"],
+        }
+    )
+
+    candidate = _recommendation_candidate(
+        knowledge_point_id="math1.probability.bayes",
+        model=None,
+        memories=[memory],
+        as_of=NOW,
+    )
+
+    assert candidate.features.weakness == 0.6
+    assert candidate.features.coverage_gap == 0.0
+    assert candidate.target_difficulty == 0.45

@@ -2,17 +2,20 @@
 
 from __future__ import annotations
 
-from typing import Annotated, Literal, Sequence
+import json
+from typing import Annotated, Literal, Protocol, Sequence
 
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints, model_validator
 
-from exam_mem.contracts import LearningContext, LearningMemory, LifecycleState
+from deeptutor.plugins.host_services import complete, extract_json_object
+from exam_mem.contracts import LearningContext, LearningEvent, LearningMemory, LifecycleState
 from exam_mem.domain import KnowledgePointStatus, Taxonomy, load_taxonomy
 
-from .contracts import Question, Recommendation
+from .contracts import Question, Recommendation, RecommendationAction
 
 NonEmptyString = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
 Probability = Annotated[float, Field(ge=0.0, le=1.0)]
+MIN_ACTIONABLE_FORGETTING_RISK = 0.5
 
 
 class StrictRecommendationModel(BaseModel):
@@ -140,6 +143,11 @@ class RecommendationPolicyV1:
         if target_id not in question.knowledge_point_ids:
             raise ValueError("recommended question must cover the target knowledge point")
         return Recommendation(
+            action_type=(
+                RecommendationAction.RECOMMEND_REVIEW
+                if _review_signal(score) > 0
+                else RecommendationAction.RECOMMEND_KNOWLEDGE_POINT
+            ),
             question_id=question.question_id,
             target_knowledge_point_id=target_id,
             target_difficulty=score.candidate.target_difficulty,
@@ -147,6 +155,16 @@ class RecommendationPolicyV1:
             source_memory_ids=sorted(
                 memory.memory_id for memory in score.candidate.source_memories
             ),
+            policy_version=self._config.policy_version,
+        )
+
+    def build_no_recommendation(
+        self, *, reason_code: str = "insufficient_evidence"
+    ) -> Recommendation:
+        return Recommendation(
+            action_type=RecommendationAction.NO_RECOMMENDATION,
+            reason_codes=[reason_code],
+            source_memory_ids=[],
             policy_version=self._config.policy_version,
         )
 
@@ -161,6 +179,7 @@ class RecommendationPolicyV1:
         if target_knowledge_point_id not in self._syllabus_order:
             raise ValueError("fallback target must be an active taxonomy leaf")
         return Recommendation(
+            action_type=RecommendationAction.RECOMMEND_KNOWLEDGE_POINT,
             question_id=question.question_id,
             target_knowledge_point_id=target_knowledge_point_id,
             target_difficulty=question.difficulty,
@@ -237,10 +256,129 @@ def _reason_codes(candidate: RecommendationCandidate) -> tuple[str, ...]:
     return tuple(reasons)
 
 
+def _review_signal(score: RecommendationScore) -> float:
+    features = score.candidate.features
+    return max(
+        features.weakness,
+        features.stable_error,
+        features.forgetting_risk,
+    )
+
+
+def actionable_scores(
+    scores: Sequence[RecommendationScore],
+) -> tuple[RecommendationScore, ...]:
+    """Keep only candidates backed by a durable learner or plan signal."""
+
+    return tuple(
+        score
+        for score in scores
+        if max(
+            score.candidate.features.weakness,
+            score.candidate.features.stable_error,
+            score.candidate.features.active_plan_priority,
+        )
+        > 0
+        or score.candidate.features.forgetting_risk >= MIN_ACTIONABLE_FORGETTING_RISK
+    )
+
+
+def has_actionable_signal(scores: Sequence[RecommendationScore]) -> bool:
+    """Require durable evidence, an active plan, or a due forgetting review.
+
+    A small age signal remains ranking-only; forgetting risk opens the gate only
+    after the calibrated half-life threshold.
+    """
+
+    return bool(actionable_scores(scores))
+
+
+def has_actionable_trigger(event: LearningEvent | None) -> bool:
+    """Reject transient or low-confidence events before consulting learner state."""
+
+    if event is None:
+        return True
+    quality = event.evidence_quality
+    return not quality.is_temporary_exception and quality.confidence >= 0.5
+
+
+class RecommendationSelection(BaseModel):
+    """Untrusted LLM output selecting one already validated candidate."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    target_knowledge_point_id: NonEmptyString
+    confidence: Probability
+
+
+class RecommendationSelectionCompletion(Protocol):
+    async def __call__(
+        self,
+        *,
+        prompt: str,
+        system_prompt: str,
+        response_format: dict[str, object],
+        temperature: float,
+    ) -> str: ...
+
+
+class DeepTutorRecommendationSelector:
+    """Use Host LLM only to rank a bounded, server-owned candidate set."""
+
+    def __init__(self, completion: RecommendationSelectionCompletion | None = None) -> None:
+        self._completion = completion or complete
+
+    async def select(self, scores: Sequence[RecommendationScore]) -> RecommendationSelection | None:
+        candidates = tuple(scores[:12])
+        if not candidates:
+            return None
+        payload = {
+            "output_json_schema": RecommendationSelection.model_json_schema(),
+            "candidates": [
+                {
+                    "target_knowledge_point_id": score.candidate.target_knowledge_point_id,
+                    "target_difficulty": score.candidate.target_difficulty,
+                    "features": score.candidate.features.model_dump(mode="json"),
+                    "reason_codes": list(score.reason_codes),
+                }
+                for score in candidates
+            ],
+        }
+        raw = await self._completion(
+            prompt=json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")),
+            system_prompt=(
+                "You are a constrained study recommendation ranker. Return only the JSON object "
+                "matching the schema. Select exactly one candidate ID from the supplied list. "
+                "Never invent IDs or recommend a candidate with no evidence."
+            ),
+            response_format={
+                "type": "json_schema",
+                "json_schema": {
+                    "name": "exam_mem_recommendation_selection",
+                    "strict": True,
+                    "schema": RecommendationSelection.model_json_schema(),
+                },
+            },
+            temperature=0.0,
+        )
+        selection = RecommendationSelection.model_validate(extract_json_object(raw))
+        allowed = {score.candidate.target_knowledge_point_id for score in candidates}
+        if selection.target_knowledge_point_id not in allowed or selection.confidence < 0.55:
+            return None
+        return selection
+
+
 __all__ = [
     "RecommendationCandidate",
     "RecommendationFeatures",
     "RecommendationPolicyV1",
     "RecommendationPolicyV1Config",
     "RecommendationScore",
+    "DeepTutorRecommendationSelector",
+    "RecommendationSelection",
+    "RecommendationSelectionCompletion",
+    "MIN_ACTIONABLE_FORGETTING_RISK",
+    "actionable_scores",
+    "has_actionable_signal",
+    "has_actionable_trigger",
 ]

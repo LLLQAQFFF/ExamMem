@@ -35,6 +35,7 @@ from .contracts import (
     PracticeState,
     Question,
     Recommendation,
+    RecommendationAction,
 )
 from .memory import MemoryWriteResult, PracticeMemoryCandidateBuilder
 from .trace import PracticeSpanName, PracticeTraceRecorder
@@ -79,7 +80,8 @@ class PracticeRecommendationTool(Protocol):
         context: PracticeContext,
         *,
         exclude_question_ids: Sequence[str] = (),
-    ) -> tuple[Recommendation, Question]: ...
+        trigger_event: LearningEvent | None = None,
+    ) -> tuple[Recommendation, Question | None]: ...
 
 
 class WorkflowEventSink(Protocol):
@@ -260,6 +262,12 @@ class ExamPracticeWorkflow:
     ) -> PracticeCheckpointRecord:
         if _at_least(record.checkpoint, PracticeState.QUESTION_READY):
             return record
+        if (
+            record.checkpoint.recommendation is not None
+            and record.checkpoint.recommendation.action_type
+            is RecommendationAction.NO_RECOMMENDATION
+        ):
+            return record
         recommendation, question = await self._call_tool(
             name="recommendation",
             span_name=PracticeSpanName.QUESTION_SELECTED,
@@ -270,12 +278,22 @@ class ExamPracticeWorkflow:
             input_summary={"scope": _scope_summary(record.checkpoint.context)},
             operation=lambda: self._recommendation_tool.recommend(record.checkpoint.context),
             output_summary=lambda value: {
-                "question_id": value[1].question_id,
+                "question_id": None if value[1] is None else value[1].question_id,
                 "reason_codes": list(value[0].reason_codes),
+                "action_type": value[0].action_type.value,
             },
             versions=lambda value: {"policy_version": value[0].policy_version},
             related_ids=lambda value: tuple(value[0].source_memory_ids),
         )
+        if question is None:
+            return await self._advance(
+                record,
+                _update_checkpoint(
+                    record.checkpoint,
+                    recommendation=recommendation,
+                    recommended_question=None,
+                ),
+            )
         next_context = _update_context(
             record.checkpoint.context,
             current_question=question,
@@ -599,10 +617,12 @@ class ExamPracticeWorkflow:
                 operation=lambda: self._recommendation_tool.recommend(
                     checkpoint.context,
                     exclude_question_ids=(answered_question_ids or (question.question_id,)),
+                    trigger_event=checkpoint.learning_event,
                 ),
                 output_summary=lambda value: {
-                    "question_id": value[1].question_id,
+                    "question_id": None if value[1] is None else value[1].question_id,
                     "reason_codes": list(value[0].reason_codes),
+                    "action_type": value[0].action_type.value,
                 },
                 versions=lambda value: {"policy_version": value[0].policy_version},
                 related_ids=lambda value: tuple(value[0].source_memory_ids),
@@ -865,7 +885,10 @@ def _at_least(checkpoint: PracticeWorkflowCheckpoint, state: PracticeState) -> b
 
 
 def _response_question_id(checkpoint: PracticeWorkflowCheckpoint) -> str | None:
-    if checkpoint.context.catalog_completed:
+    if checkpoint.context.catalog_completed or (
+        checkpoint.recommendation is not None
+        and checkpoint.recommendation.action_type is RecommendationAction.NO_RECOMMENDATION
+    ):
         return None
     question = checkpoint.recommended_question or checkpoint.context.current_question
     return None if question is None else question.question_id

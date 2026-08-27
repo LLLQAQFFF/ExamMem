@@ -16,7 +16,7 @@ from deeptutor.plugins.host_services import (
 )
 from exam_mem.contracts import LearningContext, LifecycleState, MemoryNamespace
 
-from .contracts import PracticeContext, PracticeState, Question
+from .contracts import PracticeContext, PracticeState, Question, RecommendationAction
 from .corrections import recognize_correction_intent
 from .memory_workbench import LearningMemoryListRequest
 from .plan_transitions import recognize_plan_cancellation_intent
@@ -385,6 +385,10 @@ def _result_payload(result: PracticeWorkflowResult) -> dict[str, Any]:
     question = (
         None
         if checkpoint.context.catalog_completed
+        or (
+            checkpoint.recommendation is not None
+            and checkpoint.recommendation.action_type is RecommendationAction.NO_RECOMMENDATION
+        )
         else checkpoint.recommended_question or checkpoint.context.current_question
     )
     payload: dict[str, Any] = {
@@ -441,6 +445,10 @@ def _public_practice_checkpoint(checkpoint) -> dict[str, Any]:  # noqa: ANN001
     question = (
         None
         if checkpoint.context.catalog_completed
+        or (
+            checkpoint.recommendation is not None
+            and checkpoint.recommendation.action_type is RecommendationAction.NO_RECOMMENDATION
+        )
         else checkpoint.recommended_question or checkpoint.context.current_question
     )
     return {

@@ -278,7 +278,7 @@ Recall@5 不低于 95%，并显著快于 exact reference。
 → 外层 (distance, memory_id) 稳定 Top-N
 → 中性 Host Reranking Hook
 → Qwen3-Reranker-4B NF4 pairwise score
-→ dev 冻结阈值 0.003
+→ 绝对阈值 0.003 + Top-1 分差 Δ=0.03
 → 0..K ScoredLearningMemory + RetrievalDecision
 ```
 
@@ -292,13 +292,14 @@ Qwen3-Reranker-4B；缺少可选依赖时显式失败，不静默换模型。
 
 - embedding：`qwen3-embedding:0.6b`，1024 维，query instruction 生效；
 - reranker：`Qwen/Qwen3-Reranker-4B`，NF4；
-- candidate N：5；置信阈值：0.003；
-- Recall/Hit@5：0.9643；MRR：0.9208；nDCG@5：0.9320；
+- candidate N：5；绝对置信阈值：0.003；最大 Top-1 分差：0.03；
+- Recall/Hit@5：0.9298 / 0.9643；MRR：0.9208；nDCG@5：0.9057；
 - no-answer accuracy：0.9667；answerable hard-negative@1：0.0500；
+- hard-negative@K：0.2765；accepted-result hard-negative：0.2450；
 - archived/invalidated 与 cross-Scope 泄漏：均为 0。
 
-0.6B reranker 在相同开发集上降低排序质量，因此没有作为默认实现。4B 的阈值冻结后才执行
-正式 test；没有读取 test Gold 调参。
+0.6B reranker 在相同开发集上降低排序质量，因此没有作为默认实现。4B 的绝对阈值和相对
+Top-1 分差冻结后才执行正式 test；没有读取 test Gold 调参。
 
 ### 9.3 冻结 test
 
@@ -307,18 +308,28 @@ Qwen3-Reranker-4B；缺少可选依赖时显式失败，不静默换模型。
 
 | 指标 | 结果 | 门槛 |
 |---|---:|---:|
-| Recall@5 / Hit@5 | 0.992 / 0.992 | ≥ 0.90 / ≥ 0.95 |
-| MRR / nDCG@5 | 0.9713 / 0.9767 | ≥ 0.85 / ≥ 0.85 |
-| pairwise accuracy | 0.9895 | ≥ 0.90 |
+| Recall@5 / Hit@5 | 0.9547 / 0.9800 | ≥ 0.90 / ≥ 0.95 |
+| MRR / nDCG@5 | 0.9660 / 0.9505 | ≥ 0.85 / ≥ 0.85 |
+| pairwise accuracy | 0.9892 | ≥ 0.90 |
 | no-answer accuracy | 0.9833 | ≥ 0.95 |
 | answerable hard-negative@1 | 0.0280 | ≤ 0.05 |
+| hard-negative@K | 0.1290 | 诊断项，越低越好 |
+| accepted-result hard-negative | 0.1176 | 诊断项，越低越好 |
 | archived/invalidated hit | 0 | = 0 |
 | cross-Scope leakage | 0 | = 0 |
-| 端到端 p95（含 reranker） | 594.13 ms | ≤ 1000 ms |
+| 端到端 p95（含 reranker） | 594.78 ms | ≤ 1000 ms |
 
-`hard-negative@K=0.3871` 和 accepted-result hard-negative rate `0.2628` 继续作为诊断项，不是
-门禁；它们表明 Top-2..K 仍可能包含相邻概念，调用方必须消费 relevance score 和可变结果，
-不能把所有返回项视为同等可信。
+动态截断前的基线是 `hard-negative@K=0.3871`、accepted-result hard-negative `0.2628`；
+启用 Δ=0.03 后分别降至 `0.1290` 和 `0.1176`。它们仍是诊断项，不是门禁；调用方必须
+消费 relevance score 和可变结果，不能把所有返回项视为同等可信。
+
+接受规则为：
+
+```text
+threshold = max(absolute_threshold=0.003, top1_score - maximum_relevance_gap=0.03)
+```
+
+因此 `top_k` 是返回数量上限，而不是必须填满的数量；最终可以返回 0、1、2……条。
 
 ### 9.4 10k HNSW 规模画像
 
@@ -326,8 +337,8 @@ Qwen3-Reranker-4B；缺少可选依赖时显式失败，不静默换模型。
 
 - 生产 HNSW plan rate：1.000；
 - ANN Recall@5：1.000；
-- Repository 生产 p95：68.09 ms；exact reference p95：51.85 ms；
-- 强制索引控制组 p95：2.69 ms。
+- Repository 生产 p95：64.77 ms；exact reference p95：56.87 ms；
+- 强制索引控制组 p95：3.29 ms。
 
 生产路径没有关闭 seqscan；它通过 pgvector 0.8 的 strict-order iterative scan 和
 `ef_search=100` 让 planner 自主选择 HNSW。生产 p95 包括完整 Memory/provenance 回读，因此
@@ -338,7 +349,7 @@ Qwen3-Reranker-4B；缺少可选依赖时显式失败，不静默换模型。
 - conda 环境：`exammem`；本地安装 `sentence-transformers 5.7.0`、`torch 2.9.1+cu126`、
   `accelerate 1.14.0`、`bitsandbytes 0.49.2`；另安装 `mypy 1.20.2` 仅用于开发检查；
 - 模型缓存：Qwen3-Reranker-0.6B 与 4B；未新增凭据；
-- migration head 保持 `0014_textbook_grounding`，没有新增或修改 migration；
-- 正式评测库 `exammem_retrieval_v2_final_a2` 只读；开发库保留用于复现，两个测试库与 HNSW
-  调试 clone 在验收后已删除；
+- migration head 为 `0015_textbook_plan_source`，本次没有新增或修改 migration；
+- 正式评测库与开发评测库均为本轮创建的隔离库；两个测试库及 HNSW 调试 clone 在验收后已删除，
+  没有留下共享库或生产库副作用；
 - test JSON 内容未改，只有指标目录哈希因门禁定义纠正而更新。

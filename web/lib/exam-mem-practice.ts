@@ -30,9 +30,17 @@ export interface PracticeResult {
     confidence: number;
   } | null;
   recommendation: {
+    action_type: "recommend_knowledge_point" | "recommend_review" | "avoid_over_review" | "no_recommendation";
+    question_id?: string | null;
+    target_knowledge_point_id?: string | null;
+    target_difficulty?: number | null;
     reason_codes: string[];
     source_memory_ids: string[];
     policy_version: string;
+    selection_strategy?: "rule" | "llm" | "rule_fallback";
+    selection_confidence?: number | null;
+    selection_candidate_ids?: string[];
+    selector_version?: string | null;
   } | null;
   resumed_from_state: string;
   replayed: boolean;

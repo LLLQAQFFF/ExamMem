@@ -41,12 +41,15 @@ class ScoredMemoryRepository(Protocol):
 class RetrievalPolicy:
     candidate_limit: int = 5
     minimum_relevance_score: float = 0.003
+    maximum_relevance_gap: float = 0.03
 
     def __post_init__(self) -> None:
         if self.candidate_limit < 1:
             raise ValueError("candidate_limit must be greater than or equal to 1")
         if not 0.0 <= self.minimum_relevance_score <= 1.0:
             raise ValueError("minimum_relevance_score must be between 0 and 1")
+        if not 0.0 <= self.maximum_relevance_gap <= 1.0:
+            raise ValueError("maximum_relevance_gap must be between 0 and 1")
 
 
 class LearningMemoryRetrievalService:
@@ -143,10 +146,19 @@ class LearningMemoryRetrievalService:
             candidates=constrained,
             intent=intent,
         )
+        top_relevance_score = (
+            reranked[0].relevance_score
+            if reranked and reranked[0].relevance_score is not None
+            else 0.0
+        )
+        acceptance_threshold = max(
+            self._policy.minimum_relevance_score,
+            top_relevance_score - self._policy.maximum_relevance_gap,
+        )
         accepted = tuple(
             candidate
             for candidate in reranked
-            if (candidate.relevance_score or 0.0) >= self._policy.minimum_relevance_score
+            if (candidate.relevance_score or 0.0) >= acceptance_threshold
         )[:top_k]
         return MemoryRetrievalResult(
             items=accepted,

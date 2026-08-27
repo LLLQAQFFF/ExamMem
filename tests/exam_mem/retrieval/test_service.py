@@ -104,6 +104,7 @@ def _service(
     *,
     scores: dict[str, float],
     threshold: float = 0.0,
+    maximum_relevance_gap: float = 0.03,
 ) -> tuple[LearningMemoryRetrievalService, _Embedding]:
     embedding = _Embedding()
     return (
@@ -112,7 +113,11 @@ def _service(
             embedding_client=embedding,
             intent_resolver=TaxonomyRetrievalIntentResolver(load_taxonomy("math1_v1")),
             reranker=_Reranker(scores),
-            policy=RetrievalPolicy(candidate_limit=50, minimum_relevance_score=threshold),
+            policy=RetrievalPolicy(
+                candidate_limit=50,
+                minimum_relevance_score=threshold,
+                maximum_relevance_gap=maximum_relevance_gap,
+            ),
         ),
         embedding,
     )
@@ -196,3 +201,72 @@ async def test_all_candidates_below_gate_produce_auditable_rejection() -> None:
 
     assert result.decision is RetrievalDecision.BELOW_CONFIDENCE
     assert result.items == ()
+
+
+async def test_relative_gap_rejects_long_tail_above_absolute_threshold() -> None:
+    first = _memory(
+        "rank_concept",
+        error_type="concept_confusion",
+        knowledge_point_id="math1.linear_algebra.matrix_rank",
+    )
+    second = _memory(
+        "rank_formula",
+        error_type="formula_misuse",
+        knowledge_point_id="math1.linear_algebra.matrix_rank",
+    )
+    repository = _Repository(
+        [
+            ScoredLearningMemory(memory=first, distance=0.1),
+            ScoredLearningMemory(memory=second, distance=0.2),
+        ]
+    )
+    service, _ = _service(
+        repository,
+        scores={first.memory_id: 0.90, second.memory_id: 0.65},
+        threshold=0.10,
+        maximum_relevance_gap=0.20,
+    )
+
+    result = await service.retrieve(SCOPE, "查找矩阵秩的历史错误记录", 5)
+
+    assert [item.memory.memory_id for item in result.items] == [first.memory_id]
+
+
+async def test_relative_gap_keeps_every_candidate_close_to_top_one() -> None:
+    first = _memory(
+        "rank_concept",
+        error_type="concept_confusion",
+        knowledge_point_id="math1.linear_algebra.matrix_rank",
+    )
+    second = _memory(
+        "rank_formula",
+        error_type="formula_misuse",
+        knowledge_point_id="math1.linear_algebra.matrix_rank",
+    )
+    repository = _Repository(
+        [
+            ScoredLearningMemory(memory=first, distance=0.1),
+            ScoredLearningMemory(memory=second, distance=0.2),
+        ]
+    )
+    service, _ = _service(
+        repository,
+        scores={first.memory_id: 0.90, second.memory_id: 0.75},
+        threshold=0.10,
+        maximum_relevance_gap=0.20,
+    )
+
+    result = await service.retrieve(SCOPE, "查找矩阵秩的历史错误记录", 5)
+
+    assert [item.memory.memory_id for item in result.items] == [
+        first.memory_id,
+        second.memory_id,
+    ]
+
+
+@pytest.mark.parametrize("maximum_relevance_gap", [-0.01, 1.01])
+def test_retrieval_policy_rejects_invalid_relative_gap(
+    maximum_relevance_gap: float,
+) -> None:
+    with pytest.raises(ValueError, match="maximum_relevance_gap"):
+        RetrievalPolicy(maximum_relevance_gap=maximum_relevance_gap)

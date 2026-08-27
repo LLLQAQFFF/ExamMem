@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncConnection
 
 from exam_mem.contracts import LearningContext
 from exam_mem.practice.checkpoint import PracticeWorkflowCheckpoint
+from exam_mem.practice.contracts import RecommendationAction
 
 from .grade_review_repository import PostgresGradeReviewRepository
 from .models import (
@@ -304,7 +305,12 @@ def _public_checkpoint(checkpoint: PracticeWorkflowCheckpoint) -> dict[str, Any]
     question = (
         None
         if checkpoint.context.catalog_completed
-        else checkpoint.recommended_question or checkpoint.context.current_question
+        else (
+            None
+            if checkpoint.recommendation is not None
+            and checkpoint.recommendation.action_type is RecommendationAction.NO_RECOMMENDATION
+            else checkpoint.recommended_question or checkpoint.context.current_question
+        )
     )
     return {
         "checkpoint_key": checkpoint.checkpoint_key,
@@ -402,6 +408,7 @@ def _attempt_summary(checkpoints: list[PracticeWorkflowCheckpoint]) -> dict[str,
         }
         for item in answered
         if item.recommendation is not None
+        and item.recommendation.action_type is not RecommendationAction.NO_RECOMMENDATION
     ]
     score, score_invalid = _grade_summary(grades)
     return {

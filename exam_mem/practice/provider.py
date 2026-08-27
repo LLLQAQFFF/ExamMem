@@ -29,6 +29,8 @@ from exam_mem.contracts import (
     LearningEvent,
     LearningMemory,
     LifecycleState,
+    MasteryLevel,
+    MasteryValue,
     MemoryNamespace,
     MemoryScope,
 )
@@ -61,7 +63,7 @@ from exam_mem.storage import (
 )
 
 from .checkpoint import PracticeRuntimeSnapshot
-from .contracts import PracticeContext, Question, Recommendation
+from .contracts import PracticeContext, PracticeState, Question, Recommendation
 from .corrections import (
     ConfirmedCorrectionRelationClassifier,
     ExplicitCorrectionService,
@@ -75,9 +77,13 @@ from .memory_workbench import LearningMemoryQueryService
 from .plan_transitions import PlanTransitionService, ResolvedPlanTarget
 from .question_retriever import QuestionCatalog, QuestionRetriever
 from .recommendation import (
+    DeepTutorRecommendationSelector,
     RecommendationCandidate,
     RecommendationFeatures,
     RecommendationPolicyV1,
+    actionable_scores,
+    has_actionable_signal,
+    has_actionable_trigger,
 )
 from .tools import (
     AnswerGraderTool,
@@ -188,12 +194,14 @@ class RuntimeRecommendationTool:
         retriever: QuestionRetrieverTool,
         taxonomy_version: str = "math1_v1",
         taxonomy: Taxonomy | None = None,
+        llm_selector: DeepTutorRecommendationSelector | None = None,
     ) -> None:
         self._engine = engine
         self._mode = mode
         self._retriever = retriever
         resolved_taxonomy = taxonomy or load_taxonomy(taxonomy_version)
         self._policy = RecommendationPolicyV1(taxonomy=resolved_taxonomy)
+        self._llm_selector = llm_selector
         self._knowledge_point_ids = tuple(
             node.id
             for node in resolved_taxonomy.nodes
@@ -206,10 +214,43 @@ class RuntimeRecommendationTool:
         context: PracticeContext,
         *,
         exclude_question_ids: Sequence[str] = (),
-    ) -> tuple[Recommendation, Question]:
+        trigger_event: LearningEvent | None = None,
+    ) -> tuple[Recommendation, Question | None]:
+        if context.step_state is not PracticeState.IDLE and not has_actionable_trigger(
+            trigger_event
+        ):
+            return (
+                self._policy.build_no_recommendation(
+                    reason_code="temporary_or_low_confidence_evidence"
+                ),
+                None,
+            )
         candidates = await self._candidates(context)
         learning_context = _learning_context(context)
         ranked = self._policy.rank(context=learning_context, candidates=candidates)
+        actionable = has_actionable_signal(ranked)
+        if context.step_state is not PracticeState.IDLE and not actionable:
+            return self._policy.build_no_recommendation(), None
+        if actionable:
+            ranked = actionable_scores(ranked)
+        llm_selection = None
+        llm_attempted = actionable and self._llm_selector is not None
+        if actionable and self._llm_selector is not None:
+            try:
+                llm_selection = await self._llm_selector.select(ranked)
+            except Exception:
+                llm_selection = None
+        selected_id = None if llm_selection is None else llm_selection.target_knowledge_point_id
+        if selected_id is not None:
+            ranked = tuple(
+                sorted(
+                    ranked,
+                    key=lambda score: (
+                        score.candidate.target_knowledge_point_id != selected_id,
+                        -score.final_priority,
+                    ),
+                )
+            )
         for score in ranked:
             try:
                 question = await self._retriever.retrieve(
@@ -222,8 +263,29 @@ class RuntimeRecommendationTool:
                 if getattr(exc, "error_code", None) == "question_bank_no_candidate":
                     continue
                 raise
-            return self._policy.build_recommendation(score, question), question
+            recommendation = self._policy.build_recommendation(score, question)
+            if llm_attempted:
+                used_llm_selection = (
+                    llm_selection is not None
+                    and score.candidate.target_knowledge_point_id == selected_id
+                )
+                recommendation = Recommendation.model_validate(
+                    recommendation.model_dump(mode="json")
+                    | {
+                        "selection_strategy": ("llm" if used_llm_selection else "rule_fallback"),
+                        "selection_confidence": (
+                            llm_selection.confidence if used_llm_selection else None
+                        ),
+                        "selection_candidate_ids": [
+                            item.candidate.target_knowledge_point_id for item in ranked[:12]
+                        ],
+                        "selector_version": "llm_selector_v1",
+                    }
+                )
+            return recommendation, question
 
+        if context.step_state is not PracticeState.IDLE:
+            return self._policy.build_no_recommendation(reason_code="no_question_available"), None
         question = await self._retriever.retrieve_syllabus_fallback(
             scope=context.scope,
             exclude_question_ids=exclude_question_ids,
@@ -292,12 +354,18 @@ class RuntimeRecommendationTool:
                 )
 
         plan_sources = _plan_sources_by_knowledge_point(usable_plans, plan_events)
+        as_of = (
+            context.submitted_answer.submitted_at
+            if context.submitted_answer is not None
+            else datetime.now(timezone.utc)
+        )
         return tuple(
             _recommendation_candidate(
                 knowledge_point_id=knowledge_point_id,
                 model=model,
                 memories=usable_evidence,
                 plan_memories=plan_sources.get(knowledge_point_id, ()),
+                as_of=as_of,
             )
             for knowledge_point_id in self._knowledge_point_ids
         )
@@ -477,6 +545,7 @@ class PracticeRuntimeProvider:
                             )
                         ),
                         taxonomy=taxonomy,
+                        llm_selector=DeepTutorRecommendationSelector(),
                     )
                 ),
                 taxonomy_version=taxonomy.taxonomy_version,
@@ -697,6 +766,7 @@ def _recommendation_candidate(
     model,
     memories: Sequence[LearningMemory],
     plan_memories: Sequence[LearningMemory] = (),
+    as_of: datetime | None = None,
 ) -> RecommendationCandidate:
     evidence_sources = tuple(
         memory for memory in memories if _memory_targets(memory, knowledge_point_id)
@@ -705,6 +775,13 @@ def _recommendation_candidate(
     contested = any(memory.lifecycle_state is LifecycleState.CONTESTED for memory in sources)
     weak = model is not None and knowledge_point_id in model.weak_points
     mastered = model is not None and knowledge_point_id in model.mastered_points
+    improving = any(
+        memory.scope.memory_namespace is MemoryNamespace.MASTERY
+        and memory.lifecycle_state is LifecycleState.ACTIVE
+        and isinstance(memory.value, MasteryValue)
+        and memory.value.level is MasteryLevel.IMPROVING
+        for memory in evidence_sources
+    )
     stable_error = any(
         memory.scope.memory_namespace is MemoryNamespace.ERROR_PATTERN
         and memory.lifecycle_state is LifecycleState.ACTIVE
@@ -712,17 +789,17 @@ def _recommendation_candidate(
     )
     return RecommendationCandidate(
         target_knowledge_point_id=knowledge_point_id,
-        target_difficulty=0.35 if weak else 0.7 if mastered else 0.5,
+        target_difficulty=0.35 if weak else 0.45 if improving else 0.7 if mastered else 0.5,
         features=RecommendationFeatures(
-            weakness=1.0 if weak else 0.0,
+            weakness=1.0 if weak else 0.6 if improving else 0.0,
             stable_error=1.0 if stable_error else 0.0,
-            forgetting_risk=_forgetting_risk(evidence_sources),
+            forgetting_risk=_forgetting_risk(evidence_sources, as_of=as_of),
             active_plan_priority=(
                 1.0
                 if any(memory.lifecycle_state is LifecycleState.ACTIVE for memory in plan_memories)
                 else 0.0
             ),
-            coverage_gap=0.0 if weak or mastered else 1.0,
+            coverage_gap=0.0 if weak or improving or mastered else 1.0,
         ),
         source_memories=sources,
         source_evidence_weight=0.5 if contested else 1.0,
@@ -753,12 +830,13 @@ def _memory_targets(memory: LearningMemory, knowledge_point_id: str) -> bool:
     return False
 
 
-def _forgetting_risk(memories: Sequence[LearningMemory]) -> float:
+def _forgetting_risk(memories: Sequence[LearningMemory], *, as_of: datetime | None = None) -> float:
     active = [memory for memory in memories if memory.lifecycle_state is LifecycleState.ACTIVE]
     if not active:
         return 0.0
     latest = max(memory.valid_from for memory in active)
-    elapsed_days = max(0.0, (datetime.now(timezone.utc) - latest).total_seconds() / 86400)
+    reference_time = as_of or datetime.now(timezone.utc)
+    elapsed_days = max(0.0, (reference_time - latest).total_seconds() / 86400)
     return min(1.0, elapsed_days / 30.0)
 
 

@@ -17,6 +17,7 @@ from .contracts import (
     PracticeState,
     Question,
     Recommendation,
+    RecommendationAction,
 )
 from .corrections import (
     ConfirmedCorrectionRelationClassifier,
@@ -64,11 +65,17 @@ from .memory_workbench import (
 from .question_adapter import DeepTutorQuestionAdapter, DeepTutorQuizPair
 from .question_retriever import QuestionCatalog, QuestionRetrievalError, QuestionRetriever
 from .recommendation import (
+    DeepTutorRecommendationSelector,
     RecommendationCandidate,
     RecommendationFeatures,
     RecommendationPolicyV1,
     RecommendationPolicyV1Config,
     RecommendationScore,
+    RecommendationSelection,
+    RecommendationSelectionCompletion,
+    actionable_scores,
+    has_actionable_signal,
+    has_actionable_trigger,
 )
 from .review import GradeReviewAction, GradeReviewEvent
 from .trace import (
@@ -151,6 +158,7 @@ __all__ = [
     "DeepTutorErrorAnalyzerAdapter",
     "DeepTutorKnowledgeMapperAdapter",
     "DeepTutorQuestionAdapter",
+    "DeepTutorRecommendationSelector",
     "DeepTutorQuizPair",
     "DiagnosisResult",
     "ConfirmedCorrectionRelationClassifier",
@@ -219,11 +227,14 @@ __all__ = [
     "ProjectionRefreshExecutor",
     "ProjectionRequestSource",
     "Recommendation",
+    "RecommendationAction",
     "RecommendationCandidate",
     "RecommendationFeatures",
     "RecommendationPolicyV1",
     "RecommendationPolicyV1Config",
     "RecommendationScore",
+    "RecommendationSelection",
+    "RecommendationSelectionCompletion",
     "ReviewQueueItem",
     "SystemPlanExpirationRequest",
     "AnswerGraderTool",
@@ -237,6 +248,9 @@ __all__ = [
     "WorkflowEventSink",
     "checkpoint_key_for_context",
     "build_learning_profile",
+    "actionable_scores",
+    "has_actionable_signal",
+    "has_actionable_trigger",
     "recognize_correction_intent",
     "recognize_plan_cancellation_intent",
     "stage07_practice_questions",

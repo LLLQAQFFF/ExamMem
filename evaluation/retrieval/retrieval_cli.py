@@ -28,10 +28,12 @@ from evaluation.retrieval.retrieval_runner import (
     evaluate_hnsw_profile,
     evaluate_semantic_retrieval,
 )
+from exam_mem.retrieval import RetrievalPolicy
 from exam_mem.storage.models import learning_memories
 
 
 def _parser() -> argparse.ArgumentParser:
+    default_policy = RetrievalPolicy()
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "--dataset",
@@ -51,6 +53,16 @@ def _parser() -> argparse.ArgumentParser:
         action=argparse.BooleanOptionalAction,
         default=True,
     )
+    parser.add_argument(
+        "--minimum-relevance-score",
+        type=float,
+        default=default_policy.minimum_relevance_score,
+    )
+    parser.add_argument(
+        "--maximum-relevance-gap",
+        type=float,
+        default=default_policy.maximum_relevance_gap,
+    )
     return parser
 
 
@@ -66,6 +78,10 @@ async def _run(args: argparse.Namespace) -> dict[str, object]:
         args.reranker_model,
         device=args.reranker_device,
         load_in_4bit=args.reranker_4bit,
+    )
+    retrieval_policy = RetrievalPolicy(
+        minimum_relevance_score=args.minimum_relevance_score,
+        maximum_relevance_gap=args.maximum_relevance_gap,
     )
     engine = create_async_engine(database_url)
     try:
@@ -93,6 +109,7 @@ async def _run(args: argparse.Namespace) -> dict[str, object]:
                 embedding_client,
                 reranking_client,
                 embedding_batch_size=32,
+                retrieval_policy=retrieval_policy,
                 progress=semantic_progress,
             )
 
@@ -151,6 +168,7 @@ async def _run(args: argparse.Namespace) -> dict[str, object]:
         "embedding_call_count": embedding_client.call_count,
         "reranking_provider": reranking_client.version,
         "reranking_call_count": reranking_client.call_count,
+        "retrieval_policy": asdict(retrieval_policy),
         "semantic": {
             "query_count": len(dataset.queries),
             "elapsed_ms": semantic.elapsed_ms,

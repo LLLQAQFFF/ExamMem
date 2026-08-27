@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 from collections.abc import Sequence
 from dataclasses import asdict
-from datetime import timedelta
+from datetime import datetime, timedelta
 import hashlib
 import json
 import math
@@ -79,7 +79,12 @@ from exam_mem.practice.provider import (
     _plan_sources_by_knowledge_point,
     _recommendation_candidate,
 )
-from exam_mem.practice.recommendation import RecommendationPolicyV1
+from exam_mem.practice.recommendation import (
+    RecommendationPolicyV1,
+    actionable_scores,
+    has_actionable_signal,
+    has_actionable_trigger,
+)
 from exam_mem.storage import (
     PostgresBaselineFactRepository,
     PostgresLearningEventRepository,
@@ -119,7 +124,16 @@ class EvaluationRecommendationPolicy:
         memories: Sequence[LearningMemory] = (),
         plan_memories: Sequence[LearningMemory] = (),
         plan_events: Sequence[LearningEvent] = (),
+        as_of: datetime | None = None,
+        trigger_event: LearningEvent | None = None,
     ) -> RecommendationTrace:
+        if not has_actionable_trigger(trigger_event):
+            return RecommendationTrace(
+                action_type=ActionType.NO_ACTION,
+                knowledge_point_ids=[],
+                difficulty=None,
+                reason_code="temporary_or_low_confidence_evidence",
+            )
         plan_sources = _plan_sources_by_knowledge_point(plan_memories, plan_events)
         candidates = tuple(
             _recommendation_candidate(
@@ -127,10 +141,20 @@ class EvaluationRecommendationPolicy:
                 model=model,
                 memories=memories,
                 plan_memories=plan_sources.get(knowledge_point_id, ()),
+                as_of=as_of,
             )
             for knowledge_point_id in self._knowledge_point_ids
         )
-        score = self._policy.rank(context=context, candidates=candidates)[0]
+        ranked = self._policy.rank(context=context, candidates=candidates)
+        if not has_actionable_signal(ranked):
+            return RecommendationTrace(
+                action_type=ActionType.NO_ACTION,
+                knowledge_point_ids=[],
+                difficulty=None,
+                reason_code="insufficient_evidence",
+            )
+        ranked = actionable_scores(ranked)
+        score = ranked[0]
         features = score.candidate.features
         review_signal = max(
             features.weakness,
@@ -306,7 +330,11 @@ class NativeEvaluationSession:
         return await self._backend.retrieve(query.scope, query.text, query.top_k)
 
     async def recommend(self, step: MaterializedStep) -> RecommendationTrace | None:
-        return self._recommendation.recommend(context=step.event.context)
+        return self._recommendation.recommend(
+            context=step.event.context,
+            as_of=step.event.occurred_at,
+            trigger_event=step.event,
+        )
 
     def state_trace(self, snapshot: dict[str, JsonValue]) -> MemoryStateTrace:
         return MemoryStateTrace(
@@ -1042,6 +1070,8 @@ class PostgresEvaluationSession:
             memories=usable_evidence,
             plan_memories=usable_plans,
             plan_events=plan_events,
+            as_of=step.event.occurred_at,
+            trigger_event=step.event,
         )
 
     def take_llm_calls(self) -> list[LLMCallTrace]:
@@ -1073,7 +1103,11 @@ class NoMemoryEvaluationSession:
         return await self._backend.retrieve(query.scope, query.text, query.top_k)
 
     async def recommend(self, step: MaterializedStep) -> RecommendationTrace | None:
-        return self._recommendation.recommend(context=step.event.context)
+        return self._recommendation.recommend(
+            context=step.event.context,
+            as_of=step.event.occurred_at,
+            trigger_event=step.event,
+        )
 
     def state_trace(self, snapshot: dict[str, JsonValue]) -> MemoryStateTrace:
         return MemoryStateTrace(

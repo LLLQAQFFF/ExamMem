@@ -858,7 +858,8 @@ invalidated 已由 Repository 排除。当前 `top_k` 在 Service 中截断，Re
 → distance-only 内层 Top-4N，外层 (distance, memory_id) 稳定 Top-N
 → 按知识点、错误类型、掌握状态过滤 RetrievalIntent
 → HostLearningMemoryReranker 对 query-memory pair 精排
-→ relevance_score >= 0.003 的候选逐条通过
+→ acceptance_threshold=max(0.003, top1_score−0.03)
+→ 候选逐条通过动态门限
 → 返回 0..K 条结果或明确 RetrievalDecision
 ```
 
@@ -894,8 +895,10 @@ Query:<原始查询>
 知识点：条件概率。错误表现：把 P(A|B) 与 P(B|A) 混用
 ```
 
-默认阈值 `0.003` 是在 dev 上冻结的 reranker score 门限，不等于“业务置信度只有 0.3%”，
-也不是 cosine similarity；不同模型或序列化变化后必须重新校准，不能照搬。
+默认绝对阈值 `0.003` 和最大 Top-1 分差 `0.03` 都是在 dev 上冻结的 reranker score
+门限，不等于“业务置信度只有 0.3%”，也不是 cosine similarity；不同模型或序列化变化后
+必须重新校准，不能照搬。最终接受条件是：候选分数不低于
+`max(0.003, top1_score - 0.03)`。
 
 ### 12.2 评测数据集到底测什么
 
@@ -1023,15 +1026,16 @@ language/safety。
 Runner 不从 exact 结果回填 production，也不按 Gold 重排。模型、instruction、candidate N 和
 阈值只在 dev 上选择；冻结后才运行一次 test。需要特别说明：报告中的最终语义检索 P95
 包含 Repository、意图过滤和本地 reranker，但 query embedding 已预先批量生成，不包含在该
-594.13 ms 中；它也不是浏览器到服务端的完整用户请求延迟。
+594.78 ms 中；它也不是浏览器到服务端的完整用户请求延迟。
 
 HNSW 另有独立规模画像：在同一个完整四维 Scope 中放 10,000 条 active Memory，对 100 条
 query 同时跑 production、强制 exact 和强制 HNSW 控制组。只有生产 `EXPLAIN` 命中索引时，
 才报告 production ANN Recall。
 
-### 12.5 修复前后效果
+### 12.5 v2 基线修复前后效果
 
-冻结 test 内容没有改变。基线和最终实现都在 250 条 answerable + 60 条 no-answer 上评分：
+冻结 test 内容没有改变。基线和未启用相对截断的 v2 实现都在 250 条 answerable + 60 条
+no-answer 上评分：
 
 | 指标 | 修复前 | 最终实现 | 解读 |
 | --- | ---: | ---: | --- |
@@ -1046,7 +1050,7 @@ query 同时跑 production、强制 exact 和强制 HNSW 控制组。只有生�
 | accepted-result hard-negative | 未记录 | 0.2628 | 约四分之一最终返回项仍是显式难负例 |
 | archived/invalidated hit | 0 | 0 | 生命周期过滤保持安全 |
 | cross-Scope leakage | 0 | 0 | 四维隔离保持安全 |
-| 检索决策 P95 | 约 7.83 ms | 594.13 ms | 最终值含 4B reranker；两者工作量不同，不能当纯 SQL 回归比较 |
+| 检索决策 P95 | 约 7.83 ms | 594.13 ms | v2 基线含 4B reranker；两者工作量不同，不能当纯 SQL 回归比较 |
 
 最终 test 通过了预注册的主门禁：Recall ≥ 0.90、Hit ≥ 0.95、MRR/nDCG ≥ 0.85、拒答
 ≥ 0.95、hard-negative@1 ≤ 0.05、安全泄漏为 0、检索决策 P95 ≤ 1000 ms。
@@ -1058,11 +1062,17 @@ Embedding       qwen3-embedding:0.6b / 1024 维 / query instruction
 Reranker        Qwen3-Reranker-4B / NF4
 candidate N     5（Repository 内层扫描 4N）
 score threshold 0.003
+maximum score gap 0.03
 ```
 
-dev 结果为 Recall/Hit 0.9643、MRR 0.9208、nDCG 0.9320、no-answer 0.9667、
-hard-negative@1 0.0500。0.6B reranker 在相同 dev 上降低排序质量，因此没有选为默认模型；这是
+dev 结果为 Recall/Hit 0.9298 / 0.9643、MRR 0.9208、nDCG 0.9057、no-answer 0.9667、
+hard-negative@1 0.0500、hard-negative@K 0.2765。0.6B reranker 在相同 dev 上降低排序质量，因此没有选为默认模型；这是
 用 dev 做模型选择，而不是在冻结 test 上挑最好看的结果。
+
+随后在同一 frozen test 上启用 `maximum score gap=0.03` 的动态截断，结果为 Recall/Hit
+0.9547 / 0.9800、MRR 0.9660、nDCG 0.9505、no-answer 0.9833、hard-negative@K
+0.1290、accepted-result hard-negative 0.1176。相对于不做相对截断的 v2 基线，召回略降，
+但返回列表的难负例污染明显减少；`top_k` 现在只是上限，不再要求填满。
 
 ### 12.6 HNSW 实验怎样解释
 
@@ -1081,16 +1091,16 @@ planner 的诊断控制组能达到 ANN Recall@5 0.972、P95 约 2.98 ms，证�
 | --- | ---: |
 | production HNSW plan rate | 1.000 |
 | production ANN Recall@5 | 1.000 |
-| Repository production P95 | 68.09 ms |
-| exact reference P95 | 51.85 ms |
-| 强制索引、只取 ID 的控制组 P95 | 2.69 ms |
+| Repository production P95 | 64.77 ms |
+| exact reference P95 | 56.87 ms |
+| 强制索引、只取 ID 的控制组 P95 | 3.29 ms |
 
 这组结果应该拆成两句话讲：
 
 1. **正确性和查询形状已经修好**：生产 planner 确实选择 HNSW，Top-5 在这 100 条 query 上
    与 exact 完全一致。
 2. **端到端性能还没有证明更好**：生产路径要做 Scope 后置过滤、稳定排序、完整 Memory 与
-   provenance 回读，因此 10k 下反而比 exact reference 慢。2.69 ms 控制组只取 ID，不能冒充
+   provenance 回读，因此 10k 下反而比 exact reference 慢。3.29 ms 控制组只取 ID，不能冒充
    完整 Repository 延迟。
 
 因此“HNSW 已上线”和“HNSW 已让产品更快”不是同一句话。1k、50k、100k 梯度、冷缓存、并发

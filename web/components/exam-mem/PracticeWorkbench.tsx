@@ -562,7 +562,11 @@ export default function PracticeWorkbench() {
             ) : null}
             {recommendation ? (
               <section className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-4">
-                <h2 className="text-sm font-semibold">{t("Why this question")}</h2>
+                <h2 className="text-sm font-semibold">
+                  {recommendation.action_type === "no_recommendation"
+                    ? tr("当前无需推荐", "No recommendation needed")
+                    : t("Why this question")}
+                </h2>
                 <p className="mt-2 text-xs text-[var(--muted-foreground)]">{recommendation.reason_codes.map((reason) => recommendationReasonLabel(reason, zh)).join(tr("、", ", "))}</p>
                 {recommendation.source_memory_ids.length ? (
                   <Link href="/exam-mem/memories" className="mt-3 inline-block text-xs text-[var(--primary)] hover:underline">{t("Inspect recommendation evidence")}</Link>

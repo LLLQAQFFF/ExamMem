@@ -24,6 +24,7 @@ from .contracts import (
     PracticeState,
     Question,
     Recommendation,
+    RecommendationAction,
 )
 
 NonEmptyString = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
@@ -105,8 +106,13 @@ class PracticeWorkflowCheckpoint(BaseModel):
                 raise ValueError(f"{state.value} checkpoint requires completed Memory write")
 
         if state is PracticeState.RECOMMENDED:
-            if self.recommendation is None or self.recommended_question is None:
-                raise ValueError("RECOMMENDED checkpoint requires recommendation and question")
+            if self.recommendation is None:
+                raise ValueError("RECOMMENDED checkpoint requires recommendation")
+            if self.recommendation.action_type is not RecommendationAction.NO_RECOMMENDATION:
+                if self.recommended_question is None:
+                    raise ValueError("actionable RECOMMENDED checkpoint requires a question")
+            elif self.recommended_question is not None:
+                raise ValueError("NO_RECOMMENDATION checkpoint must not contain a question")
 
         if self.projection_refreshed and self.projection_requests:
             raise ValueError("refreshed checkpoint must not retain projection requests")

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import datetime, timezone
 
 import pytest
 
@@ -9,7 +10,16 @@ from exam_mem.backends import BackendMode
 from exam_mem.config import ExamMemSettings
 from exam_mem.contracts import MemoryScope
 from exam_mem.domain import Taxonomy
-from exam_mem.practice import PracticeContext, Question
+from exam_mem.practice import (
+    AnswerSubmission,
+    PracticeContext,
+    PracticeState,
+    Question,
+    RecommendationAction,
+    RecommendationCandidate,
+    RecommendationFeatures,
+    RecommendationSelection,
+)
 import exam_mem.practice.provider as provider_module
 from exam_mem.practice.provider import (
     PRACTICE_QUESTIONS_METADATA_KEY,
@@ -99,7 +109,7 @@ async def test_none_writer_has_no_database_or_memory_side_effects() -> None:
     assert result.projection_requests == ()
 
 
-async def test_non_lifecycle_recommendation_uses_neutral_policy_without_database() -> None:
+async def test_non_lifecycle_initial_question_uses_catalog_without_database() -> None:
     retriever = QuestionRetrieverTool(QuestionRetriever(BoundQuestionCatalog(SCOPE, [_question()])))
     tool = RuntimeRecommendationTool(
         NoConnectionEngine(),  # type: ignore[arg-type]
@@ -141,6 +151,121 @@ async def test_non_lifecycle_recommendation_uses_resolved_dynamic_taxonomy() -> 
 
     assert selected == question
     assert recommendation.target_knowledge_point_id == "ptest.module.point"
+
+
+async def test_post_answer_without_review_evidence_returns_no_recommendation() -> None:
+    question = _question()
+    context = _practice_context().model_copy(
+        update={
+            "current_question": question,
+            "submitted_answer": AnswerSubmission(
+                practice_session_id="practice:provider:001",
+                question_id=question.question_id,
+                answer="A correct answer.",
+                submitted_at=datetime(2026, 8, 27, tzinfo=timezone.utc),
+                idempotency_key="answer:provider:001",
+            ),
+            "step_state": PracticeState.MEMORY_UPDATED,
+        }
+    )
+    retriever = QuestionRetrieverTool(QuestionRetriever(BoundQuestionCatalog(SCOPE, [question])))
+    tool = RuntimeRecommendationTool(
+        NoConnectionEngine(),  # type: ignore[arg-type]
+        mode=BackendMode.NONE,
+        retriever=retriever,
+    )
+
+    recommendation, selected = await tool.recommend(context)
+
+    assert selected is None
+    assert recommendation.action_type is RecommendationAction.NO_RECOMMENDATION
+    assert recommendation.reason_codes == ["insufficient_evidence"]
+
+
+async def test_llm_selection_is_audited_after_rule_candidate_validation(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class FakeSelector:
+        async def select(self, scores):  # noqa: ANN001, ANN201
+            assert len(scores) == 1
+            return RecommendationSelection(
+                target_knowledge_point_id="math1.probability.bayes",
+                confidence=0.91,
+            )
+
+    retriever = QuestionRetrieverTool(QuestionRetriever(BoundQuestionCatalog(SCOPE, [_question()])))
+    tool = RuntimeRecommendationTool(
+        NoConnectionEngine(),  # type: ignore[arg-type]
+        mode=BackendMode.NONE,
+        retriever=retriever,
+        llm_selector=FakeSelector(),  # type: ignore[arg-type]
+    )
+
+    async def candidates(_context):  # noqa: ANN001
+        return (
+            RecommendationCandidate(
+                target_knowledge_point_id="math1.probability.bayes",
+                target_difficulty=0.5,
+                features=RecommendationFeatures(
+                    weakness=1.0,
+                    stable_error=0.0,
+                    forgetting_risk=0.0,
+                    active_plan_priority=0.0,
+                    coverage_gap=0.0,
+                ),
+            ),
+        )
+
+    monkeypatch.setattr(tool, "_candidates", candidates)
+
+    recommendation, selected = await tool.recommend(_practice_context())
+
+    assert selected == _question()
+    assert recommendation.selection_strategy == "llm"
+    assert recommendation.selection_confidence == 0.91
+    assert recommendation.selection_candidate_ids == ["math1.probability.bayes"]
+    assert recommendation.selector_version == "llm_selector_v1"
+
+
+async def test_invalid_llm_selection_uses_audited_rule_fallback(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class RejectingSelector:
+        async def select(self, scores):  # noqa: ANN001, ANN201
+            assert len(scores) == 1
+            return None
+
+    retriever = QuestionRetrieverTool(QuestionRetriever(BoundQuestionCatalog(SCOPE, [_question()])))
+    tool = RuntimeRecommendationTool(
+        NoConnectionEngine(),  # type: ignore[arg-type]
+        mode=BackendMode.NONE,
+        retriever=retriever,
+        llm_selector=RejectingSelector(),  # type: ignore[arg-type]
+    )
+
+    async def candidates(_context):  # noqa: ANN001
+        return (
+            RecommendationCandidate(
+                target_knowledge_point_id="math1.probability.bayes",
+                target_difficulty=0.5,
+                features=RecommendationFeatures(
+                    weakness=1.0,
+                    stable_error=0.0,
+                    forgetting_risk=0.0,
+                    active_plan_priority=0.0,
+                    coverage_gap=0.0,
+                ),
+            ),
+        )
+
+    monkeypatch.setattr(tool, "_candidates", candidates)
+
+    recommendation, selected = await tool.recommend(_practice_context())
+
+    assert selected == _question()
+    assert recommendation.selection_strategy == "rule_fallback"
+    assert recommendation.selection_confidence is None
+    assert recommendation.selection_candidate_ids == ["math1.probability.bayes"]
 
 
 async def test_runtime_provider_requires_structured_question_catalog_before_database_use() -> None:

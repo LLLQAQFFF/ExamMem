@@ -60,6 +60,7 @@ from exam_mem.practice import (
     PracticeRuntimeConfigurationError,
     PracticeState,
     Question,
+    RecommendationAction,
     SystemPlanExpirationRequest,
     UserPlanCancellationRequest,
     stage07_practice_questions,
@@ -1831,7 +1832,12 @@ def build_router(
             context = replay.checkpoint.context.model_dump(mode="json")
         else:
             checkpoint = latest.checkpoint
-            question = checkpoint.recommended_question or checkpoint.context.current_question
+            question = (
+                None
+                if checkpoint.recommendation is not None
+                and checkpoint.recommendation.action_type is RecommendationAction.NO_RECOMMENDATION
+                else checkpoint.recommended_question or checkpoint.context.current_question
+            )
             if question is None or question.question_id != body.question_id:
                 raise HTTPException(
                     status_code=status.HTTP_409_CONFLICT,

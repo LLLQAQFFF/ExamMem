@@ -286,8 +286,15 @@ class FakeMemoryWriter:
 class FakeRecommendationTool:
     calls: int = 0
 
-    async def recommend(self, context, *, exclude_question_ids=()):  # noqa: ANN001, ANN201
+    async def recommend(  # noqa: ANN201
+        self,
+        context,
+        *,
+        exclude_question_ids=(),
+        trigger_event=None,  # noqa: ANN001
+    ):
         del context
+        del trigger_event
         self.calls += 1
         question = _question(
             "question:bayes:002" if exclude_question_ids else "question:bayes:001",

@@ -41,6 +41,15 @@ class PracticeState(str, Enum):
     RECOMMENDED = "RECOMMENDED"
 
 
+class RecommendationAction(str, Enum):
+    """The learner-facing outcome of one recommendation decision."""
+
+    RECOMMEND_KNOWLEDGE_POINT = "recommend_knowledge_point"
+    RECOMMEND_REVIEW = "recommend_review"
+    AVOID_OVER_REVIEW = "avoid_over_review"
+    NO_RECOMMENDATION = "no_recommendation"
+
+
 class Question(StrictPracticeModel):
     """A question selected by Question Retriever without Memory side effects."""
 
@@ -109,14 +118,55 @@ class DiagnosisResult(StrictPracticeModel):
 
 
 class Recommendation(StrictPracticeModel):
-    """A deterministic next-question recommendation with explicit provenance."""
+    """A recommendation or an explicit decision not to issue one."""
 
-    question_id: NonEmptyString
-    target_knowledge_point_id: NonEmptyString
-    target_difficulty: Probability
+    action_type: RecommendationAction = RecommendationAction.RECOMMEND_KNOWLEDGE_POINT
+    question_id: NonEmptyString | None = None
+    target_knowledge_point_id: NonEmptyString | None = None
+    target_difficulty: Probability | None = None
     reason_codes: ReasonCodes
     source_memory_ids: list[NonEmptyString]
     policy_version: NonEmptyString
+    selection_strategy: Literal["rule", "llm", "rule_fallback"] = "rule"
+    selection_confidence: Probability | None = None
+    selection_candidate_ids: list[NonEmptyString] = Field(default_factory=list)
+    selector_version: NonEmptyString | None = None
+
+    @model_validator(mode="after")
+    def validate_action_material(self) -> Recommendation:
+        if self.action_type is RecommendationAction.NO_RECOMMENDATION:
+            if self.question_id is not None or self.target_knowledge_point_id is not None:
+                raise ValueError("NO_RECOMMENDATION must not contain a question or target")
+            if self.target_difficulty is not None:
+                raise ValueError("NO_RECOMMENDATION must not contain target difficulty")
+            if self.source_memory_ids:
+                raise ValueError("NO_RECOMMENDATION must not claim source memories")
+            if (
+                self.selection_strategy != "rule"
+                or self.selection_confidence is not None
+                or self.selection_candidate_ids
+                or self.selector_version is not None
+            ):
+                raise ValueError("NO_RECOMMENDATION must be a deterministic gate decision")
+            return self
+        if (
+            self.question_id is None
+            or self.target_knowledge_point_id is None
+            or self.target_difficulty is None
+        ):
+            raise ValueError("actionable recommendation requires question, target and difficulty")
+        if self.selection_strategy == "llm" and self.selection_confidence is None:
+            raise ValueError("LLM selection requires confidence")
+        if self.selection_strategy != "llm" and self.selection_confidence is not None:
+            raise ValueError("rule selection must not contain LLM confidence")
+        if self.selection_strategy in {"llm", "rule_fallback"}:
+            if not self.selection_candidate_ids or self.selector_version is None:
+                raise ValueError("LLM selection attempt requires candidates and selector version")
+            if self.target_knowledge_point_id not in self.selection_candidate_ids:
+                raise ValueError("selected target must come from the audited candidate set")
+        elif self.selection_candidate_ids or self.selector_version is not None:
+            raise ValueError("rule selection must not contain LLM audit fields")
+        return self
 
 
 class PracticeContext(StrictPracticeModel):

@@ -96,7 +96,8 @@ class _RecommendationPort(Protocol):
         context: PracticeContext,
         *,
         exclude_question_ids: Sequence[str] = (),
-    ) -> tuple[Recommendation, Question]: ...
+        trigger_event: LearningEvent | None = None,
+    ) -> tuple[Recommendation, Question | None]: ...
 
 
 class QuestionRetrieverTool(BaseTool):
@@ -325,12 +326,14 @@ class RecommendationTool(BaseTool):
         context: PracticeContext,
         *,
         exclude_question_ids: Sequence[str] = (),
-    ) -> tuple[Recommendation, Question]:
+        trigger_event: LearningEvent | None = None,
+    ) -> tuple[Recommendation, Question | None]:
         if self._recommender is None:
             raise PracticeToolNotBoundError("recommendation requires a turn-bound Backend")
         return await self._recommender.recommend(
             context,
             exclude_question_ids=exclude_question_ids,
+            trigger_event=trigger_event,
         )
 
     async def execute(self, **kwargs: Any) -> ToolResult:
