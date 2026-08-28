@@ -14,9 +14,15 @@ from typing import Any
 from evaluation.contracts.case import PROTOCOL_SEED, PROTOCOL_VERSION, DatasetSplit
 from evaluation.data_builder import DATASET_VERSION, build_formal_dataset
 from evaluation.data_builder_v2 import (
-    DATASET_VERSION as CROSS_SUBJECT_DATASET_VERSION,
+    DATASET_VERSION as INVALID_CROSS_SUBJECT_DATASET_VERSION,
 )
 from evaluation.data_builder_v2 import (
+    build_cross_subject_dataset as build_invalid_cross_subject_dataset,
+)
+from evaluation.data_builder_v3 import (
+    DATASET_VERSION as CROSS_SUBJECT_DATASET_VERSION,
+)
+from evaluation.data_builder_v3 import (
     build_cross_subject_dataset,
 )
 from evaluation.evaluators.slot import evaluate_slot
@@ -54,6 +60,7 @@ def _dataset_build(args: argparse.Namespace) -> dict[str, Any]:
         raise ValueError(f"formal dataset seed is frozen at {PROTOCOL_SEED}")
     builders = {
         DATASET_VERSION: build_formal_dataset,
+        INVALID_CROSS_SUBJECT_DATASET_VERSION: build_invalid_cross_subject_dataset,
         CROSS_SUBJECT_DATASET_VERSION: build_cross_subject_dataset,
     }
     try:

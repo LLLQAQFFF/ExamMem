@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from copy import deepcopy
 from datetime import datetime, timedelta, timezone
 import hashlib
@@ -403,6 +403,8 @@ def _formal_case(
     dataset_version: str = DATASET_VERSION,
     taxonomy_version: str = "math1_v1",
     target_subject: str | None = None,
+    subject_transform: Callable[[dict[str, Any], str, ControlledQuestion], dict[str, Any]]
+    | None = None,
 ) -> EvaluationCase:
     payload = _qualify_identifiers(
         template.model_dump(mode="json"),
@@ -411,13 +413,15 @@ def _formal_case(
     payload["case_id"] = case_id
     payload["metadata"]["split"] = split.value
     payload["metadata"]["gold_revision"] = 3
-    payload["metadata"]["policy_parameters"] = {
+    policy_parameters = {
         "formal_dataset_version": dataset_version,
-        "taxonomy_version": taxonomy_version,
         "template_case_id": template.case_id,
         "padding_policy": "temporary_low_confidence_no_op",
         "target_knowledge_point_id": target_knowledge_point_id,
     }
+    if dataset_version != DATASET_VERSION:
+        policy_parameters["taxonomy_version"] = taxonomy_version
+    payload["metadata"]["policy_parameters"] = policy_parameters
     taxonomy = load_taxonomy(taxonomy_version)
     target_node = taxonomy.get(target_knowledge_point_id)
     if target_node is None:
@@ -428,6 +432,12 @@ def _formal_case(
         topic_name=target_node.name_zh,
         target_subject=target_subject,
     )
+    if subject_transform is not None:
+        payload = subject_transform(
+            payload,
+            target_node.name_zh,
+            question_by_kp[target_knowledge_point_id],
+        )
 
     for event_index, event in enumerate(payload["events"], start=1):
         event["session_id"] = f"{case_id}:session:{event_index}"
@@ -513,6 +523,8 @@ def _build_dataset(
     generated_at: datetime,
     learner_background_zh: str,
     construction_notes: list[str],
+    subject_transform: Callable[[dict[str, Any], str, ControlledQuestion], dict[str, Any]]
+    | None = None,
 ) -> DatasetManifest:
     question_by_kp = {question.knowledge_point_id: question for question in questions}
     template_dir = DATASET_ROOT / DatasetSplit.PROTOCOL_CHECK.value
@@ -553,6 +565,7 @@ def _build_dataset(
                 dataset_version=dataset_version,
                 taxonomy_version=taxonomy_version,
                 target_subject=question_by_kp[target_knowledge_point_id].subject_area,
+                subject_transform=subject_transform,
             )
             cases.append(case)
 
@@ -620,7 +633,7 @@ def _build_dataset(
     ]
     manifest = DatasetManifest(
         dataset_version=dataset_version,
-        taxonomy_version=taxonomy_version,
+        taxonomy_version=(None if dataset_version == DATASET_VERSION else taxonomy_version),
         protocol_version=PROTOCOL_VERSION,
         seed=PROTOCOL_SEED,
         generated_at=generated_at,

@@ -7,7 +7,7 @@ from types import SimpleNamespace
 import pytest
 
 from evaluation.contracts.case import DatasetSplit
-from evaluation.data_builder_v2 import DATASET_VERSION as CROSS_SUBJECT_DATASET_VERSION
+from evaluation.data_builder_v3 import DATASET_VERSION as CROSS_SUBJECT_DATASET_VERSION
 from evaluation.execution import _claim_frozen_test_release, execute_evaluation
 from evaluation.protocols.validation import load_cases
 from exam_mem.backends import BackendMode

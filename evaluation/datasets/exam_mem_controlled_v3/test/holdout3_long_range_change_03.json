@@ -1,0 +1,367 @@
+{
+  "case_id": "holdout3:long_range_change:03",
+  "events": [
+    {
+      "answer_correct": true,
+      "context": {
+        "exam_id": "computer_science_exam_01",
+        "subject_id": "algorithms",
+        "user_id": "holdout3:long_range_change:03:user_001"
+      },
+      "correction": null,
+      "difficulty": 0.3,
+      "error_detail": null,
+      "error_type": null,
+      "event_id": "holdout3:long_range_change:03:event_quadratic_form_101",
+      "event_type": "answer_attempt",
+      "evidence_quality": {
+        "confidence": 1.0,
+        "is_temporary_exception": false,
+        "reasons": []
+      },
+      "idempotency_key": "holdout3:long_range_change:03:quadratic-form-correct-101",
+      "knowledge_point_ids": [
+        "cs.algorithms.binary_search"
+      ],
+      "occurred_at": "2026-08-08T09:00:00Z",
+      "plan_transition": null,
+      "question_id": "controlled3:binary_search:v1",
+      "session_id": "holdout3:long_range_change:03:session:1"
+    },
+    {
+      "answer_correct": true,
+      "context": {
+        "exam_id": "computer_science_exam_01",
+        "subject_id": "algorithms",
+        "user_id": "holdout3:long_range_change:03:user_001"
+      },
+      "correction": null,
+      "difficulty": 0.3,
+      "error_detail": null,
+      "error_type": null,
+      "event_id": "holdout3:long_range_change:03:event_quadratic_form_102",
+      "event_type": "answer_attempt",
+      "evidence_quality": {
+        "confidence": 1.0,
+        "is_temporary_exception": false,
+        "reasons": []
+      },
+      "idempotency_key": "holdout3:long_range_change:03:quadratic-form-correct-102",
+      "knowledge_point_ids": [
+        "cs.algorithms.binary_search"
+      ],
+      "occurred_at": "2026-08-09T09:00:00Z",
+      "plan_transition": null,
+      "question_id": "controlled3:binary_search:v1",
+      "session_id": "holdout3:long_range_change:03:session:2"
+    },
+    {
+      "answer_correct": true,
+      "context": {
+        "exam_id": "computer_science_exam_01",
+        "subject_id": "algorithms",
+        "user_id": "holdout3:long_range_change:03:user_001"
+      },
+      "correction": null,
+      "difficulty": 0.3,
+      "error_detail": null,
+      "error_type": null,
+      "event_id": "holdout3:long_range_change:03:event_quadratic_form_103",
+      "event_type": "answer_attempt",
+      "evidence_quality": {
+        "confidence": 1.0,
+        "is_temporary_exception": false,
+        "reasons": []
+      },
+      "idempotency_key": "holdout3:long_range_change:03:quadratic-form-correct-103",
+      "knowledge_point_ids": [
+        "cs.algorithms.binary_search"
+      ],
+      "occurred_at": "2026-08-09T09:30:00Z",
+      "plan_transition": null,
+      "question_id": "controlled3:binary_search:v1",
+      "session_id": "holdout3:long_range_change:03:session:3"
+    }
+  ],
+  "gold_actions": [
+    {
+      "action_type": "recommend_review",
+      "knowledge_point_ids": [
+        "cs.algorithms.binary_search"
+      ],
+      "reason_code": "long_range_change_recommend_review_controlled_gold",
+      "step_id": "holdout3:long_range_change:03:step_001"
+    },
+    {
+      "action_type": "recommend_review",
+      "knowledge_point_ids": [
+        "cs.algorithms.binary_search"
+      ],
+      "reason_code": "long_range_change_recommend_review_controlled_gold",
+      "step_id": "holdout3:long_range_change:03:step_002"
+    },
+    {
+      "action_type": "avoid_over_review",
+      "knowledge_point_ids": [
+        "cs.algorithms.binary_search"
+      ],
+      "reason_code": "long_range_change_avoid_over_review_controlled_gold",
+      "step_id": "holdout3:long_range_change:03:step_003"
+    }
+  ],
+  "gold_operations": [
+    {
+      "candidate_memory_ids": [
+        "holdout3:long_range_change:03:mastery_quadratic_form_low_v1"
+      ],
+      "canonical_knowledge_point_ids": [
+        "cs.algorithms.binary_search"
+      ],
+      "event_id": "holdout3:long_range_change:03:event_quadratic_form_101",
+      "evidence_event_ids": [
+        "holdout3:long_range_change:03:event_quadratic_form_101"
+      ],
+      "expected_result_value": null,
+      "extracted_fields": {
+        "answer_correct": true,
+        "correction": null,
+        "error_detail": null,
+        "error_type": null,
+        "event_type": "answer_attempt",
+        "evidence_quality": {
+          "confidence": 1.0,
+          "is_temporary_exception": false,
+          "reasons": []
+        },
+        "knowledge_point_ids": [
+          "cs.algorithms.binary_search"
+        ],
+        "plan_transition": null
+      },
+      "operation": "MERGE",
+      "operation_id": "holdout3:long_range_change:03:step_001:mastery",
+      "reason_code": "long_range_change_merge_controlled_gold",
+      "result_memory_id": "holdout3:long_range_change:03:mastery_quadratic_form_low_v2",
+      "slot_key": "mastery:cs.algorithms.binary_search",
+      "step_id": "holdout3:long_range_change:03:step_001",
+      "target_memory_ids": [
+        "holdout3:long_range_change:03:mastery_quadratic_form_low_v1"
+      ]
+    },
+    {
+      "candidate_memory_ids": [
+        "holdout3:long_range_change:03:mastery_quadratic_form_low_v2"
+      ],
+      "canonical_knowledge_point_ids": [
+        "cs.algorithms.binary_search"
+      ],
+      "event_id": "holdout3:long_range_change:03:event_quadratic_form_102",
+      "evidence_event_ids": [
+        "holdout3:long_range_change:03:event_quadratic_form_102"
+      ],
+      "expected_result_value": null,
+      "extracted_fields": {
+        "answer_correct": true,
+        "correction": null,
+        "error_detail": null,
+        "error_type": null,
+        "event_type": "answer_attempt",
+        "evidence_quality": {
+          "confidence": 1.0,
+          "is_temporary_exception": false,
+          "reasons": []
+        },
+        "knowledge_point_ids": [
+          "cs.algorithms.binary_search"
+        ],
+        "plan_transition": null
+      },
+      "operation": "MERGE",
+      "operation_id": "holdout3:long_range_change:03:step_002:mastery",
+      "reason_code": "long_range_change_merge_controlled_gold",
+      "result_memory_id": "holdout3:long_range_change:03:mastery_quadratic_form_low_v3",
+      "slot_key": "mastery:cs.algorithms.binary_search",
+      "step_id": "holdout3:long_range_change:03:step_002",
+      "target_memory_ids": [
+        "holdout3:long_range_change:03:mastery_quadratic_form_low_v2"
+      ]
+    },
+    {
+      "candidate_memory_ids": [
+        "holdout3:long_range_change:03:mastery_quadratic_form_low_v3"
+      ],
+      "canonical_knowledge_point_ids": [
+        "cs.algorithms.binary_search"
+      ],
+      "event_id": "holdout3:long_range_change:03:event_quadratic_form_103",
+      "evidence_event_ids": [
+        "holdout3:long_range_change:03:event_quadratic_form_101",
+        "holdout3:long_range_change:03:event_quadratic_form_102",
+        "holdout3:long_range_change:03:event_quadratic_form_103"
+      ],
+      "expected_result_value": {
+        "level": "high",
+        "score": 0.82,
+        "type": "mastery"
+      },
+      "extracted_fields": {
+        "answer_correct": true,
+        "correction": null,
+        "error_detail": null,
+        "error_type": null,
+        "event_type": "answer_attempt",
+        "evidence_quality": {
+          "confidence": 1.0,
+          "is_temporary_exception": false,
+          "reasons": []
+        },
+        "knowledge_point_ids": [
+          "cs.algorithms.binary_search"
+        ],
+        "plan_transition": null
+      },
+      "operation": "SUPERSEDE",
+      "operation_id": "holdout3:long_range_change:03:step_003:mastery",
+      "reason_code": "long_range_change_supersede_controlled_gold",
+      "result_memory_id": "holdout3:long_range_change:03:mastery_quadratic_form_high_v4",
+      "slot_key": "mastery:cs.algorithms.binary_search",
+      "step_id": "holdout3:long_range_change:03:step_003",
+      "target_memory_ids": [
+        "holdout3:long_range_change:03:mastery_quadratic_form_low_v3"
+      ]
+    }
+  ],
+  "gold_states": [
+    {
+      "active_memory_ids": [
+        "holdout3:long_range_change:03:mastery_quadratic_form_low_v2"
+      ],
+      "archived_memory_ids": [
+        "holdout3:long_range_change:03:mastery_quadratic_form_low_v1"
+      ],
+      "contested_memory_ids": [],
+      "invalidated_memory_ids": [],
+      "step_id": "holdout3:long_range_change:03:step_001",
+      "version_relations": [
+        {
+          "predecessor_memory_id": "holdout3:long_range_change:03:mastery_quadratic_form_low_v1",
+          "relation": "superseded_by",
+          "successor_memory_id": "holdout3:long_range_change:03:mastery_quadratic_form_low_v2"
+        }
+      ]
+    },
+    {
+      "active_memory_ids": [
+        "holdout3:long_range_change:03:mastery_quadratic_form_low_v3"
+      ],
+      "archived_memory_ids": [
+        "holdout3:long_range_change:03:mastery_quadratic_form_low_v1",
+        "holdout3:long_range_change:03:mastery_quadratic_form_low_v2"
+      ],
+      "contested_memory_ids": [],
+      "invalidated_memory_ids": [],
+      "step_id": "holdout3:long_range_change:03:step_002",
+      "version_relations": [
+        {
+          "predecessor_memory_id": "holdout3:long_range_change:03:mastery_quadratic_form_low_v1",
+          "relation": "superseded_by",
+          "successor_memory_id": "holdout3:long_range_change:03:mastery_quadratic_form_low_v2"
+        },
+        {
+          "predecessor_memory_id": "holdout3:long_range_change:03:mastery_quadratic_form_low_v2",
+          "relation": "superseded_by",
+          "successor_memory_id": "holdout3:long_range_change:03:mastery_quadratic_form_low_v3"
+        }
+      ]
+    },
+    {
+      "active_memory_ids": [
+        "holdout3:long_range_change:03:mastery_quadratic_form_high_v4"
+      ],
+      "archived_memory_ids": [
+        "holdout3:long_range_change:03:mastery_quadratic_form_low_v1",
+        "holdout3:long_range_change:03:mastery_quadratic_form_low_v2",
+        "holdout3:long_range_change:03:mastery_quadratic_form_low_v3"
+      ],
+      "contested_memory_ids": [],
+      "invalidated_memory_ids": [],
+      "step_id": "holdout3:long_range_change:03:step_003",
+      "version_relations": [
+        {
+          "predecessor_memory_id": "holdout3:long_range_change:03:mastery_quadratic_form_low_v1",
+          "relation": "superseded_by",
+          "successor_memory_id": "holdout3:long_range_change:03:mastery_quadratic_form_low_v2"
+        },
+        {
+          "predecessor_memory_id": "holdout3:long_range_change:03:mastery_quadratic_form_low_v2",
+          "relation": "superseded_by",
+          "successor_memory_id": "holdout3:long_range_change:03:mastery_quadratic_form_low_v3"
+        },
+        {
+          "predecessor_memory_id": "holdout3:long_range_change:03:mastery_quadratic_form_low_v3",
+          "relation": "superseded_by",
+          "successor_memory_id": "holdout3:long_range_change:03:mastery_quadratic_form_high_v4"
+        }
+      ]
+    }
+  ],
+  "initial_memory": [
+    {
+      "confidence": 0.82,
+      "evidence_count": 5,
+      "lifecycle_state": "active",
+      "memory_id": "holdout3:long_range_change:03:mastery_quadratic_form_low_v1",
+      "provenance": [
+        "holdout3:long_range_change:03:event_quadratic_form_096",
+        "holdout3:long_range_change:03:event_quadratic_form_097",
+        "holdout3:long_range_change:03:event_quadratic_form_098",
+        "holdout3:long_range_change:03:event_quadratic_form_099",
+        "holdout3:long_range_change:03:event_quadratic_form_100"
+      ],
+      "scope": {
+        "exam_id": "computer_science_exam_01",
+        "memory_namespace": "mastery",
+        "subject_id": "algorithms",
+        "user_id": "holdout3:long_range_change:03:user_001"
+      },
+      "slot_key": "mastery:cs.algorithms.binary_search",
+      "superseded_by": null,
+      "valid_from": "2026-06-20T08:00:00Z",
+      "valid_to": null,
+      "value": {
+        "level": "low",
+        "score": 0.34,
+        "type": "mastery"
+      },
+      "version": 1
+    }
+  ],
+  "metadata": {
+    "gold_revision": 3,
+    "policy_parameters": {
+      "formal_dataset_version": "exam_mem_controlled_v3",
+      "padding_policy": "temporary_low_confidence_no_op",
+      "target_knowledge_point_id": "cs.algorithms.binary_search",
+      "taxonomy_version": "cs_v1",
+      "template_case_id": "old_low_mastery_is_replaced_by_recent_cross_session_success_001"
+    },
+    "seed": 20260806,
+    "split": "test"
+  },
+  "protocol_version": "evaluation_protocol_v1",
+  "queries": [
+    {
+      "after_step_id": "holdout3:long_range_change:03:step_003",
+      "query_id": "holdout3:long_range_change:03:query_001",
+      "scope": {
+        "exam_id": "computer_science_exam_01",
+        "memory_namespace": "mastery",
+        "subject_id": "algorithms",
+        "user_id": "holdout3:long_range_change:03:user_001"
+      },
+      "text": "检索二分查找当前有效且与复习决策相关的学习记忆。",
+      "top_k": 3
+    }
+  ],
+  "scenario_type": "long_range_change"
+}

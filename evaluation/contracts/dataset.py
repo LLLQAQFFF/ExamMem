@@ -130,7 +130,10 @@ class SplitManifest(StrictDatasetModel):
 
 class DatasetManifest(StrictDatasetModel):
     dataset_version: DatasetVersion
-    taxonomy_version: NonEmptyString = "math1_v1"
+    taxonomy_version: NonEmptyString | None = Field(
+        default=None,
+        exclude_if=lambda value: value is None,
+    )
     protocol_version: Literal[PROTOCOL_VERSION]
     seed: Literal[PROTOCOL_SEED]
     generated_at: AwareDatetime

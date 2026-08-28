@@ -231,7 +231,7 @@ def _load_formal_sidecars(
     if len(question_by_id) != len(questions):
         raise ArtifactValidationError("controlled question_id values must be unique")
 
-    taxonomy = load_taxonomy(manifest.taxonomy_version)
+    taxonomy = load_taxonomy(manifest.taxonomy_version or "math1_v1")
     for question in questions:
         node = taxonomy.get(question.knowledge_point_id)
         if node is None or taxonomy.children_of(question.knowledge_point_id):

@@ -438,7 +438,7 @@ async def execute_evaluation(
     if embedding_mode not in {"feature_hash_embedding_v1", "configured"}:
         raise ValueError("embedding_mode must be feature_hash_embedding_v1 or configured")
     formal_manifest = load_formal_manifest(dataset_version)
-    taxonomy_version = formal_manifest.taxonomy_version
+    taxonomy_version = formal_manifest.taxonomy_version or "math1_v1"
     all_cases = load_cases(split, dataset_version=dataset_version)
     dataset_hash = _dataset_hash(
         split,

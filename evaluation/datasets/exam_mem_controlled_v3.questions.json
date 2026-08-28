@@ -1,0 +1,350 @@
+[
+  {
+    "answer_forms": [
+      {
+        "answer_id": "correct",
+        "correct": true,
+        "error_detail": null,
+        "error_type": null,
+        "text_zh": "通常使用广度优先搜索（BFS），它按距离层次访问节点。"
+      },
+      {
+        "answer_id": "wrong",
+        "correct": false,
+        "error_detail": "混淆了 BFS 的分层性质与 DFS 的深入探索顺序。",
+        "error_type": "concept_confusion",
+        "text_zh": "通常使用深度优先搜索（DFS），首次到达一定是最短路径。"
+      }
+    ],
+    "difficulty": 0.4,
+    "knowledge_point_id": "cs.algorithms.bfs",
+    "prompt_zh": "在无权图中求单源最短路径通常使用什么遍历？",
+    "question_id": "controlled3:bfs:v1",
+    "reference_answer_zh": "通常使用广度优先搜索（BFS），它按距离层次访问节点。",
+    "rubric_items": [
+      "结论正确",
+      "关键概念或复杂度正确",
+      "理由可复核"
+    ],
+    "subject_area": "algorithms"
+  },
+  {
+    "answer_forms": [
+      {
+        "answer_id": "correct",
+        "correct": true,
+        "error_detail": null,
+        "error_type": null,
+        "text_zh": "数组必须按所用比较规则有序，才能根据中点比较排除一半区间。"
+      },
+      {
+        "answer_id": "wrong",
+        "correct": false,
+        "error_detail": "遗漏了二分查找依赖有序性。",
+        "error_type": "concept_confusion",
+        "text_zh": "数组必须完全随机，才能保证每次排除一半元素。"
+      }
+    ],
+    "difficulty": 0.3,
+    "knowledge_point_id": "cs.algorithms.binary_search",
+    "prompt_zh": "二分查找能够直接应用于数组的关键前提是什么？",
+    "question_id": "controlled3:binary_search:v1",
+    "reference_answer_zh": "数组必须按所用比较规则有序，才能根据中点比较排除一半区间。",
+    "rubric_items": [
+      "结论正确",
+      "关键概念或复杂度正确",
+      "理由可复核"
+    ],
+    "subject_area": "algorithms"
+  },
+  {
+    "answer_forms": [
+      {
+        "answer_id": "correct",
+        "correct": true,
+        "error_detail": null,
+        "error_type": null,
+        "text_zh": "调用栈；它保存尚未完成的递归路径。"
+      },
+      {
+        "answer_id": "wrong",
+        "correct": false,
+        "error_detail": "把 DFS 所需的栈与 BFS 所需的队列混淆。",
+        "error_type": "concept_confusion",
+        "text_zh": "队列；它保证按距离层次访问节点。"
+      }
+    ],
+    "difficulty": 0.35,
+    "knowledge_point_id": "cs.algorithms.dfs",
+    "prompt_zh": "深度优先搜索递归实现中的隐式辅助结构是什么？",
+    "question_id": "controlled3:dfs:v1",
+    "reference_answer_zh": "调用栈；它保存尚未完成的递归路径。",
+    "rubric_items": [
+      "结论正确",
+      "关键概念或复杂度正确",
+      "理由可复核"
+    ],
+    "subject_area": "algorithms"
+  },
+  {
+    "answer_forms": [
+      {
+        "answer_id": "correct",
+        "correct": true,
+        "error_detail": null,
+        "error_type": null,
+        "text_zh": "通常具有重叠子问题和最优子结构，可保存子问题结果避免重复计算。"
+      },
+      {
+        "answer_id": "wrong",
+        "correct": false,
+        "error_detail": "颠倒了动态规划依赖重叠子问题的条件。",
+        "error_type": "concept_confusion",
+        "text_zh": "子问题必须互不相关，且不能复用任何中间结果。"
+      }
+    ],
+    "difficulty": 0.5,
+    "knowledge_point_id": "cs.algorithms.dynamic_programming",
+    "prompt_zh": "动态规划适合处理的问题通常具有什么结构？",
+    "question_id": "controlled3:dynamic_programming:v1",
+    "reference_answer_zh": "通常具有重叠子问题和最优子结构，可保存子问题结果避免重复计算。",
+    "rubric_items": [
+      "结论正确",
+      "关键概念或复杂度正确",
+      "理由可复核"
+    ],
+    "subject_area": "algorithms"
+  },
+  {
+    "answer_forms": [
+      {
+        "answer_id": "correct",
+        "correct": true,
+        "error_detail": null,
+        "error_type": null,
+        "text_zh": "还必须证明问题具有贪心选择性质和相应的最优子结构。"
+      },
+      {
+        "answer_id": "wrong",
+        "correct": false,
+        "error_detail": "把贪心策略当成无需证明即可成立的普遍结论。",
+        "error_type": "concept_confusion",
+        "text_zh": "因为任何局部最优选择都必然自动得到全局最优。"
+      }
+    ],
+    "difficulty": 0.5,
+    "knowledge_point_id": "cs.algorithms.greedy",
+    "prompt_zh": "贪心算法为什么不能仅凭每步局部最优就保证全局最优？",
+    "question_id": "controlled3:greedy:v1",
+    "reference_answer_zh": "还必须证明问题具有贪心选择性质和相应的最优子结构。",
+    "rubric_items": [
+      "结论正确",
+      "关键概念或复杂度正确",
+      "理由可复核"
+    ],
+    "subject_area": "algorithms"
+  },
+  {
+    "answer_forms": [
+      {
+        "answer_id": "correct",
+        "correct": true,
+        "error_detail": null,
+        "error_type": null,
+        "text_zh": "具有相等关键字的元素在排序后仍保持原有相对顺序。"
+      },
+      {
+        "answer_id": "wrong",
+        "correct": false,
+        "error_detail": "把结果的相对顺序性质误解成运行时间稳定。",
+        "error_type": "concept_confusion",
+        "text_zh": "算法对任何输入都具有相同运行时间。"
+      }
+    ],
+    "difficulty": 0.35,
+    "knowledge_point_id": "cs.algorithms.sorting_stability",
+    "prompt_zh": "排序算法的稳定性指什么？",
+    "question_id": "controlled3:sorting_stability:v1",
+    "reference_answer_zh": "具有相等关键字的元素在排序后仍保持原有相对顺序。",
+    "rubric_items": [
+      "结论正确",
+      "关键概念或复杂度正确",
+      "理由可复核"
+    ],
+    "subject_area": "algorithms"
+  },
+  {
+    "answer_forms": [
+      {
+        "answer_id": "correct",
+        "correct": true,
+        "error_detail": null,
+        "error_type": null,
+        "text_zh": "典型时间复杂度是 O(1)，因为数组使用连续存储，可由首地址和下标直接定位。"
+      },
+      {
+        "answer_id": "wrong",
+        "correct": false,
+        "error_detail": "混淆了按下标访问与按值查找。",
+        "error_type": "concept_confusion",
+        "text_zh": "时间复杂度是 O(n)，因为必须从第一个元素依次扫描。"
+      }
+    ],
+    "difficulty": 0.2,
+    "knowledge_point_id": "cs.data_structures.array",
+    "prompt_zh": "在数组中按下标读取一个元素的典型时间复杂度是多少？",
+    "question_id": "controlled3:array:v1",
+    "reference_answer_zh": "典型时间复杂度是 O(1)，因为数组使用连续存储，可由首地址和下标直接定位。",
+    "rubric_items": [
+      "结论正确",
+      "关键概念或复杂度正确",
+      "理由可复核"
+    ],
+    "subject_area": "data_structures"
+  },
+  {
+    "answer_forms": [
+      {
+        "answer_id": "correct",
+        "correct": true,
+        "error_detail": null,
+        "error_type": null,
+        "text_zh": "两个或多个不同键经过哈希函数后映射到同一位置。"
+      },
+      {
+        "answer_id": "wrong",
+        "correct": false,
+        "error_detail": "没有理解哈希冲突描述的是不同键映射到同一位置。",
+        "error_type": "concept_confusion",
+        "text_zh": "同一个键在两次查询中得到不同的哈希值。"
+      }
+    ],
+    "difficulty": 0.35,
+    "knowledge_point_id": "cs.data_structures.hash_table",
+    "prompt_zh": "哈希表发生冲突是什么意思？",
+    "question_id": "controlled3:hash_table:v1",
+    "reference_answer_zh": "两个或多个不同键经过哈希函数后映射到同一位置。",
+    "rubric_items": [
+      "结论正确",
+      "关键概念或复杂度正确",
+      "理由可复核"
+    ],
+    "subject_area": "data_structures"
+  },
+  {
+    "answer_forms": [
+      {
+        "answer_id": "correct",
+        "correct": true,
+        "error_detail": null,
+        "error_type": null,
+        "text_zh": "典型时间复杂度是 O(1)，只需修改常数个指针。"
+      },
+      {
+        "answer_id": "wrong",
+        "correct": false,
+        "error_detail": "忽略了题目已经给出目标节点指针。",
+        "error_type": "concept_confusion",
+        "text_zh": "时间复杂度是 O(n)，任何链表插入都必须遍历完整链表。"
+      }
+    ],
+    "difficulty": 0.3,
+    "knowledge_point_id": "cs.data_structures.linked_list",
+    "prompt_zh": "已知单链表某节点的指针，在其后插入新节点的典型时间复杂度是多少？",
+    "question_id": "controlled3:linked_list:v1",
+    "reference_answer_zh": "典型时间复杂度是 O(1)，只需修改常数个指针。",
+    "rubric_items": [
+      "结论正确",
+      "关键概念或复杂度正确",
+      "理由可复核"
+    ],
+    "subject_area": "data_structures"
+  },
+  {
+    "answer_forms": [
+      {
+        "answer_id": "correct",
+        "correct": true,
+        "error_detail": null,
+        "error_type": null,
+        "text_zh": "先进先出（FIFO）；队尾入队，队头出队。"
+      },
+      {
+        "answer_id": "wrong",
+        "correct": false,
+        "error_detail": "把普通队列误当成栈。",
+        "error_type": "concept_confusion",
+        "text_zh": "后进先出（LIFO）；队尾入队并从队尾出队。"
+      }
+    ],
+    "difficulty": 0.2,
+    "knowledge_point_id": "cs.data_structures.queue",
+    "prompt_zh": "普通队列的入队和出队遵循什么顺序？",
+    "question_id": "controlled3:queue:v1",
+    "reference_answer_zh": "先进先出（FIFO）；队尾入队，队头出队。",
+    "rubric_items": [
+      "结论正确",
+      "关键概念或复杂度正确",
+      "理由可复核"
+    ],
+    "subject_area": "data_structures"
+  },
+  {
+    "answer_forms": [
+      {
+        "answer_id": "correct",
+        "correct": true,
+        "error_detail": null,
+        "error_type": null,
+        "text_zh": "后进先出（LIFO）；最后进入的调用帧最先退出。"
+      },
+      {
+        "answer_id": "wrong",
+        "correct": false,
+        "error_detail": "把栈的 LIFO 特性与队列的 FIFO 特性混淆。",
+        "error_type": "concept_confusion",
+        "text_zh": "先进先出（FIFO）；最早进入的调用帧最先退出。"
+      }
+    ],
+    "difficulty": 0.2,
+    "knowledge_point_id": "cs.data_structures.stack",
+    "prompt_zh": "函数调用栈最符合哪一种元素访问顺序？",
+    "question_id": "controlled3:stack:v1",
+    "reference_answer_zh": "后进先出（LIFO）；最后进入的调用帧最先退出。",
+    "rubric_items": [
+      "结论正确",
+      "关键概念或复杂度正确",
+      "理由可复核"
+    ],
+    "subject_area": "data_structures"
+  },
+  {
+    "answer_forms": [
+      {
+        "answer_id": "correct",
+        "correct": true,
+        "error_detail": null,
+        "error_type": null,
+        "text_zh": "先遍历左子树，再访问根节点，最后遍历右子树。"
+      },
+      {
+        "answer_id": "wrong",
+        "correct": false,
+        "error_detail": "把中序遍历与前序遍历混淆。",
+        "error_type": "concept_confusion",
+        "text_zh": "先访问根节点，再遍历左子树和右子树。"
+      }
+    ],
+    "difficulty": 0.35,
+    "knowledge_point_id": "cs.data_structures.tree_traversal",
+    "prompt_zh": "二叉树中序遍历访问根节点、左子树和右子树的顺序是什么？",
+    "question_id": "controlled3:tree_traversal:v1",
+    "reference_answer_zh": "先遍历左子树，再访问根节点，最后遍历右子树。",
+    "rubric_items": [
+      "结论正确",
+      "关键概念或复杂度正确",
+      "理由可复核"
+    ],
+    "subject_area": "data_structures"
+  }
+]
