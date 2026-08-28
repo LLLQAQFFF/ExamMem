@@ -413,7 +413,7 @@ priority = 0.40 × weakness
 | Cross-scope leakage | 是否读到了其他用户/考试/科目的记忆，必须为 0 |
 | Recommendation accuracy | 推荐知识点是否匹配 Gold |
 
-#### Frozen test 结果
+#### v1 Frozen test 历史结果
 
 | Lifecycle 指标 | 结果 |
 | --- | ---: |
@@ -438,11 +438,36 @@ priority = 0.40 × weakness
 
 当前实现已把“是否应该推荐”和“推荐哪个候选”拆开：服务端使用上述三层门控；没有可行动证据时显式返回 `no_recommendation`，coverage gap 不能独自强行出题，而达到复习阈值的遗忘风险可以打开门控。门控通过后，LLM 只在有界 canonical 候选集中选择；模型失败、越界或低置信度时回退到确定性排序，并记录候选集、选择策略和 selector 版本。
 
-30.83% 仍是最后一次正式 frozen 五后端评测结果。本次修复已通过无推荐、LLM 选择、越界/低置信度回退和工作流重放测试，但尚未在干净版本上重跑并登记新的正式 frozen 指标，因此不能用工程测试结果替换 30.83% 的历史基线。
+30.83% 是 v1 在推荐修复前的一次性 frozen 五后端历史结果，不能被后续对同一 test 的重跑替换。
 
 2026-08-27 使用真实 Host MiniMax 和隔离 PostgreSQL 对 lifecycle 单臂重跑了 40-case dev：知识点准确率为 **83.33%（100/120）**，动作类型诊断准确率为 **93.33%（112/120）**，过度复习率为 **2.50%（3/120）**。这证明校准方向有效，但它是 dev 单臂结果，不替代 30.83% 的正式 frozen 五臂基线。
 
 随后对已经公开并参与过诊断的 80-case test 做了五后端 post-hoc 重跑：lifecycle 知识点准确率为 **82.08%（197/240）**，动作类型诊断准确率为 **92.83%（220/237）**，过度复习率为 **2.95%（7/237）**；79/80 case 完成。其余四个无 lifecycle 状态的 backend 均为 55.00%（132/240），主要来自对低置信度 padding 的正确拒绝。唯一 lifecycle 失败是 MiniMax 关系分类返回了与候选 slot 不一致的知识点，严格契约将其拒绝。由于 test 已被查看过，这只能作为 post-hoc 泛化证据，不能重新包装成未见 holdout 成绩。
+
+#### v3 跨学科 frozen test
+
+为避免把已公开数学 test 当成新 holdout，项目新增了计算机数据结构与算法数据集。第一次
+转换 v2 在运行后审计中发现轨迹正文仍残留数学语义，因此其 82.08% 不作为跨学科证据；
+修正后的 `exam_mem_controlled_v3` 重写题目、答案、Memory 值、Taxonomy/slot、查询和
+Scope，并在提交 `474a2732` 上一次性运行 80-case 五后端 test。
+
+| Lifecycle 指标 | v3 frozen test |
+| --- | ---: |
+| 完成率 | 97.50%（78/80） |
+| Operation accuracy / macro-F1 | 94.47%（376/398）/ 82.24% |
+| Active-state exact | 89.17%（214/240） |
+| Stale / duplicate rate | 3.75% / 2.62% |
+| Cross-scope leakage | 0 |
+| Weak recall@5 / archived hit@5 | 80.00% / 0 |
+| 推荐知识点准确率 | **80.83%（194/240）** |
+| 动作类型诊断准确率 | 92.74%（217/234） |
+| Over-review rate | 2.99%（7/234） |
+
+其余四个 backend 的推荐知识点准确率均为 55.00%，主要来自正确 `no_action`；这不是有效
+选题能力。两个 Lifecycle case 因模型输出与候选 slot 不一致被严格拒绝。v3 复用 v1 的
+生命周期形状，只改变学科语义，因此支持有限的跨科目迁移结论，不等价于真实用户泛化。
+少量 opaque 记录 ID 仍保留模板英文后缀，但关系分类 prompt 明确不包含这些 ID。
+完整证据见[跨学科 Memory 冻结评测](./evaluation/controlled-v3-frozen-test.zh-CN.md)。
 
 ### 9.2 Semantic Retrieval v2
 
@@ -509,7 +534,7 @@ acceptance_threshold = max(0.003, top1_score - 0.03)
 | ExamMem 语义检索 | 396 corpus、310 frozen queries | 排序和拒答达门槛，Top-2..K 仍有污染 |
 | 教材章节识别 | 单元、集成与样例验证 | 缺多版式人工标注 PDF 基准 |
 | 出题、判题、错因 | 契约和流程测试 | 缺教师双标准确率、Kappa/MAE 等结果 |
-| 推荐 | Controlled benchmark + 新门控/选择契约测试 | 正式旧基线 30.83%；校准后 dev 83.33%，post-hoc test 82.08% |
+| 推荐 | Controlled benchmark + 新门控/选择契约测试 | v1 历史基线 30.83%；跨学科 v3 frozen test 80.83% |
 | 真实学习增益 | 尚无 | 不能声称系统已提高真实考试成绩 |
 
 ---
@@ -586,7 +611,7 @@ acceptance_threshold = max(0.003, top1_score - 0.03)
 - 教材链路：`exam_mem/textbooks/structure.py`、`deeptutor_plugins/exam_mem/textbooks.py`、`deeptutor_plugins/exam_mem/grounded_learning.py`
 - Learning Memory：`exam_mem/contracts/memory.py`、`exam_mem/lifecycle/`、`exam_mem/projection.py`、`exam_mem/storage/`
 - 练习闭环：`exam_mem/practice/workflow.py`、`grading.py`、`error_analyzer.py`、`recommendation.py`
-- Lifecycle 方法与结果：[评估方法](./evaluation/methodology.md)、[Stage09 frozen test](./evaluation/stage09-frozen-test.md)
+- Lifecycle 方法与结果：[评估方法](./evaluation/methodology.md)、[Stage09 frozen test](./evaluation/stage09-frozen-test.md)、[跨学科 v3 frozen test](./evaluation/controlled-v3-frozen-test.zh-CN.md)
 - 语义检索：[协议](./evaluation/semantic-retrieval-v2.zh-CN.md)、[修复与最终结果](./evaluation/semantic-retrieval-v2-remediation.zh-CN.md)
 - 更深入源码走读：[INTERVIEW_DEEP_DIVE.zh-CN.md](./INTERVIEW_DEEP_DIVE.zh-CN.md)
 - DeepTutor 论文：[TutorBench 评估](https://arxiv.org/html/2604.26962#S5)

@@ -23,6 +23,7 @@
 - [评测方法](./evaluation/methodology.md)：数据契约、五种 Backend、指标和防泄漏方法。
 - [Stage08 开发集失败/混合基线](./evaluation/stage08-dev.md)。
 - [Stage09 一次性冻结测试](./evaluation/stage09-frozen-test.md)。
+- [跨学科 Memory 冻结评测](./evaluation/controlled-v3-frozen-test.zh-CN.md)：计算机学科 v3 数据、五 Backend 结果、失败样例与证据边界。
 - [Memory 语义检索 v2 修复方案与最终结果](./evaluation/semantic-retrieval-v2-remediation.zh-CN.md)：故障阶段、修复调用链、Top-1 相对分差策略和冻结集验收结果。
 - [ExamMem 面试深读](./INTERVIEW_DEEP_DIVE.zh-CN.md)：按调用链解释 Memory、教材 RAG、评估指标和已知限制。
 

@@ -1,0 +1,57 @@
+{
+  "protocol_version": "evaluation_protocol_v1",
+  "dataset_version": "exam_mem_controlled_v3",
+  "taxonomy_version": "cs_v1",
+  "test_run_id": "cs-v3-frozen-test-20260828",
+  "code_sha": "474a27324639be0f74bd976969c9830981ea20cb",
+  "test_dataset_sha256": "9305f29c2110bb9f30438a765c71a6705bf78942f1b957b29cc346eae3352927",
+  "selected_case_count": 80,
+  "backend_modes": [
+    "none",
+    "native",
+    "append_only",
+    "vector",
+    "lifecycle"
+  ],
+  "embedding_model": "ollama:qwen3-embedding:0.6b:1024",
+  "lifecycle_outcomes": {
+    "completed": 78,
+    "failed": 2,
+    "partial": 0,
+    "timeout": 0
+  },
+  "lifecycle_metrics": {
+    "operation_accuracy": 0.9447236180904522,
+    "operation_macro_f1": 0.8223510335212464,
+    "active_state_exact_match": 0.8916666666666667,
+    "stale_rate": 0.03745318352059925,
+    "duplicate_rate": 0.026217228464419477,
+    "false_merge_rate": 0.06060606060606061,
+    "false_supersede_rate": 0.0,
+    "cross_scope_leakage_rate": 0.0,
+    "scope_test_pass_rate": 1.0,
+    "weak_recall_at_5": 0.8,
+    "archived_hit_at_5": 0.0,
+    "recommendation_knowledge_point_accuracy": 0.8083333333333333,
+    "recommendation_action_type_diagnostic_accuracy": 0.9273504273504274,
+    "recommendation_over_review_rate": 0.029914529914529916,
+    "mean_latency_ms": 3968.469254738011,
+    "p95_latency_ms": 7872.698490013136,
+    "llm_call_count": 37
+  },
+  "baseline_recommendation_knowledge_point_accuracy": {
+    "none": 0.55,
+    "native": 0.55,
+    "append_only": 0.55,
+    "vector": 0.55
+  },
+  "frozen_test_used_for_further_tuning": false,
+  "valid_cross_subject_evidence": true,
+  "limitations": [
+    "Structured LearningEvent input; raw-text extraction is not evaluated.",
+    "Lifecycle trajectory shapes reuse the reviewed v1 scenarios.",
+    "Opaque event and memory identifiers retain some legacy English template suffixes; relation-classifier prompts exclude those IDs.",
+    "The Native adapter writes L1 JSONL while the redesigned Native consolidator reads snapshots, so this run produced no Native L2/L3 consolidation or Native LLM calls.",
+    "Question generation, grading quality, difficulty calibration, and learning gain are not evaluated."
+  ]
+}

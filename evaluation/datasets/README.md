@@ -34,7 +34,8 @@ v2 的运行结果仅用于说明数据生成审计为什么必要，不能用�
 - 用途：在推荐策略冻结后，验证 Memory lifecycle 和推荐能否跨科目泛化；
 - 内容：计算机基础中的数据结构与算法，使用独立 `cs_v1` Taxonomy 和 12 个知识点；
 - 规模：120 个合成多轮轨迹，40 个 dev case 和 80 个一次性 frozen-test case；
-- 隔离：case ID、题目 ID、知识点 ID、考试/科目 scope、轨迹正文和查询均与 v1 分离；
+- 隔离：case ID、题目 ID、Taxonomy/slot ID、考试/科目 scope、轨迹正文和查询均与 v1
+  分离；少量 opaque 记录 ID 保留模板英文后缀，但不进入关系分类 prompt；
 - 语义门禁：构建测试会拒绝数学 Taxonomy ID、概念词和公式残留；
 - 完整性：test aggregate SHA-256 为
   `9305f29c2110bb9f30438a765c71a6705bf78942f1b957b29cc346eae3352927`。
