@@ -35,7 +35,12 @@ from evaluation.contracts.rollout import (
 )
 from evaluation.data_builder import DATASET_VERSION
 from evaluation.evaluators.report import build_backend_evaluation, compute_backend_metrics
-from evaluation.protocols.validation import DATASET_ROOT, load_cases, load_protocol
+from evaluation.protocols.validation import (
+    DATASET_ROOT,
+    load_cases,
+    load_formal_manifest,
+    load_protocol,
+)
 from evaluation.runner import EvaluationBackendSession, run_case
 from exam_mem.backends import BackendMode
 
@@ -44,10 +49,15 @@ def _json_bytes(value: Any) -> bytes:
     return json.dumps(value, ensure_ascii=False, indent=2, sort_keys=True).encode("utf-8") + b"\n"
 
 
-def _dataset_hash(split: DatasetSplit, cases: Sequence[EvaluationCase]) -> str:
+def _dataset_hash(
+    split: DatasetSplit,
+    cases: Sequence[EvaluationCase],
+    *,
+    dataset_version: str,
+) -> str:
     if split in {DatasetSplit.DEV, DatasetSplit.TEST}:
         manifest = json.loads(
-            (DATASET_ROOT / f"{DATASET_VERSION}.manifest.json").read_text(encoding="utf-8")
+            (DATASET_ROOT / f"{dataset_version}.manifest.json").read_text(encoding="utf-8")
         )
         return next(
             item["aggregate_sha256"] for item in manifest["splits"] if item["split"] == split.value
@@ -85,11 +95,12 @@ def _claim_frozen_test_release(
     output_root: Path,
     release: dict[str, Any],
     *,
+    dataset_version: str = DATASET_VERSION,
     resume: bool,
 ) -> None:
     """Bind the one-time frozen test release to one resumable run identity."""
     output_root.mkdir(parents=True, exist_ok=True)
-    release_path = output_root / f".{DATASET_VERSION}.frozen_test_release.json"
+    release_path = output_root / f".{dataset_version}.frozen_test_release.json"
     if resume:
         if not release_path.is_file():
             raise ValueError("frozen test resume has no prior release claim")
@@ -165,14 +176,16 @@ def _session(
     run_id: str,
     case: EvaluationCase,
     embedding_mode: str,
+    taxonomy_version: str,
 ) -> EvaluationBackendSession:
     if mode is BackendMode.NONE:
-        return NoMemoryEvaluationSession()
+        return NoMemoryEvaluationSession(taxonomy_version)
     if mode is BackendMode.NATIVE:
         return NativeEvaluationSession(
             root=native_root,
             run_id=run_id,
             case=case,
+            taxonomy_version=taxonomy_version,
         )
     if engine is None:
         raise ValueError(f"{mode.value} requires an isolated PostgreSQL database URL")
@@ -187,6 +200,7 @@ def _session(
         run_id=run_id,
         case=case,
         embedding_client=embedding_client,
+        taxonomy_version=taxonomy_version,
     )
 
 
@@ -202,6 +216,7 @@ async def _run_mode(
     concurrency: int,
     resume: bool,
     embedding_mode: str,
+    taxonomy_version: str,
 ) -> list[RolloutResult]:
     partial_dir = output / "partial" / mode.value
     partial_dir.mkdir(parents=True, exist_ok=True)
@@ -235,6 +250,7 @@ async def _run_mode(
                         run_id=run_id,
                         case=case,
                         embedding_mode=embedding_mode,
+                        taxonomy_version=taxonomy_version,
                     ),
                     config=config,
                     code_sha=code_sha,
@@ -407,6 +423,7 @@ async def execute_evaluation(
     scenarios: Sequence[str] = (),
     embedding_mode: str = "feature_hash_embedding_v1",
     allow_frozen_test: bool = False,
+    dataset_version: str = DATASET_VERSION,
 ) -> dict[str, Any]:
     """Run selected arms; finalize a report only after all five exist."""
     if split is DatasetSplit.TEST and not allow_frozen_test:
@@ -420,8 +437,14 @@ async def execute_evaluation(
         raise ValueError("concurrency must be at least one")
     if embedding_mode not in {"feature_hash_embedding_v1", "configured"}:
         raise ValueError("embedding_mode must be feature_hash_embedding_v1 or configured")
-    all_cases = load_cases(split)
-    dataset_hash = _dataset_hash(split, all_cases)
+    formal_manifest = load_formal_manifest(dataset_version)
+    taxonomy_version = formal_manifest.taxonomy_version
+    all_cases = load_cases(split, dataset_version=dataset_version)
+    dataset_hash = _dataset_hash(
+        split,
+        all_cases,
+        dataset_version=dataset_version,
+    )
     requested_case_ids = set(case_ids)
     requested_scenarios = set(scenarios)
     known_case_ids = {case.case_id for case in all_cases}
@@ -460,7 +483,7 @@ async def execute_evaluation(
             output_root,
             {
                 "protocol_version": "evaluation_protocol_v1",
-                "dataset_version": DATASET_VERSION,
+                "dataset_version": dataset_version,
                 "dataset_hash": dataset_hash,
                 "experiment_id": experiment_id,
                 "code_sha": code_sha,
@@ -468,6 +491,7 @@ async def execute_evaluation(
                 "embedding_mode": embedding_mode,
                 "embedding_model": embedding_model,
             },
+            dataset_version=dataset_version,
             resume=resume,
         )
     output.mkdir(parents=True, exist_ok=True)
@@ -497,6 +521,7 @@ async def execute_evaluation(
                 concurrency=concurrency,
                 resume=resume,
                 embedding_mode=embedding_mode,
+                taxonomy_version=taxonomy_version,
             )
     finally:
         if engine is not None:
@@ -505,6 +530,8 @@ async def execute_evaluation(
     manifest = {
         "experiment_id": experiment_id,
         "protocol_version": "evaluation_protocol_v1",
+        "dataset_version": dataset_version,
+        "taxonomy_version": taxonomy_version,
         "split": split.value,
         "dataset_hash": dataset_hash,
         "code_sha": code_sha,
@@ -545,7 +572,11 @@ async def execute_evaluation(
     metrics = {
         mode.value: [
             metric.model_dump(mode="json")
-            for metric in compute_backend_metrics(cases, all_results[mode])
+            for metric in compute_backend_metrics(
+                cases,
+                all_results[mode],
+                taxonomy_version=taxonomy_version,
+            )
         ]
         for mode in modes
     }
@@ -576,7 +607,9 @@ async def execute_evaluation(
             mode.value: [
                 metric.model_dump(mode="json")
                 for metric in compute_backend_metrics(
-                    scenario_cases, [all_results[mode][index] for index in indices]
+                    scenario_cases,
+                    [all_results[mode][index] for index in indices],
+                    taxonomy_version=taxonomy_version,
                 )
             ]
             for mode in modes
@@ -588,7 +621,12 @@ async def execute_evaluation(
     if set(all_results) == set(BackendMode):
         protocol = load_protocol("evaluation_protocol_v1")
         backend_results = [
-            build_backend_evaluation(cases, all_results[mode]) for mode in protocol.backend_modes
+            build_backend_evaluation(
+                cases,
+                all_results[mode],
+                taxonomy_version=taxonomy_version,
+            )
+            for mode in protocol.backend_modes
         ]
         fairness_hashes = {result.fairness_hash for result in backend_results}
         if len(fairness_hashes) != 1:

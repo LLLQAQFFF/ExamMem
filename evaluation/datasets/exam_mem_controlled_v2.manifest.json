@@ -1,0 +1,874 @@
+{
+  "benchmark_entries_sha256": "c0ec299774f2eeaf27c104175185c6d47e0fcce28f3f1b7c4f03362d18ecd986",
+  "construction_notes": [
+    "The production recommendation policy was frozen before this cross-subject dataset was scored.",
+    "The 24 reviewed lifecycle cases provide trajectory shapes, not subject labels or answers.",
+    "All questions and canonical IDs belong to the independent cs_v1 taxonomy.",
+    "Every case has isolated identifiers, at least three events, and at least two sessions.",
+    "Each scenario uses ten distinct knowledge-point tasks; trajectory_family is the leakage key.",
+    "Dev contains 40 cases and the one-time frozen test contains 80 cases using seed 20260806."
+  ],
+  "dataset_version": "exam_mem_controlled_v2",
+  "frozen_test_sha256": "c525191d1a6e7402c0fda41451b551f1c1c3e4eee485caf458c8350db6f31c9d",
+  "generated_at": "2026-08-28T00:00:00Z",
+  "protocol_version": "evaluation_protocol_v1",
+  "question_bank_sha256": "205ea863bc1a9a782ed73d1a98045c388a70f3ba7bdccd8ef562d5a192747e8e",
+  "seed": 20260806,
+  "splits": [
+    {
+      "aggregate_sha256": "1096ec491a0226161045a5e461a0e45b01c9fe46acfc574b85484daa8f42cfd8",
+      "case_count": 40,
+      "files": [
+        {
+          "case_id": "holdout2:accidental_error:01",
+          "path": "exam_mem_controlled_v2/dev/holdout2_accidental_error_01.json",
+          "scenario_type": "accidental_error",
+          "sha256": "8b5a9018ca9276f5a118af4c8e30c6706c8dbf9f49436575296631f9c5c09008",
+          "split": "dev"
+        },
+        {
+          "case_id": "holdout2:accidental_error:03",
+          "path": "exam_mem_controlled_v2/dev/holdout2_accidental_error_03.json",
+          "scenario_type": "accidental_error",
+          "sha256": "b604822267ab90843d9abcead8d2b8b494aaec0df549e046d34edeb650294201",
+          "split": "dev"
+        },
+        {
+          "case_id": "holdout2:accidental_error:08",
+          "path": "exam_mem_controlled_v2/dev/holdout2_accidental_error_08.json",
+          "scenario_type": "accidental_error",
+          "sha256": "348b4640565e72125913806d152ca381dd294f80f7409dd1a503b216671e0566",
+          "split": "dev"
+        },
+        {
+          "case_id": "holdout2:complementary_evidence:01",
+          "path": "exam_mem_controlled_v2/dev/holdout2_complementary_evidence_01.json",
+          "scenario_type": "complementary_evidence",
+          "sha256": "114c2fa2a1dbd8cbef1d219ef2f57b6be8f52279255af4f20f85e78afaf268d2",
+          "split": "dev"
+        },
+        {
+          "case_id": "holdout2:complementary_evidence:02",
+          "path": "exam_mem_controlled_v2/dev/holdout2_complementary_evidence_02.json",
+          "scenario_type": "complementary_evidence",
+          "sha256": "d78f21f2cf7cad6f6bb2e8f81dd67d12cecaeed053cf12e4b6381300e941c81c",
+          "split": "dev"
+        },
+        {
+          "case_id": "holdout2:complementary_evidence:04",
+          "path": "exam_mem_controlled_v2/dev/holdout2_complementary_evidence_04.json",
+          "scenario_type": "complementary_evidence",
+          "sha256": "4517a0a56767d16d5c002cae3b11d338133c0bf0df2a2691228cff49c469badd",
+          "split": "dev"
+        },
+        {
+          "case_id": "holdout2:complementary_evidence:09",
+          "path": "exam_mem_controlled_v2/dev/holdout2_complementary_evidence_09.json",
+          "scenario_type": "complementary_evidence",
+          "sha256": "ee1eda9ec32fb286282ec1b8811beaf1709d9e41a2b16f37e09761febd540117",
+          "split": "dev"
+        },
+        {
+          "case_id": "holdout2:cross_scope_interference:01",
+          "path": "exam_mem_controlled_v2/dev/holdout2_cross_scope_interference_01.json",
+          "scenario_type": "cross_scope_interference",
+          "sha256": "f7e5f8138f4058264c18482e37857166c8eb6590588355450be176a1b355d726",
+          "split": "dev"
+        },
+        {
+          "case_id": "holdout2:cross_scope_interference:05",
+          "path": "exam_mem_controlled_v2/dev/holdout2_cross_scope_interference_05.json",
+          "scenario_type": "cross_scope_interference",
+          "sha256": "0b082fac98297e2d3c3f8eb9050046fb6ca0fc9003f66c4f400dc7e0e8b35b0c",
+          "split": "dev"
+        },
+        {
+          "case_id": "holdout2:cross_scope_interference:08",
+          "path": "exam_mem_controlled_v2/dev/holdout2_cross_scope_interference_08.json",
+          "scenario_type": "cross_scope_interference",
+          "sha256": "2cc43ad87072d117f11a86326c5c983a374eab30afa2f3bc5061528b2b80d42b",
+          "split": "dev"
+        },
+        {
+          "case_id": "holdout2:explicit_correction:07",
+          "path": "exam_mem_controlled_v2/dev/holdout2_explicit_correction_07.json",
+          "scenario_type": "explicit_correction",
+          "sha256": "7fed66fdbd2aec44da4c020b04b97430424a0d3083c85bc5b7fb6b865dc7ed3a",
+          "split": "dev"
+        },
+        {
+          "case_id": "holdout2:explicit_correction:09",
+          "path": "exam_mem_controlled_v2/dev/holdout2_explicit_correction_09.json",
+          "scenario_type": "explicit_correction",
+          "sha256": "a68240e361c0807717e690446a956482e76803dad288a50887eba912a7f4b4f3",
+          "split": "dev"
+        },
+        {
+          "case_id": "holdout2:explicit_correction:10",
+          "path": "exam_mem_controlled_v2/dev/holdout2_explicit_correction_10.json",
+          "scenario_type": "explicit_correction",
+          "sha256": "3a66d8f18470613032e8c7e112d2ed58e01c49c5a1579c1cc52857b9fd162828",
+          "split": "dev"
+        },
+        {
+          "case_id": "holdout2:long_range_change:07",
+          "path": "exam_mem_controlled_v2/dev/holdout2_long_range_change_07.json",
+          "scenario_type": "long_range_change",
+          "sha256": "178e25811fd48a97249783bf125806b0e1505484b8012f53c22cbe922385b0c7",
+          "split": "dev"
+        },
+        {
+          "case_id": "holdout2:long_range_change:08",
+          "path": "exam_mem_controlled_v2/dev/holdout2_long_range_change_08.json",
+          "scenario_type": "long_range_change",
+          "sha256": "07f9b0af4b100f59e5d302d2850772f21be9275ef96118a33db3e615952397de",
+          "split": "dev"
+        },
+        {
+          "case_id": "holdout2:long_range_change:10",
+          "path": "exam_mem_controlled_v2/dev/holdout2_long_range_change_10.json",
+          "scenario_type": "long_range_change",
+          "sha256": "a6beffceacbf4ec849514752d26a936225eb26c6614de6737f9019b5b9192d65",
+          "split": "dev"
+        },
+        {
+          "case_id": "holdout2:low_confidence_exception:05",
+          "path": "exam_mem_controlled_v2/dev/holdout2_low_confidence_exception_05.json",
+          "scenario_type": "low_confidence_exception",
+          "sha256": "859d866839c525e86e8cde57690b75baa6fa0afa80d49f5012e8db69ec9bd7e0",
+          "split": "dev"
+        },
+        {
+          "case_id": "holdout2:low_confidence_exception:06",
+          "path": "exam_mem_controlled_v2/dev/holdout2_low_confidence_exception_06.json",
+          "scenario_type": "low_confidence_exception",
+          "sha256": "ca238381d0aeac5d230b9012ea565c4d812fe5a3157949c6150d58e91c433c80",
+          "split": "dev"
+        },
+        {
+          "case_id": "holdout2:low_confidence_exception:08",
+          "path": "exam_mem_controlled_v2/dev/holdout2_low_confidence_exception_08.json",
+          "scenario_type": "low_confidence_exception",
+          "sha256": "9d43f9f752441382d630511f24e21b333aefff91225b4ad73f14c2b57a099e22",
+          "split": "dev"
+        },
+        {
+          "case_id": "holdout2:mastery_decline:03",
+          "path": "exam_mem_controlled_v2/dev/holdout2_mastery_decline_03.json",
+          "scenario_type": "mastery_decline",
+          "sha256": "5b135b1514ccfa494cdb5fc013162b7560a9b3f584bede798b358c1216cef64e",
+          "split": "dev"
+        },
+        {
+          "case_id": "holdout2:mastery_decline:07",
+          "path": "exam_mem_controlled_v2/dev/holdout2_mastery_decline_07.json",
+          "scenario_type": "mastery_decline",
+          "sha256": "a1fbe65d649a3722dbd3e675ad8d48c50e1165fd858952ec4023b8a2771a368c",
+          "split": "dev"
+        },
+        {
+          "case_id": "holdout2:mastery_decline:08",
+          "path": "exam_mem_controlled_v2/dev/holdout2_mastery_decline_08.json",
+          "scenario_type": "mastery_decline",
+          "sha256": "92b844d2f2629513874e6eb16de172fd4a075e4d62ada65d071f977b5ea056ec",
+          "split": "dev"
+        },
+        {
+          "case_id": "holdout2:mastery_decline:09",
+          "path": "exam_mem_controlled_v2/dev/holdout2_mastery_decline_09.json",
+          "scenario_type": "mastery_decline",
+          "sha256": "b359a4f3402a0f2986fc33f3b235e6f87bcbd464a1bef86fc265afd4060c1d8a",
+          "split": "dev"
+        },
+        {
+          "case_id": "holdout2:mastery_improvement:02",
+          "path": "exam_mem_controlled_v2/dev/holdout2_mastery_improvement_02.json",
+          "scenario_type": "mastery_improvement",
+          "sha256": "2f4f5077525351be50d856d2ffcf4cf1590f626aa16669f08b97f39b31247075",
+          "split": "dev"
+        },
+        {
+          "case_id": "holdout2:mastery_improvement:08",
+          "path": "exam_mem_controlled_v2/dev/holdout2_mastery_improvement_08.json",
+          "scenario_type": "mastery_improvement",
+          "sha256": "bd54083b6c5c22bae9964d89cfdaef1df909d505be7198d34f38a12ac83e2201",
+          "split": "dev"
+        },
+        {
+          "case_id": "holdout2:mastery_improvement:09",
+          "path": "exam_mem_controlled_v2/dev/holdout2_mastery_improvement_09.json",
+          "scenario_type": "mastery_improvement",
+          "sha256": "b8724dbf8247c0b30bdd8d64c3767f5b4c409b45c6ce4fc2e75d7f9dc4b3e6b7",
+          "split": "dev"
+        },
+        {
+          "case_id": "holdout2:mastery_improvement:10",
+          "path": "exam_mem_controlled_v2/dev/holdout2_mastery_improvement_10.json",
+          "scenario_type": "mastery_improvement",
+          "sha256": "faaf30a53eeddfd1f6f69c83654137bfae13a420691e5d3da8101e9c6c7ebb6e",
+          "split": "dev"
+        },
+        {
+          "case_id": "holdout2:multi_value_error_pattern:05",
+          "path": "exam_mem_controlled_v2/dev/holdout2_multi_value_error_pattern_05.json",
+          "scenario_type": "multi_value_error_pattern",
+          "sha256": "1beecfe845ef7ab094f8c93b2915c834cfd11862105fd1986f6f37e5af1fbf93",
+          "split": "dev"
+        },
+        {
+          "case_id": "holdout2:multi_value_error_pattern:07",
+          "path": "exam_mem_controlled_v2/dev/holdout2_multi_value_error_pattern_07.json",
+          "scenario_type": "multi_value_error_pattern",
+          "sha256": "bcc504d5c0b778217a2689ededa62335589f68dab495ff4ec185bffdeef77233",
+          "split": "dev"
+        },
+        {
+          "case_id": "holdout2:multi_value_error_pattern:09",
+          "path": "exam_mem_controlled_v2/dev/holdout2_multi_value_error_pattern_09.json",
+          "scenario_type": "multi_value_error_pattern",
+          "sha256": "59b3ce7d05633b597659be9370fcddd81a5b3e79fbb8618815fd7c7090a8662a",
+          "split": "dev"
+        },
+        {
+          "case_id": "holdout2:plan_transition:02",
+          "path": "exam_mem_controlled_v2/dev/holdout2_plan_transition_02.json",
+          "scenario_type": "plan_transition",
+          "sha256": "e00867d2487204b34333ccfa28483c605376f8624c27d7e78ef4e07a660febe9",
+          "split": "dev"
+        },
+        {
+          "case_id": "holdout2:plan_transition:05",
+          "path": "exam_mem_controlled_v2/dev/holdout2_plan_transition_05.json",
+          "scenario_type": "plan_transition",
+          "sha256": "ab7d9bf1d6fefd333a51c9a025aaaaa540cbf25d2dcd206cc96742bd94bda6d5",
+          "split": "dev"
+        },
+        {
+          "case_id": "holdout2:plan_transition:07",
+          "path": "exam_mem_controlled_v2/dev/holdout2_plan_transition_07.json",
+          "scenario_type": "plan_transition",
+          "sha256": "2ba787b2a298d10cda9eff8d08eb6a346e5c59c2c71f358b3c79f6ad3e634a3f",
+          "split": "dev"
+        },
+        {
+          "case_id": "holdout2:semantic_duplicate:02",
+          "path": "exam_mem_controlled_v2/dev/holdout2_semantic_duplicate_02.json",
+          "scenario_type": "semantic_duplicate",
+          "sha256": "c59b8550780f7552474e02c0f73a746dee42ee6ebca5d78856f7d8e07e1a083f",
+          "split": "dev"
+        },
+        {
+          "case_id": "holdout2:semantic_duplicate:04",
+          "path": "exam_mem_controlled_v2/dev/holdout2_semantic_duplicate_04.json",
+          "scenario_type": "semantic_duplicate",
+          "sha256": "a7248d8d5b660ebfc1af0e797e13a5b43a2afd3dd0052332f4dda2c0c2dc8816",
+          "split": "dev"
+        },
+        {
+          "case_id": "holdout2:semantic_duplicate:08",
+          "path": "exam_mem_controlled_v2/dev/holdout2_semantic_duplicate_08.json",
+          "scenario_type": "semantic_duplicate",
+          "sha256": "37c3686b5b2958be7d052f9a068ff69e8bdeb1aa768c145babca1c2a280c32e8",
+          "split": "dev"
+        },
+        {
+          "case_id": "holdout2:semantic_duplicate:10",
+          "path": "exam_mem_controlled_v2/dev/holdout2_semantic_duplicate_10.json",
+          "scenario_type": "semantic_duplicate",
+          "sha256": "bda6b68b6e4cb6a88170d567d8e9bf9d1226ba1386fcfeb54e8c9efb2c4df78e",
+          "split": "dev"
+        },
+        {
+          "case_id": "holdout2:stable_weakness:01",
+          "path": "exam_mem_controlled_v2/dev/holdout2_stable_weakness_01.json",
+          "scenario_type": "stable_weakness",
+          "sha256": "4d433fd2b6e3a6806336347e500b233249627b75dea0a1065f5bd547228da4f9",
+          "split": "dev"
+        },
+        {
+          "case_id": "holdout2:stable_weakness:04",
+          "path": "exam_mem_controlled_v2/dev/holdout2_stable_weakness_04.json",
+          "scenario_type": "stable_weakness",
+          "sha256": "03aca10eac1aed8f2c99e142ea5c6a58673481f69e7e07806fc84ab1e833a5a9",
+          "split": "dev"
+        },
+        {
+          "case_id": "holdout2:stable_weakness:10",
+          "path": "exam_mem_controlled_v2/dev/holdout2_stable_weakness_10.json",
+          "scenario_type": "stable_weakness",
+          "sha256": "fc7b22bf4102441d05aaf5b52c84104c402f9b66327a4f24a6253a7ad56a94a5",
+          "split": "dev"
+        }
+      ],
+      "split": "dev"
+    },
+    {
+      "aggregate_sha256": "c525191d1a6e7402c0fda41451b551f1c1c3e4eee485caf458c8350db6f31c9d",
+      "case_count": 80,
+      "files": [
+        {
+          "case_id": "holdout2:accidental_error:02",
+          "path": "exam_mem_controlled_v2/test/holdout2_accidental_error_02.json",
+          "scenario_type": "accidental_error",
+          "sha256": "ae93cc5c318c726dc22c9f9867fa1d51072737e3c6f7a147a332d63e88c5d970",
+          "split": "test"
+        },
+        {
+          "case_id": "holdout2:accidental_error:04",
+          "path": "exam_mem_controlled_v2/test/holdout2_accidental_error_04.json",
+          "scenario_type": "accidental_error",
+          "sha256": "ffe5c21ebfa1223d934e0fee5e381136b33b1adc7e100d956324f8cb16036e21",
+          "split": "test"
+        },
+        {
+          "case_id": "holdout2:accidental_error:05",
+          "path": "exam_mem_controlled_v2/test/holdout2_accidental_error_05.json",
+          "scenario_type": "accidental_error",
+          "sha256": "75910fa7188879c8c4ff36c18b2a50579138749d06ee06ed50e3a68ba8c514fd",
+          "split": "test"
+        },
+        {
+          "case_id": "holdout2:accidental_error:06",
+          "path": "exam_mem_controlled_v2/test/holdout2_accidental_error_06.json",
+          "scenario_type": "accidental_error",
+          "sha256": "35ca9d95bfa2a01503057238aff44fa0146bec8b235ea9f278373d19b2735811",
+          "split": "test"
+        },
+        {
+          "case_id": "holdout2:accidental_error:07",
+          "path": "exam_mem_controlled_v2/test/holdout2_accidental_error_07.json",
+          "scenario_type": "accidental_error",
+          "sha256": "93c2a254511dd28471a51e705b55ff954e21acf2e520362a2cf0408f6e6716cb",
+          "split": "test"
+        },
+        {
+          "case_id": "holdout2:accidental_error:09",
+          "path": "exam_mem_controlled_v2/test/holdout2_accidental_error_09.json",
+          "scenario_type": "accidental_error",
+          "sha256": "8629abedc83740b755f6434f0b3871bb6aae8290ddd74574ad272b5175b83578",
+          "split": "test"
+        },
+        {
+          "case_id": "holdout2:accidental_error:10",
+          "path": "exam_mem_controlled_v2/test/holdout2_accidental_error_10.json",
+          "scenario_type": "accidental_error",
+          "sha256": "9f301b372ec43ecd954c579d663c14b992a27e4970331f7374a2d781e0e5dc9f",
+          "split": "test"
+        },
+        {
+          "case_id": "holdout2:complementary_evidence:03",
+          "path": "exam_mem_controlled_v2/test/holdout2_complementary_evidence_03.json",
+          "scenario_type": "complementary_evidence",
+          "sha256": "b3cac9ad851d61b58e726149881005865083fc382f2d86257c70922d83ef239b",
+          "split": "test"
+        },
+        {
+          "case_id": "holdout2:complementary_evidence:05",
+          "path": "exam_mem_controlled_v2/test/holdout2_complementary_evidence_05.json",
+          "scenario_type": "complementary_evidence",
+          "sha256": "122211fc6ba8587ffdbd470cda0df22a8012c07cecfa4ae2b9d3dd5c86a34881",
+          "split": "test"
+        },
+        {
+          "case_id": "holdout2:complementary_evidence:06",
+          "path": "exam_mem_controlled_v2/test/holdout2_complementary_evidence_06.json",
+          "scenario_type": "complementary_evidence",
+          "sha256": "4187d03d4da277213f20cbacfc33e586e8a5c4d0bfe0d976c5214c488c40219b",
+          "split": "test"
+        },
+        {
+          "case_id": "holdout2:complementary_evidence:07",
+          "path": "exam_mem_controlled_v2/test/holdout2_complementary_evidence_07.json",
+          "scenario_type": "complementary_evidence",
+          "sha256": "b93c19d3c0b4def689c3dc291e53f07d3a56117614ca6e4b2d8b22837791767d",
+          "split": "test"
+        },
+        {
+          "case_id": "holdout2:complementary_evidence:08",
+          "path": "exam_mem_controlled_v2/test/holdout2_complementary_evidence_08.json",
+          "scenario_type": "complementary_evidence",
+          "sha256": "fe1861b24a2e48d129379c25e04495623d3423ae3c66d5caeca784b9a5bd6ed7",
+          "split": "test"
+        },
+        {
+          "case_id": "holdout2:complementary_evidence:10",
+          "path": "exam_mem_controlled_v2/test/holdout2_complementary_evidence_10.json",
+          "scenario_type": "complementary_evidence",
+          "sha256": "1fc5a4ea73361f3f7b5b0558697a1d53cf4fa5efd99104dc007f701da5295286",
+          "split": "test"
+        },
+        {
+          "case_id": "holdout2:cross_scope_interference:02",
+          "path": "exam_mem_controlled_v2/test/holdout2_cross_scope_interference_02.json",
+          "scenario_type": "cross_scope_interference",
+          "sha256": "63c17f47ad22b03a4143ef88f08211589568c9c2de31e4447a56de51040a5e41",
+          "split": "test"
+        },
+        {
+          "case_id": "holdout2:cross_scope_interference:03",
+          "path": "exam_mem_controlled_v2/test/holdout2_cross_scope_interference_03.json",
+          "scenario_type": "cross_scope_interference",
+          "sha256": "c4fa4e8d40c9b4d245f251964d7c1fb303b184b2a53bf40178013edea182a136",
+          "split": "test"
+        },
+        {
+          "case_id": "holdout2:cross_scope_interference:04",
+          "path": "exam_mem_controlled_v2/test/holdout2_cross_scope_interference_04.json",
+          "scenario_type": "cross_scope_interference",
+          "sha256": "ce0fabc44d46d1d430d39c893bc6e2b9d3d10b5110d285dd08fef7fb010fc45f",
+          "split": "test"
+        },
+        {
+          "case_id": "holdout2:cross_scope_interference:06",
+          "path": "exam_mem_controlled_v2/test/holdout2_cross_scope_interference_06.json",
+          "scenario_type": "cross_scope_interference",
+          "sha256": "273cc6c0f21f13de53f6af89681794876daca756666ddd626588ebb8773c6671",
+          "split": "test"
+        },
+        {
+          "case_id": "holdout2:cross_scope_interference:07",
+          "path": "exam_mem_controlled_v2/test/holdout2_cross_scope_interference_07.json",
+          "scenario_type": "cross_scope_interference",
+          "sha256": "5ad3c1929873be224b960b3ae3b508276bcde93bd7950a9eb87cb74fceb4dd5b",
+          "split": "test"
+        },
+        {
+          "case_id": "holdout2:cross_scope_interference:09",
+          "path": "exam_mem_controlled_v2/test/holdout2_cross_scope_interference_09.json",
+          "scenario_type": "cross_scope_interference",
+          "sha256": "e1d33fe14e9da715bf986d96d644932cab619e91c143b90576b4782c52a78ace",
+          "split": "test"
+        },
+        {
+          "case_id": "holdout2:cross_scope_interference:10",
+          "path": "exam_mem_controlled_v2/test/holdout2_cross_scope_interference_10.json",
+          "scenario_type": "cross_scope_interference",
+          "sha256": "07174c0c9ff1d54108c1dd0457525437d558f8205b5052015c85427d0973b80e",
+          "split": "test"
+        },
+        {
+          "case_id": "holdout2:explicit_correction:01",
+          "path": "exam_mem_controlled_v2/test/holdout2_explicit_correction_01.json",
+          "scenario_type": "explicit_correction",
+          "sha256": "5fb5613505a403b2783c6e59af9774304ff01be15d127f95f5883cb192509087",
+          "split": "test"
+        },
+        {
+          "case_id": "holdout2:explicit_correction:02",
+          "path": "exam_mem_controlled_v2/test/holdout2_explicit_correction_02.json",
+          "scenario_type": "explicit_correction",
+          "sha256": "2e89953a24c7512cba20dbbf069146afcb64864e40a178d8143b974b0f9af20f",
+          "split": "test"
+        },
+        {
+          "case_id": "holdout2:explicit_correction:03",
+          "path": "exam_mem_controlled_v2/test/holdout2_explicit_correction_03.json",
+          "scenario_type": "explicit_correction",
+          "sha256": "a93d41e3730ee6cdb254bc7f55135b8af6935bd02de8c656cb3214f1f2eb35dc",
+          "split": "test"
+        },
+        {
+          "case_id": "holdout2:explicit_correction:04",
+          "path": "exam_mem_controlled_v2/test/holdout2_explicit_correction_04.json",
+          "scenario_type": "explicit_correction",
+          "sha256": "91b9315743940d8fe0f13a3835ad079c851696bf2fcbf6de8a165c864f6d95c6",
+          "split": "test"
+        },
+        {
+          "case_id": "holdout2:explicit_correction:05",
+          "path": "exam_mem_controlled_v2/test/holdout2_explicit_correction_05.json",
+          "scenario_type": "explicit_correction",
+          "sha256": "65073cfe208e2474fdbc2f1048f873c6ae111ae45791ca02f3afb0433296e330",
+          "split": "test"
+        },
+        {
+          "case_id": "holdout2:explicit_correction:06",
+          "path": "exam_mem_controlled_v2/test/holdout2_explicit_correction_06.json",
+          "scenario_type": "explicit_correction",
+          "sha256": "82dbd35eaa70ba6243b877dc9b3588dee7319c16189cd747146eae2c9cfa9b55",
+          "split": "test"
+        },
+        {
+          "case_id": "holdout2:explicit_correction:08",
+          "path": "exam_mem_controlled_v2/test/holdout2_explicit_correction_08.json",
+          "scenario_type": "explicit_correction",
+          "sha256": "26d5f33ab82d047203e0353089933162ca89460492dd254f15b9f350dfa589c7",
+          "split": "test"
+        },
+        {
+          "case_id": "holdout2:long_range_change:01",
+          "path": "exam_mem_controlled_v2/test/holdout2_long_range_change_01.json",
+          "scenario_type": "long_range_change",
+          "sha256": "2b7cc206df94801664a111a5ba43fc5260574c904cafaae35054caac957e857e",
+          "split": "test"
+        },
+        {
+          "case_id": "holdout2:long_range_change:02",
+          "path": "exam_mem_controlled_v2/test/holdout2_long_range_change_02.json",
+          "scenario_type": "long_range_change",
+          "sha256": "68cbad8a0a3869d951a314b018aaac1038960198650c6115227511643325a82b",
+          "split": "test"
+        },
+        {
+          "case_id": "holdout2:long_range_change:03",
+          "path": "exam_mem_controlled_v2/test/holdout2_long_range_change_03.json",
+          "scenario_type": "long_range_change",
+          "sha256": "26e6a796bd9f826655cdde8bb7e3792d818a138428c905d61645ffcb1282fbfd",
+          "split": "test"
+        },
+        {
+          "case_id": "holdout2:long_range_change:04",
+          "path": "exam_mem_controlled_v2/test/holdout2_long_range_change_04.json",
+          "scenario_type": "long_range_change",
+          "sha256": "bc206ad90816afc6427c86cd3b650b0b2f84e5890ce166a6d320a21fd8704cb6",
+          "split": "test"
+        },
+        {
+          "case_id": "holdout2:long_range_change:05",
+          "path": "exam_mem_controlled_v2/test/holdout2_long_range_change_05.json",
+          "scenario_type": "long_range_change",
+          "sha256": "077549e66d71bd8ba0bad27ea910587c5dc4c56103b710d7ff56dd62f1f37283",
+          "split": "test"
+        },
+        {
+          "case_id": "holdout2:long_range_change:06",
+          "path": "exam_mem_controlled_v2/test/holdout2_long_range_change_06.json",
+          "scenario_type": "long_range_change",
+          "sha256": "beae59a6dfd38e1c6ba019083ed2198318ee69c5d31fbec15acc46ec86f9e8fd",
+          "split": "test"
+        },
+        {
+          "case_id": "holdout2:long_range_change:09",
+          "path": "exam_mem_controlled_v2/test/holdout2_long_range_change_09.json",
+          "scenario_type": "long_range_change",
+          "sha256": "f426ceaed190a2584c931d717142a57e5a52f2b943b3f110d0df1ba6609f1073",
+          "split": "test"
+        },
+        {
+          "case_id": "holdout2:low_confidence_exception:01",
+          "path": "exam_mem_controlled_v2/test/holdout2_low_confidence_exception_01.json",
+          "scenario_type": "low_confidence_exception",
+          "sha256": "c3b39024d2bd04b542dd74d08f538c4ad7edf1af19e0927b09e6441b440036ad",
+          "split": "test"
+        },
+        {
+          "case_id": "holdout2:low_confidence_exception:02",
+          "path": "exam_mem_controlled_v2/test/holdout2_low_confidence_exception_02.json",
+          "scenario_type": "low_confidence_exception",
+          "sha256": "8f1b5157da58f9bf76d29bf1cd7d4f04b8ec5158db176edd189516817b83b1e6",
+          "split": "test"
+        },
+        {
+          "case_id": "holdout2:low_confidence_exception:03",
+          "path": "exam_mem_controlled_v2/test/holdout2_low_confidence_exception_03.json",
+          "scenario_type": "low_confidence_exception",
+          "sha256": "0d212f3226a405482173ce08397012319a9cadc269345e9e80d94eb89d66964c",
+          "split": "test"
+        },
+        {
+          "case_id": "holdout2:low_confidence_exception:04",
+          "path": "exam_mem_controlled_v2/test/holdout2_low_confidence_exception_04.json",
+          "scenario_type": "low_confidence_exception",
+          "sha256": "84bf31d42fc5ac2421cd7570358b02e582cd1c4c9a7b025389d325b524923d82",
+          "split": "test"
+        },
+        {
+          "case_id": "holdout2:low_confidence_exception:07",
+          "path": "exam_mem_controlled_v2/test/holdout2_low_confidence_exception_07.json",
+          "scenario_type": "low_confidence_exception",
+          "sha256": "216696d61f32f4cb57360a85ac1f6f337ba648105badbacb254c61ce680dadd4",
+          "split": "test"
+        },
+        {
+          "case_id": "holdout2:low_confidence_exception:09",
+          "path": "exam_mem_controlled_v2/test/holdout2_low_confidence_exception_09.json",
+          "scenario_type": "low_confidence_exception",
+          "sha256": "0330549583fa9f1a4a8bac4e3fea0088b40d076d4dfbfce2686ba0b0b12c1c16",
+          "split": "test"
+        },
+        {
+          "case_id": "holdout2:low_confidence_exception:10",
+          "path": "exam_mem_controlled_v2/test/holdout2_low_confidence_exception_10.json",
+          "scenario_type": "low_confidence_exception",
+          "sha256": "2446eb7042a280c15d49441aa909f509ee80a41f9db1f0439026578405ceaa33",
+          "split": "test"
+        },
+        {
+          "case_id": "holdout2:mastery_decline:01",
+          "path": "exam_mem_controlled_v2/test/holdout2_mastery_decline_01.json",
+          "scenario_type": "mastery_decline",
+          "sha256": "94feeff9599471fe554a87331f36d47e18840ddf42f1994642d3014abae3d9bb",
+          "split": "test"
+        },
+        {
+          "case_id": "holdout2:mastery_decline:02",
+          "path": "exam_mem_controlled_v2/test/holdout2_mastery_decline_02.json",
+          "scenario_type": "mastery_decline",
+          "sha256": "0137de1ef8cb9850976624642e61e4711746c0e07e2b9343554f9c8607c6ba91",
+          "split": "test"
+        },
+        {
+          "case_id": "holdout2:mastery_decline:04",
+          "path": "exam_mem_controlled_v2/test/holdout2_mastery_decline_04.json",
+          "scenario_type": "mastery_decline",
+          "sha256": "bd97ec55c177f9d1a59faf85ed21c5cc85b741f5d7b178fe4da7d2bc5b558bfb",
+          "split": "test"
+        },
+        {
+          "case_id": "holdout2:mastery_decline:05",
+          "path": "exam_mem_controlled_v2/test/holdout2_mastery_decline_05.json",
+          "scenario_type": "mastery_decline",
+          "sha256": "68704eefd975a46320bc074b4878976022ef893294dcaff4e9e90d3838a22edb",
+          "split": "test"
+        },
+        {
+          "case_id": "holdout2:mastery_decline:06",
+          "path": "exam_mem_controlled_v2/test/holdout2_mastery_decline_06.json",
+          "scenario_type": "mastery_decline",
+          "sha256": "c44e31b729776242598671cfe2869d6b5d08b1cac208b932b34abe5f1cbc0a3e",
+          "split": "test"
+        },
+        {
+          "case_id": "holdout2:mastery_decline:10",
+          "path": "exam_mem_controlled_v2/test/holdout2_mastery_decline_10.json",
+          "scenario_type": "mastery_decline",
+          "sha256": "8a85516471cf541baea719b8ac360aeb7dedcb075843bc448fbb7d3bf2f8564e",
+          "split": "test"
+        },
+        {
+          "case_id": "holdout2:mastery_improvement:01",
+          "path": "exam_mem_controlled_v2/test/holdout2_mastery_improvement_01.json",
+          "scenario_type": "mastery_improvement",
+          "sha256": "d7a6cbda4cb8ab058ab0a635e52842a5fef726454c1848ac53f8d89c2491ac6d",
+          "split": "test"
+        },
+        {
+          "case_id": "holdout2:mastery_improvement:03",
+          "path": "exam_mem_controlled_v2/test/holdout2_mastery_improvement_03.json",
+          "scenario_type": "mastery_improvement",
+          "sha256": "2ca3d8413cb8f8de4a759d8fc8a04f29d7f5182fd19187f938e580a4ece5cff1",
+          "split": "test"
+        },
+        {
+          "case_id": "holdout2:mastery_improvement:04",
+          "path": "exam_mem_controlled_v2/test/holdout2_mastery_improvement_04.json",
+          "scenario_type": "mastery_improvement",
+          "sha256": "7ca674c4dd62e465ababdfaf05a2f1632520757b1fc89acb3195e63cda568ff8",
+          "split": "test"
+        },
+        {
+          "case_id": "holdout2:mastery_improvement:05",
+          "path": "exam_mem_controlled_v2/test/holdout2_mastery_improvement_05.json",
+          "scenario_type": "mastery_improvement",
+          "sha256": "b3a66131decd9646a14ec07ae68060a4004ca53d121470686d8129d89ffa14b0",
+          "split": "test"
+        },
+        {
+          "case_id": "holdout2:mastery_improvement:06",
+          "path": "exam_mem_controlled_v2/test/holdout2_mastery_improvement_06.json",
+          "scenario_type": "mastery_improvement",
+          "sha256": "03eb56b2d8d3b6b83bff93dd55c34cb9dca726013cc19c93cdeecd6d9da354c1",
+          "split": "test"
+        },
+        {
+          "case_id": "holdout2:mastery_improvement:07",
+          "path": "exam_mem_controlled_v2/test/holdout2_mastery_improvement_07.json",
+          "scenario_type": "mastery_improvement",
+          "sha256": "d9f74b08c1be026e446c1f995dd08f1a2d4614d5f339be3d2af63ff179bf9ea5",
+          "split": "test"
+        },
+        {
+          "case_id": "holdout2:multi_value_error_pattern:01",
+          "path": "exam_mem_controlled_v2/test/holdout2_multi_value_error_pattern_01.json",
+          "scenario_type": "multi_value_error_pattern",
+          "sha256": "33d1c9cca96fdcbd9cd2c1f41f8fa7fb9941661e1bac7d70a5fc31d12a16cbb8",
+          "split": "test"
+        },
+        {
+          "case_id": "holdout2:multi_value_error_pattern:02",
+          "path": "exam_mem_controlled_v2/test/holdout2_multi_value_error_pattern_02.json",
+          "scenario_type": "multi_value_error_pattern",
+          "sha256": "83c5a0237e41bc85cb7f03657acf8d411879c5a8a6b2540f1a4bcdd59d0a7a1a",
+          "split": "test"
+        },
+        {
+          "case_id": "holdout2:multi_value_error_pattern:03",
+          "path": "exam_mem_controlled_v2/test/holdout2_multi_value_error_pattern_03.json",
+          "scenario_type": "multi_value_error_pattern",
+          "sha256": "37ce59639c6c53b609deda9edb1ec949c75aaaf3b9dcf458f4605def9822ce65",
+          "split": "test"
+        },
+        {
+          "case_id": "holdout2:multi_value_error_pattern:04",
+          "path": "exam_mem_controlled_v2/test/holdout2_multi_value_error_pattern_04.json",
+          "scenario_type": "multi_value_error_pattern",
+          "sha256": "1a6749a5edc313dc7e10cdd34e3345bab32444be6517af4f3c093e6ef3e93d5d",
+          "split": "test"
+        },
+        {
+          "case_id": "holdout2:multi_value_error_pattern:06",
+          "path": "exam_mem_controlled_v2/test/holdout2_multi_value_error_pattern_06.json",
+          "scenario_type": "multi_value_error_pattern",
+          "sha256": "f7a14fd9391cb9a629a1e1b48afefba828acc8de6caddd6cea370b2f84161ef7",
+          "split": "test"
+        },
+        {
+          "case_id": "holdout2:multi_value_error_pattern:08",
+          "path": "exam_mem_controlled_v2/test/holdout2_multi_value_error_pattern_08.json",
+          "scenario_type": "multi_value_error_pattern",
+          "sha256": "a951f6b5f046609ef13ba10ac440815fa6d4aa6f0c49c0fde52e161d5aeb5fab",
+          "split": "test"
+        },
+        {
+          "case_id": "holdout2:multi_value_error_pattern:10",
+          "path": "exam_mem_controlled_v2/test/holdout2_multi_value_error_pattern_10.json",
+          "scenario_type": "multi_value_error_pattern",
+          "sha256": "194e8bb5ae13a972f54daf1050bfa75beef674c98d1665a680d3e893d925e58a",
+          "split": "test"
+        },
+        {
+          "case_id": "holdout2:plan_transition:01",
+          "path": "exam_mem_controlled_v2/test/holdout2_plan_transition_01.json",
+          "scenario_type": "plan_transition",
+          "sha256": "dc361be16767a95dbf9ea8c5b1274a29579e740844bf416eff6add6b3147d6ba",
+          "split": "test"
+        },
+        {
+          "case_id": "holdout2:plan_transition:03",
+          "path": "exam_mem_controlled_v2/test/holdout2_plan_transition_03.json",
+          "scenario_type": "plan_transition",
+          "sha256": "ecb59004395db1522586c9c034cf99ebbd8f1f047fda5f13ab4cce14db115c9f",
+          "split": "test"
+        },
+        {
+          "case_id": "holdout2:plan_transition:04",
+          "path": "exam_mem_controlled_v2/test/holdout2_plan_transition_04.json",
+          "scenario_type": "plan_transition",
+          "sha256": "6c240bbdee505ae1b4834453dc6c21cadda2df3d07defb7733b26f5f6a9dbc30",
+          "split": "test"
+        },
+        {
+          "case_id": "holdout2:plan_transition:06",
+          "path": "exam_mem_controlled_v2/test/holdout2_plan_transition_06.json",
+          "scenario_type": "plan_transition",
+          "sha256": "e72604726f93b9e3b6521d3192ae22299e9f98e13e897170ed5d2b2f5d9fc82c",
+          "split": "test"
+        },
+        {
+          "case_id": "holdout2:plan_transition:08",
+          "path": "exam_mem_controlled_v2/test/holdout2_plan_transition_08.json",
+          "scenario_type": "plan_transition",
+          "sha256": "adabb8218984b258caa07556614eecb6959ad840644a40827cacff32b477671a",
+          "split": "test"
+        },
+        {
+          "case_id": "holdout2:plan_transition:09",
+          "path": "exam_mem_controlled_v2/test/holdout2_plan_transition_09.json",
+          "scenario_type": "plan_transition",
+          "sha256": "2b544d7aabaed83acdb098ad11f1c950b020aa040f5ea3d85d00dfc900034966",
+          "split": "test"
+        },
+        {
+          "case_id": "holdout2:plan_transition:10",
+          "path": "exam_mem_controlled_v2/test/holdout2_plan_transition_10.json",
+          "scenario_type": "plan_transition",
+          "sha256": "0143fde9c481995f161e4039c06722c5b242a547d74770c50f3f582c7db7c98a",
+          "split": "test"
+        },
+        {
+          "case_id": "holdout2:semantic_duplicate:01",
+          "path": "exam_mem_controlled_v2/test/holdout2_semantic_duplicate_01.json",
+          "scenario_type": "semantic_duplicate",
+          "sha256": "57c3329ee692d0fdb2e576fb2c9cf5c65e86f20bbc20d396195889a8ef236bb1",
+          "split": "test"
+        },
+        {
+          "case_id": "holdout2:semantic_duplicate:03",
+          "path": "exam_mem_controlled_v2/test/holdout2_semantic_duplicate_03.json",
+          "scenario_type": "semantic_duplicate",
+          "sha256": "cae5a78886ee23d87255f462b7294c4aaa720e401ed825db03152748af834e83",
+          "split": "test"
+        },
+        {
+          "case_id": "holdout2:semantic_duplicate:05",
+          "path": "exam_mem_controlled_v2/test/holdout2_semantic_duplicate_05.json",
+          "scenario_type": "semantic_duplicate",
+          "sha256": "47ca2e4cfccccd57cbc7ee3eeb1caed7f54fd6cd684e46b2f7471b8146261897",
+          "split": "test"
+        },
+        {
+          "case_id": "holdout2:semantic_duplicate:06",
+          "path": "exam_mem_controlled_v2/test/holdout2_semantic_duplicate_06.json",
+          "scenario_type": "semantic_duplicate",
+          "sha256": "b6da8226c7c1d6095571ff3dcfe993fb5b43b87ed17d50317e6e0332541dd583",
+          "split": "test"
+        },
+        {
+          "case_id": "holdout2:semantic_duplicate:07",
+          "path": "exam_mem_controlled_v2/test/holdout2_semantic_duplicate_07.json",
+          "scenario_type": "semantic_duplicate",
+          "sha256": "3c0b7e90b081805c1b1b36da6b0ad4980216518ee9d0c02a1e7f8eb5542e8f9c",
+          "split": "test"
+        },
+        {
+          "case_id": "holdout2:semantic_duplicate:09",
+          "path": "exam_mem_controlled_v2/test/holdout2_semantic_duplicate_09.json",
+          "scenario_type": "semantic_duplicate",
+          "sha256": "4cae48f88a0ea22dd13e13744e0ff3d5158ccfa523ac6934d9062803328f62ad",
+          "split": "test"
+        },
+        {
+          "case_id": "holdout2:stable_weakness:02",
+          "path": "exam_mem_controlled_v2/test/holdout2_stable_weakness_02.json",
+          "scenario_type": "stable_weakness",
+          "sha256": "727c939429b789b6f9b7ad344eb22755380c512b7cdfd5d91c7c0dfd7ec7754e",
+          "split": "test"
+        },
+        {
+          "case_id": "holdout2:stable_weakness:03",
+          "path": "exam_mem_controlled_v2/test/holdout2_stable_weakness_03.json",
+          "scenario_type": "stable_weakness",
+          "sha256": "05eaf53b1298ef71fb0ac3fd1655d6850d95d6ab6b24efa0a602f432ac0037d1",
+          "split": "test"
+        },
+        {
+          "case_id": "holdout2:stable_weakness:05",
+          "path": "exam_mem_controlled_v2/test/holdout2_stable_weakness_05.json",
+          "scenario_type": "stable_weakness",
+          "sha256": "7da5ad1a4fab05c2e1cdc35cfa49d07307772e8f9cf14e5321b314cecd62c54b",
+          "split": "test"
+        },
+        {
+          "case_id": "holdout2:stable_weakness:06",
+          "path": "exam_mem_controlled_v2/test/holdout2_stable_weakness_06.json",
+          "scenario_type": "stable_weakness",
+          "sha256": "27ccabae2cd1a8f9615c14b0ca8d163dfd81f03633e55cf5fe5e1e610e5f806a",
+          "split": "test"
+        },
+        {
+          "case_id": "holdout2:stable_weakness:07",
+          "path": "exam_mem_controlled_v2/test/holdout2_stable_weakness_07.json",
+          "scenario_type": "stable_weakness",
+          "sha256": "3f08ffd8155be669a73fd2a385a5a4632ced4bc773328d6eb090be0f63c71958",
+          "split": "test"
+        },
+        {
+          "case_id": "holdout2:stable_weakness:08",
+          "path": "exam_mem_controlled_v2/test/holdout2_stable_weakness_08.json",
+          "scenario_type": "stable_weakness",
+          "sha256": "8437d9097ca5f5b8649ba5c0620338ab35db5f8dc5e1ac2cefb1619cf4b0ea2a",
+          "split": "test"
+        },
+        {
+          "case_id": "holdout2:stable_weakness:09",
+          "path": "exam_mem_controlled_v2/test/holdout2_stable_weakness_09.json",
+          "scenario_type": "stable_weakness",
+          "sha256": "6f26cdccc35f88b4cb8379113a3d90c6486e002f3e034a758e5c96d99796b321",
+          "split": "test"
+        }
+      ],
+      "split": "test"
+    }
+  ],
+  "taxonomy_version": "cs_v1"
+}

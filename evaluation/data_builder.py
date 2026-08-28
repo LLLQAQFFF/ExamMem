@@ -252,6 +252,7 @@ def _remap_topic(
     *,
     target_knowledge_point_id: str,
     topic_name: str,
+    target_subject: str | None = None,
 ) -> dict[str, Any]:
     original_ids = {
         knowledge_point_id
@@ -262,11 +263,12 @@ def _remap_topic(
         knowledge_point_id: target_knowledge_point_id for knowledge_point_id in original_ids
     }
     main_subject = payload["events"][0]["context"]["subject_id"]
-    target_subject = (
-        "linear_algebra"
-        if ".linear_algebra." in target_knowledge_point_id
-        else "probability_theory"
-    )
+    if target_subject is None:
+        target_subject = (
+            "linear_algebra"
+            if ".linear_algebra." in target_knowledge_point_id
+            else "probability_theory"
+        )
     remapped = _replace_knowledge_points(payload, replacements)
 
     def replace_subjects(value: Any, *, field_name: str = "") -> Any:
@@ -398,6 +400,9 @@ def _formal_case(
     split: DatasetSplit,
     question_by_kp: dict[str, ControlledQuestion],
     target_knowledge_point_id: str,
+    dataset_version: str = DATASET_VERSION,
+    taxonomy_version: str = "math1_v1",
+    target_subject: str | None = None,
 ) -> EvaluationCase:
     payload = _qualify_identifiers(
         template.model_dump(mode="json"),
@@ -407,12 +412,13 @@ def _formal_case(
     payload["metadata"]["split"] = split.value
     payload["metadata"]["gold_revision"] = 3
     payload["metadata"]["policy_parameters"] = {
-        "formal_dataset_version": DATASET_VERSION,
+        "formal_dataset_version": dataset_version,
+        "taxonomy_version": taxonomy_version,
         "template_case_id": template.case_id,
         "padding_policy": "temporary_low_confidence_no_op",
         "target_knowledge_point_id": target_knowledge_point_id,
     }
-    taxonomy = load_taxonomy("math1_v1")
+    taxonomy = load_taxonomy(taxonomy_version)
     target_node = taxonomy.get(target_knowledge_point_id)
     if target_node is None:
         raise DatasetBuildError(f"unknown formal target: {target_knowledge_point_id}")
@@ -420,6 +426,7 @@ def _formal_case(
         payload,
         target_knowledge_point_id=target_knowledge_point_id,
         topic_name=target_node.name_zh,
+        target_subject=target_subject,
     )
 
     for event_index, event in enumerate(payload["events"], start=1):
@@ -443,7 +450,14 @@ def _answer_id_for_event(event: Any) -> str:
     return "correct" if event.answer_correct else "wrong"
 
 
-def _benchmark_entry(case: EvaluationCase) -> BenchmarkEntry:
+def _benchmark_entry(
+    case: EvaluationCase,
+    *,
+    taxonomy_version: str = "math1_v1",
+    learner_background_zh: str = (
+        "我正在准备数学一，已经完成基础概念学习，正在通过练习检查长期掌握情况。"
+    ),
+) -> BenchmarkEntry:
     knowledge_point_ids = sorted(
         {
             knowledge_point_id
@@ -451,7 +465,7 @@ def _benchmark_entry(case: EvaluationCase) -> BenchmarkEntry:
             for knowledge_point_id in operation.canonical_knowledge_point_ids
         }
     )
-    taxonomy = load_taxonomy("math1_v1")
+    taxonomy = load_taxonomy(taxonomy_version)
     names = [taxonomy.get(knowledge_point_id).name_zh for knowledge_point_id in knowledge_point_ids]
     topic_text = "、".join(names)
     profile_id = f"profile:{case.case_id}"
@@ -459,7 +473,7 @@ def _benchmark_entry(case: EvaluationCase) -> BenchmarkEntry:
         case_id=case.case_id,
         profile=LearnerProfile(
             profile_id=profile_id,
-            background_zh="我正在准备数学一，已经完成基础概念学习，正在通过练习检查长期掌握情况。",
+            background_zh=learner_background_zh,
             learning_goal_zh=f"识别并修正我在{topic_text}上的稳定薄弱点。",
             known_well_zh=["能够阅读题目并写出基本计算步骤"],
             partial_knowledge_zh=names,
@@ -487,9 +501,19 @@ def _aggregate_hash(records: Iterable[DatasetFileRecord]) -> str:
     return _sha256("".join(lines).encode("utf-8"))
 
 
-def build_formal_dataset(output_root: Path = DATASET_ROOT) -> DatasetManifest:
-    """Write the same 120 cases and hashes for every invocation."""
-    questions = _question_bank()
+def _build_dataset(
+    *,
+    output_root: Path,
+    dataset_version: str,
+    taxonomy_version: str,
+    questions: list[ControlledQuestion],
+    topic_order: tuple[str, ...],
+    case_prefix: str,
+    case_root: Path,
+    generated_at: datetime,
+    learner_background_zh: str,
+    construction_notes: list[str],
+) -> DatasetManifest:
     question_by_kp = {question.knowledge_point_id: question for question in questions}
     template_dir = DATASET_ROOT / DatasetSplit.PROTOCOL_CHECK.value
     templates = {
@@ -516,20 +540,24 @@ def build_formal_dataset(output_root: Path = DATASET_ROOT) -> DatasetManifest:
         dev_variants = set(variant_order[:dev_count])
         for variant in range(1, 11):
             split = DatasetSplit.DEV if variant in dev_variants else DatasetSplit.TEST
-            case_id = f"formal:{scenario.value}:{variant:02d}"
+            case_id = f"{case_prefix}:{scenario.value}:{variant:02d}"
+            target_knowledge_point_id = topic_order[
+                (scenario_index + variant - 1) % len(topic_order)
+            ]
             case = _formal_case(
                 templates[scenario][(variant - 1) % 2],
                 case_id=case_id,
                 split=split,
                 question_by_kp=question_by_kp,
-                target_knowledge_point_id=_TOPIC_ORDER[
-                    (scenario_index + variant - 1) % len(_TOPIC_ORDER)
-                ],
+                target_knowledge_point_id=target_knowledge_point_id,
+                dataset_version=dataset_version,
+                taxonomy_version=taxonomy_version,
+                target_subject=question_by_kp[target_knowledge_point_id].subject_area,
             )
             cases.append(case)
 
     for split in (DatasetSplit.DEV, DatasetSplit.TEST):
-        split_dir = output_root / split.value
+        split_dir = output_root / case_root / split.value
         split_dir.mkdir(parents=True, exist_ok=True)
         split_cases = sorted(
             (case for case in cases if case.metadata.split is split),
@@ -537,7 +565,7 @@ def build_formal_dataset(output_root: Path = DATASET_ROOT) -> DatasetManifest:
         )
         for case in split_cases:
             filename = case.case_id.replace(":", "_") + ".json"
-            relative_path = f"{split.value}/{filename}"
+            relative_path = (case_root / split.value / filename).as_posix()
             payload = _canonical_json_bytes(case.model_dump(mode="json"))
             path = output_root / relative_path
             path.write_bytes(payload)
@@ -554,10 +582,20 @@ def build_formal_dataset(output_root: Path = DATASET_ROOT) -> DatasetManifest:
     question_payload = _canonical_json_bytes(
         [question.model_dump(mode="json") for question in questions]
     )
-    question_bank_path = output_root / QUESTION_BANK_PATH.name
+    question_bank_path = output_root / f"{dataset_version}.questions.json"
     question_bank_path.write_bytes(question_payload)
 
-    entries = sorted((_benchmark_entry(case) for case in cases), key=lambda item: item.case_id)
+    entries = sorted(
+        (
+            _benchmark_entry(
+                case,
+                taxonomy_version=taxonomy_version,
+                learner_background_zh=learner_background_zh,
+            )
+            for case in cases
+        ),
+        key=lambda item: item.case_id,
+    )
     entry_payload = b"".join(
         json.dumps(
             entry.model_dump(mode="json"),
@@ -568,7 +606,7 @@ def build_formal_dataset(output_root: Path = DATASET_ROOT) -> DatasetManifest:
         + b"\n"
         for entry in entries
     )
-    benchmark_entries_path = output_root / BENCHMARK_ENTRIES_PATH.name
+    benchmark_entries_path = output_root / f"{dataset_version}.benchmark.jsonl"
     benchmark_entries_path.write_bytes(entry_payload)
 
     split_manifests = [
@@ -581,14 +619,36 @@ def build_formal_dataset(output_root: Path = DATASET_ROOT) -> DatasetManifest:
         for split in (DatasetSplit.DEV, DatasetSplit.TEST)
     ]
     manifest = DatasetManifest(
-        dataset_version=DATASET_VERSION,
+        dataset_version=dataset_version,
+        taxonomy_version=taxonomy_version,
         protocol_version=PROTOCOL_VERSION,
         seed=PROTOCOL_SEED,
-        generated_at=_GENERATED_AT,
+        generated_at=generated_at,
         question_bank_sha256=_sha256(question_payload),
         benchmark_entries_sha256=_sha256(entry_payload),
         splits=split_manifests,
         frozen_test_sha256=split_manifests[1].aggregate_sha256,
+        construction_notes=construction_notes,
+    )
+    manifest_path = output_root / f"{dataset_version}.manifest.json"
+    manifest_path.write_bytes(_canonical_json_bytes(manifest.model_dump(mode="json")))
+    return manifest
+
+
+def build_formal_dataset(output_root: Path = DATASET_ROOT) -> DatasetManifest:
+    """Write the same 120 v1 cases and hashes for every invocation."""
+    return _build_dataset(
+        output_root=output_root,
+        dataset_version=DATASET_VERSION,
+        taxonomy_version="math1_v1",
+        questions=_question_bank(),
+        topic_order=_TOPIC_ORDER,
+        case_prefix="formal",
+        case_root=Path(),
+        generated_at=_GENERATED_AT,
+        learner_background_zh=(
+            "我正在准备数学一，已经完成基础概念学习，正在通过练习检查长期掌握情况。"
+        ),
         construction_notes=[
             "The 24 independently reviewed protocol-check cases are semantic templates only.",
             "Every formal case has isolated identifiers, at least three events, and at least two sessions.",
@@ -598,9 +658,6 @@ def build_formal_dataset(output_root: Path = DATASET_ROOT) -> DatasetManifest:
             "The frozen test split is hash-verifiable but must not be scored during Stage 08 development.",
         ],
     )
-    manifest_path = output_root / MANIFEST_PATH.name
-    manifest_path.write_bytes(_canonical_json_bytes(manifest.model_dump(mode="json")))
-    return manifest
 
 
 __all__ = [

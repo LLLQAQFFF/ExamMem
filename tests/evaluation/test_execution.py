@@ -7,7 +7,9 @@ from types import SimpleNamespace
 import pytest
 
 from evaluation.contracts.case import DatasetSplit
+from evaluation.data_builder_v2 import DATASET_VERSION as CROSS_SUBJECT_DATASET_VERSION
 from evaluation.execution import _claim_frozen_test_release, execute_evaluation
+from evaluation.protocols.validation import load_cases
 from exam_mem.backends import BackendMode
 
 pytestmark = pytest.mark.asyncio
@@ -100,3 +102,32 @@ async def test_execution_rejects_unknown_case_filter(tmp_path: Path) -> None:
             database_url=None,
             case_ids=["does_not_exist"],
         )
+
+
+async def test_execution_uses_the_selected_dataset_taxonomy(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(
+        "evaluation.execution.resolve_llm_runtime_config",
+        lambda: SimpleNamespace(provider_name="offline", model="none"),
+    )
+    monkeypatch.setattr("evaluation.execution._assert_evaluation_sources_clean", lambda: None)
+    case = load_cases(
+        DatasetSplit.DEV,
+        dataset_version=CROSS_SUBJECT_DATASET_VERSION,
+    )[0]
+
+    manifest = await execute_evaluation(
+        experiment_id="offline-cross-subject",
+        split=DatasetSplit.DEV,
+        modes=[BackendMode.NONE],
+        output_root=tmp_path,
+        database_url=None,
+        dataset_version=CROSS_SUBJECT_DATASET_VERSION,
+        case_ids=[case.case_id],
+        timeout_seconds=2,
+    )
+
+    assert manifest["dataset_version"] == CROSS_SUBJECT_DATASET_VERSION
+    assert manifest["taxonomy_version"] == "cs_v1"
+    assert manifest["selected_case_count"] == 1

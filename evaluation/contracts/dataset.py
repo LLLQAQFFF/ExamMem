@@ -56,7 +56,7 @@ class ControlledQuestion(StrictDatasetModel):
 
     question_id: NonEmptyString
     knowledge_point_id: NonEmptyString
-    subject_area: Literal["linear_algebra", "probability_theory"]
+    subject_area: NonEmptyString
     difficulty: Annotated[float, Field(ge=0.0, le=1.0)]
     prompt_zh: NonEmptyString
     reference_answer_zh: NonEmptyString
@@ -130,6 +130,7 @@ class SplitManifest(StrictDatasetModel):
 
 class DatasetManifest(StrictDatasetModel):
     dataset_version: DatasetVersion
+    taxonomy_version: NonEmptyString = "math1_v1"
     protocol_version: Literal[PROTOCOL_VERSION]
     seed: Literal[PROTOCOL_SEED]
     generated_at: AwareDatetime

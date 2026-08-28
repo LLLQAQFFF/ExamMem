@@ -152,6 +152,8 @@ def _snapshot_bytes(snapshot: dict) -> int:
 def compute_backend_metrics(
     cases: Sequence[EvaluationCase],
     results: Sequence[RolloutResult],
+    *,
+    taxonomy_version: str = "math1_v1",
 ) -> list[MetricObservation]:
     """Return every preregistered metric with a value or an explicit N/A reason."""
     if not cases or len(cases) != len(results):
@@ -183,7 +185,7 @@ def compute_backend_metrics(
     predicted_slots: list[str | None] = []
     gold_operations: list[str] = []
     predicted_operations: list[str | None] = []
-    taxonomy = load_taxonomy("math1_v1")
+    taxonomy = load_taxonomy(taxonomy_version)
     normalizer = RuleBasedKnowledgePointNormalizer(taxonomy)
     state_exact = stale = active_total = duplicate = 0
     state_steps = 0
@@ -454,9 +456,15 @@ def compute_backend_metrics(
 def build_backend_evaluation(
     cases: Sequence[EvaluationCase],
     results: Sequence[RolloutResult],
+    *,
+    taxonomy_version: str = "math1_v1",
 ) -> BackendEvaluation:
     """Build one audited backend result after enforcing aggregation fairness."""
-    metrics = compute_backend_metrics(cases, results)
+    metrics = compute_backend_metrics(
+        cases,
+        results,
+        taxonomy_version=taxonomy_version,
+    )
     config_hashes = {result.config_hash for result in results}
     fairness_hashes = {result.fairness_hash for result in results}
     modes = {result.config.backend_mode for result in results}

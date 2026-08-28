@@ -35,13 +35,35 @@ def load_protocol(version: str) -> ProtocolConfig:
     return ProtocolConfig.model_validate_json(path.read_text(encoding="utf-8"))
 
 
-def load_cases(split: DatasetSplit | str) -> list[EvaluationCase]:
-    split_value = DatasetSplit(split)
-    dataset_dir = DATASET_ROOT / split_value.value
-    if not dataset_dir.is_dir():
-        raise ArtifactValidationError(f"dataset split directory does not exist: {dataset_dir}")
+def load_formal_manifest(
+    dataset_version: str,
+    *,
+    dataset_root: Path = DATASET_ROOT,
+) -> DatasetManifest:
+    manifest_path = dataset_root / f"{dataset_version}.manifest.json"
+    if not manifest_path.is_file():
+        raise ArtifactValidationError(f"formal manifest does not exist: {manifest_path}")
+    manifest = DatasetManifest.model_validate_json(manifest_path.read_text(encoding="utf-8"))
+    if manifest.dataset_version != dataset_version:
+        raise ArtifactValidationError("formal manifest dataset_version mismatch")
+    return manifest
 
-    paths = sorted(dataset_dir.glob("*.json"))
+
+def load_cases(
+    split: DatasetSplit | str,
+    *,
+    dataset_version: str | None = None,
+) -> list[EvaluationCase]:
+    split_value = DatasetSplit(split)
+    if dataset_version is not None and split_value is not DatasetSplit.PROTOCOL_CHECK:
+        manifest = load_formal_manifest(dataset_version)
+        split_manifest = next(item for item in manifest.splits if item.split is split_value)
+        paths = [DATASET_ROOT / record.path for record in split_manifest.files]
+    else:
+        dataset_dir = DATASET_ROOT / split_value.value
+        if not dataset_dir.is_dir():
+            raise ArtifactValidationError(f"dataset split directory does not exist: {dataset_dir}")
+        paths = sorted(dataset_dir.glob("*.json"))
     if not paths:
         raise ArtifactValidationError(f"dataset split is empty: {split_value.value}")
 
@@ -209,7 +231,7 @@ def _load_formal_sidecars(
     if len(question_by_id) != len(questions):
         raise ArtifactValidationError("controlled question_id values must be unique")
 
-    taxonomy = load_taxonomy("math1_v1")
+    taxonomy = load_taxonomy(manifest.taxonomy_version)
     for question in questions:
         node = taxonomy.get(question.knowledge_point_id)
         if node is None or taxonomy.children_of(question.knowledge_point_id):
@@ -298,12 +320,7 @@ def validate_formal_dataset(
     dataset_root: Path = DATASET_ROOT,
 ) -> dict[str, Any]:
     """Validate formal data while keeping frozen test case contents out of output."""
-    manifest_path = dataset_root / f"{dataset_version}.manifest.json"
-    if not manifest_path.is_file():
-        raise ArtifactValidationError(f"formal manifest does not exist: {manifest_path}")
-    manifest = DatasetManifest.model_validate_json(manifest_path.read_text(encoding="utf-8"))
-    if manifest.dataset_version != dataset_version:
-        raise ArtifactValidationError("formal manifest dataset_version mismatch")
+    manifest = load_formal_manifest(dataset_version, dataset_root=dataset_root)
     questions, entries = _load_formal_sidecars(dataset_root, manifest)
 
     all_cases: list[EvaluationCase] = []
@@ -311,7 +328,12 @@ def validate_formal_dataset(
     split_summaries: dict[str, Any] = {}
     for split_manifest in manifest.splits:
         expected_paths = {record.path for record in split_manifest.files}
-        split_dir = dataset_root / split_manifest.split.value
+        split_dirs = {Path(record.path).parent for record in split_manifest.files}
+        if len(split_dirs) != 1:
+            raise ArtifactValidationError(
+                f"{split_manifest.split.value} records must share one directory"
+            )
+        split_dir = dataset_root / split_dirs.pop()
         actual_paths = {str(path.relative_to(dataset_root)) for path in split_dir.glob("*.json")}
         if actual_paths != expected_paths:
             raise ArtifactValidationError(
@@ -515,6 +537,7 @@ __all__ = [
     "ArtifactValidationError",
     "GoldReplayError",
     "load_cases",
+    "load_formal_manifest",
     "load_protocol",
     "replay_case",
     "replay_split",

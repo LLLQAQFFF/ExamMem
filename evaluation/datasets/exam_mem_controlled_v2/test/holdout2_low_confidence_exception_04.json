@@ -1,0 +1,400 @@
+{
+  "case_id": "holdout2:low_confidence_exception:04",
+  "events": [
+    {
+      "answer_correct": true,
+      "context": {
+        "exam_id": "holdout2:low_confidence_exception:04:postgraduate_entrance_exam",
+        "subject_id": "algorithms",
+        "user_id": "holdout2:low_confidence_exception:04:user_001"
+      },
+      "correction": null,
+      "difficulty": 0.5,
+      "error_detail": null,
+      "error_type": null,
+      "event_id": "holdout2:low_confidence_exception:04:event_conditional_probability_101",
+      "event_type": "answer_attempt",
+      "evidence_quality": {
+        "confidence": 1.0,
+        "is_temporary_exception": true,
+        "reasons": [
+          "user_reported_exception"
+        ]
+      },
+      "idempotency_key": "holdout2:low_confidence_exception:04:conditional-probability-guided-101",
+      "knowledge_point_ids": [
+        "cs.algorithms.dynamic_programming"
+      ],
+      "occurred_at": "2026-08-10T10:30:00Z",
+      "plan_transition": null,
+      "question_id": "controlled2:dynamic_programming:v1",
+      "session_id": "holdout2:low_confidence_exception:04:session:1"
+    },
+    {
+      "answer_correct": false,
+      "context": {
+        "exam_id": "holdout2:low_confidence_exception:04:postgraduate_entrance_exam",
+        "subject_id": "algorithms",
+        "user_id": "holdout2:low_confidence_exception:04:user_001"
+      },
+      "correction": null,
+      "difficulty": 0.5,
+      "error_detail": "本次作答受外部中断影响，不能作为稳定能力证据。",
+      "error_type": "unknown",
+      "event_id": "holdout2:low_confidence_exception:04:padding_event:2",
+      "event_type": "answer_attempt",
+      "evidence_quality": {
+        "confidence": 0.1,
+        "is_temporary_exception": true,
+        "reasons": [
+          "external_disruption"
+        ]
+      },
+      "idempotency_key": "holdout2:low_confidence_exception:04:padding_idempotency:2",
+      "knowledge_point_ids": [
+        "cs.algorithms.dynamic_programming"
+      ],
+      "occurred_at": "2026-08-17T10:30:00Z",
+      "plan_transition": null,
+      "question_id": "controlled2:dynamic_programming:v1",
+      "session_id": "holdout2:low_confidence_exception:04:session:2"
+    },
+    {
+      "answer_correct": false,
+      "context": {
+        "exam_id": "holdout2:low_confidence_exception:04:postgraduate_entrance_exam",
+        "subject_id": "algorithms",
+        "user_id": "holdout2:low_confidence_exception:04:user_001"
+      },
+      "correction": null,
+      "difficulty": 0.5,
+      "error_detail": "本次作答受外部中断影响，不能作为稳定能力证据。",
+      "error_type": "unknown",
+      "event_id": "holdout2:low_confidence_exception:04:padding_event:3",
+      "event_type": "answer_attempt",
+      "evidence_quality": {
+        "confidence": 0.1,
+        "is_temporary_exception": true,
+        "reasons": [
+          "external_disruption"
+        ]
+      },
+      "idempotency_key": "holdout2:low_confidence_exception:04:padding_idempotency:3",
+      "knowledge_point_ids": [
+        "cs.algorithms.dynamic_programming"
+      ],
+      "occurred_at": "2026-08-24T10:30:00Z",
+      "plan_transition": null,
+      "question_id": "controlled2:dynamic_programming:v1",
+      "session_id": "holdout2:low_confidence_exception:04:session:3"
+    }
+  ],
+  "gold_actions": [
+    {
+      "action_type": "recommend_review",
+      "knowledge_point_ids": [
+        "cs.algorithms.dynamic_programming"
+      ],
+      "reason_code": "temporary_guided_success_does_not_remove_existing_review_need",
+      "step_id": "holdout2:low_confidence_exception:04:step_001"
+    },
+    {
+      "action_type": "no_action",
+      "knowledge_point_ids": [],
+      "reason_code": "temporary_low_confidence_evidence_requires_no_action",
+      "step_id": "holdout2:low_confidence_exception:04:padding_step:2"
+    },
+    {
+      "action_type": "no_action",
+      "knowledge_point_ids": [],
+      "reason_code": "temporary_low_confidence_evidence_requires_no_action",
+      "step_id": "holdout2:low_confidence_exception:04:padding_step:3"
+    }
+  ],
+  "gold_operations": [
+    {
+      "candidate_memory_ids": [
+        "holdout2:low_confidence_exception:04:mastery_conditional_probability_low_v1"
+      ],
+      "canonical_knowledge_point_ids": [
+        "cs.algorithms.dynamic_programming"
+      ],
+      "event_id": "holdout2:low_confidence_exception:04:event_conditional_probability_101",
+      "evidence_event_ids": [
+        "holdout2:low_confidence_exception:04:event_conditional_probability_101"
+      ],
+      "expected_result_value": null,
+      "extracted_fields": {
+        "answer_correct": true,
+        "correction": null,
+        "error_detail": null,
+        "error_type": null,
+        "event_type": "answer_attempt",
+        "evidence_quality": {
+          "confidence": 1.0,
+          "is_temporary_exception": true,
+          "reasons": [
+            "user_reported_exception"
+          ]
+        },
+        "knowledge_point_ids": [
+          "cs.algorithms.dynamic_programming"
+        ],
+        "plan_transition": null
+      },
+      "operation": "NO_OP",
+      "operation_id": "holdout2:low_confidence_exception:04:step_001:mastery",
+      "reason_code": "guided_temporary_success_is_not_independent_mastery_evidence",
+      "result_memory_id": null,
+      "slot_key": "mastery:cs.algorithms.dynamic_programming",
+      "step_id": "holdout2:low_confidence_exception:04:step_001",
+      "target_memory_ids": [
+        "holdout2:low_confidence_exception:04:mastery_conditional_probability_low_v1"
+      ]
+    },
+    {
+      "candidate_memory_ids": [
+        "holdout2:low_confidence_exception:04:mastery_conditional_probability_low_v1"
+      ],
+      "canonical_knowledge_point_ids": [
+        "cs.algorithms.dynamic_programming"
+      ],
+      "event_id": "holdout2:low_confidence_exception:04:padding_event:2",
+      "evidence_event_ids": [
+        "holdout2:low_confidence_exception:04:padding_event:2"
+      ],
+      "expected_result_value": null,
+      "extracted_fields": {
+        "answer_correct": false,
+        "correction": null,
+        "error_detail": "本次作答受外部中断影响，不能作为稳定能力证据。",
+        "error_type": "unknown",
+        "event_type": "answer_attempt",
+        "evidence_quality": {
+          "confidence": 0.1,
+          "is_temporary_exception": true,
+          "reasons": [
+            "external_disruption"
+          ]
+        },
+        "knowledge_point_ids": [
+          "cs.algorithms.dynamic_programming"
+        ],
+        "plan_transition": null
+      },
+      "operation": "NO_OP",
+      "operation_id": "holdout2:low_confidence_exception:04:padding_operation:2:1",
+      "reason_code": "temporary_low_confidence_evidence_is_not_persisted",
+      "result_memory_id": null,
+      "slot_key": "mastery:cs.algorithms.dynamic_programming",
+      "step_id": "holdout2:low_confidence_exception:04:padding_step:2",
+      "target_memory_ids": [
+        "holdout2:low_confidence_exception:04:mastery_conditional_probability_low_v1"
+      ]
+    },
+    {
+      "candidate_memory_ids": [],
+      "canonical_knowledge_point_ids": [
+        "cs.algorithms.dynamic_programming"
+      ],
+      "event_id": "holdout2:low_confidence_exception:04:padding_event:2",
+      "evidence_event_ids": [
+        "holdout2:low_confidence_exception:04:padding_event:2"
+      ],
+      "expected_result_value": null,
+      "extracted_fields": {
+        "answer_correct": false,
+        "correction": null,
+        "error_detail": "本次作答受外部中断影响，不能作为稳定能力证据。",
+        "error_type": "unknown",
+        "event_type": "answer_attempt",
+        "evidence_quality": {
+          "confidence": 0.1,
+          "is_temporary_exception": true,
+          "reasons": [
+            "external_disruption"
+          ]
+        },
+        "knowledge_point_ids": [
+          "cs.algorithms.dynamic_programming"
+        ],
+        "plan_transition": null
+      },
+      "operation": "NO_OP",
+      "operation_id": "holdout2:low_confidence_exception:04:padding_operation:2:2",
+      "reason_code": "temporary_low_confidence_evidence_is_not_persisted",
+      "result_memory_id": null,
+      "slot_key": "error_pattern:cs.algorithms.dynamic_programming:unknown",
+      "step_id": "holdout2:low_confidence_exception:04:padding_step:2",
+      "target_memory_ids": []
+    },
+    {
+      "candidate_memory_ids": [
+        "holdout2:low_confidence_exception:04:mastery_conditional_probability_low_v1"
+      ],
+      "canonical_knowledge_point_ids": [
+        "cs.algorithms.dynamic_programming"
+      ],
+      "event_id": "holdout2:low_confidence_exception:04:padding_event:3",
+      "evidence_event_ids": [
+        "holdout2:low_confidence_exception:04:padding_event:3"
+      ],
+      "expected_result_value": null,
+      "extracted_fields": {
+        "answer_correct": false,
+        "correction": null,
+        "error_detail": "本次作答受外部中断影响，不能作为稳定能力证据。",
+        "error_type": "unknown",
+        "event_type": "answer_attempt",
+        "evidence_quality": {
+          "confidence": 0.1,
+          "is_temporary_exception": true,
+          "reasons": [
+            "external_disruption"
+          ]
+        },
+        "knowledge_point_ids": [
+          "cs.algorithms.dynamic_programming"
+        ],
+        "plan_transition": null
+      },
+      "operation": "NO_OP",
+      "operation_id": "holdout2:low_confidence_exception:04:padding_operation:3:1",
+      "reason_code": "temporary_low_confidence_evidence_is_not_persisted",
+      "result_memory_id": null,
+      "slot_key": "mastery:cs.algorithms.dynamic_programming",
+      "step_id": "holdout2:low_confidence_exception:04:padding_step:3",
+      "target_memory_ids": [
+        "holdout2:low_confidence_exception:04:mastery_conditional_probability_low_v1"
+      ]
+    },
+    {
+      "candidate_memory_ids": [],
+      "canonical_knowledge_point_ids": [
+        "cs.algorithms.dynamic_programming"
+      ],
+      "event_id": "holdout2:low_confidence_exception:04:padding_event:3",
+      "evidence_event_ids": [
+        "holdout2:low_confidence_exception:04:padding_event:3"
+      ],
+      "expected_result_value": null,
+      "extracted_fields": {
+        "answer_correct": false,
+        "correction": null,
+        "error_detail": "本次作答受外部中断影响，不能作为稳定能力证据。",
+        "error_type": "unknown",
+        "event_type": "answer_attempt",
+        "evidence_quality": {
+          "confidence": 0.1,
+          "is_temporary_exception": true,
+          "reasons": [
+            "external_disruption"
+          ]
+        },
+        "knowledge_point_ids": [
+          "cs.algorithms.dynamic_programming"
+        ],
+        "plan_transition": null
+      },
+      "operation": "NO_OP",
+      "operation_id": "holdout2:low_confidence_exception:04:padding_operation:3:2",
+      "reason_code": "temporary_low_confidence_evidence_is_not_persisted",
+      "result_memory_id": null,
+      "slot_key": "error_pattern:cs.algorithms.dynamic_programming:unknown",
+      "step_id": "holdout2:low_confidence_exception:04:padding_step:3",
+      "target_memory_ids": []
+    }
+  ],
+  "gold_states": [
+    {
+      "active_memory_ids": [
+        "holdout2:low_confidence_exception:04:mastery_conditional_probability_low_v1"
+      ],
+      "archived_memory_ids": [],
+      "contested_memory_ids": [],
+      "invalidated_memory_ids": [],
+      "step_id": "holdout2:low_confidence_exception:04:step_001",
+      "version_relations": []
+    },
+    {
+      "active_memory_ids": [
+        "holdout2:low_confidence_exception:04:mastery_conditional_probability_low_v1"
+      ],
+      "archived_memory_ids": [],
+      "contested_memory_ids": [],
+      "invalidated_memory_ids": [],
+      "step_id": "holdout2:low_confidence_exception:04:padding_step:2",
+      "version_relations": []
+    },
+    {
+      "active_memory_ids": [
+        "holdout2:low_confidence_exception:04:mastery_conditional_probability_low_v1"
+      ],
+      "archived_memory_ids": [],
+      "contested_memory_ids": [],
+      "invalidated_memory_ids": [],
+      "step_id": "holdout2:low_confidence_exception:04:padding_step:3",
+      "version_relations": []
+    }
+  ],
+  "initial_memory": [
+    {
+      "confidence": 0.84,
+      "evidence_count": 6,
+      "lifecycle_state": "active",
+      "memory_id": "holdout2:low_confidence_exception:04:mastery_conditional_probability_low_v1",
+      "provenance": [
+        "holdout2:low_confidence_exception:04:event_conditional_probability_095",
+        "holdout2:low_confidence_exception:04:event_conditional_probability_096",
+        "holdout2:low_confidence_exception:04:event_conditional_probability_097",
+        "holdout2:low_confidence_exception:04:event_conditional_probability_098",
+        "holdout2:low_confidence_exception:04:event_conditional_probability_099",
+        "holdout2:low_confidence_exception:04:event_conditional_probability_100"
+      ],
+      "scope": {
+        "exam_id": "holdout2:low_confidence_exception:04:postgraduate_entrance_exam",
+        "memory_namespace": "mastery",
+        "subject_id": "algorithms",
+        "user_id": "holdout2:low_confidence_exception:04:user_001"
+      },
+      "slot_key": "mastery:cs.algorithms.dynamic_programming",
+      "superseded_by": null,
+      "valid_from": "2026-08-02T08:00:00Z",
+      "valid_to": null,
+      "value": {
+        "level": "low",
+        "score": 0.35,
+        "type": "mastery"
+      },
+      "version": 1
+    }
+  ],
+  "metadata": {
+    "gold_revision": 3,
+    "policy_parameters": {
+      "formal_dataset_version": "exam_mem_controlled_v2",
+      "padding_policy": "temporary_low_confidence_no_op",
+      "target_knowledge_point_id": "cs.algorithms.dynamic_programming",
+      "taxonomy_version": "cs_v1",
+      "template_case_id": "temporary_guided_success_does_not_upgrade_mastery_002"
+    },
+    "seed": 20260806,
+    "split": "test"
+  },
+  "protocol_version": "evaluation_protocol_v1",
+  "queries": [
+    {
+      "after_step_id": "holdout2:low_confidence_exception:04:step_001",
+      "query_id": "holdout2:low_confidence_exception:04:query_001",
+      "scope": {
+        "exam_id": "holdout2:low_confidence_exception:04:postgraduate_entrance_exam",
+        "memory_namespace": "mastery",
+        "subject_id": "algorithms",
+        "user_id": "holdout2:low_confidence_exception:04:user_001"
+      },
+      "text": "在完整提示下答对是否足以提升条件概率掌握度？",
+      "top_k": 3
+    }
+  ],
+  "scenario_type": "low_confidence_exception"
+}

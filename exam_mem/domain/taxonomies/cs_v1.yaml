@@ -1,0 +1,121 @@
+taxonomy_version: cs_v1
+nodes:
+  - id: cs
+    name_zh: 计算机基础
+    parent_id: null
+    aliases: [计算机科学基础]
+    prerequisites: []
+    status: active
+    replaced_by: null
+
+  - id: cs.data_structures
+    name_zh: 数据结构
+    parent_id: cs
+    aliases: [数据结构基础]
+    prerequisites: []
+    status: active
+    replaced_by: null
+
+  - id: cs.data_structures.array
+    name_zh: 数组
+    parent_id: cs.data_structures
+    aliases: [顺序表, 连续存储数组]
+    prerequisites: []
+    status: active
+    replaced_by: null
+
+  - id: cs.data_structures.linked_list
+    name_zh: 链表
+    parent_id: cs.data_structures
+    aliases: [单链表, 链式存储]
+    prerequisites: []
+    status: active
+    replaced_by: null
+
+  - id: cs.data_structures.stack
+    name_zh: 栈
+    parent_id: cs.data_structures
+    aliases: [后进先出结构, LIFO]
+    prerequisites: []
+    status: active
+    replaced_by: null
+
+  - id: cs.data_structures.queue
+    name_zh: 队列
+    parent_id: cs.data_structures
+    aliases: [先进先出结构, FIFO]
+    prerequisites: []
+    status: active
+    replaced_by: null
+
+  - id: cs.data_structures.tree_traversal
+    name_zh: 二叉树遍历
+    parent_id: cs.data_structures
+    aliases: [树遍历, 前中后序遍历]
+    prerequisites: []
+    status: active
+    replaced_by: null
+
+  - id: cs.data_structures.hash_table
+    name_zh: 哈希表
+    parent_id: cs.data_structures
+    aliases: [散列表, 哈希映射]
+    prerequisites: [cs.data_structures.array]
+    status: active
+    replaced_by: null
+
+  - id: cs.algorithms
+    name_zh: 算法
+    parent_id: cs
+    aliases: [算法设计]
+    prerequisites: []
+    status: active
+    replaced_by: null
+
+  - id: cs.algorithms.binary_search
+    name_zh: 二分查找
+    parent_id: cs.algorithms
+    aliases: [折半查找]
+    prerequisites: [cs.data_structures.array]
+    status: active
+    replaced_by: null
+
+  - id: cs.algorithms.sorting_stability
+    name_zh: 排序稳定性
+    parent_id: cs.algorithms
+    aliases: [稳定排序, 排序算法稳定性]
+    prerequisites: [cs.data_structures.array]
+    status: active
+    replaced_by: null
+
+  - id: cs.algorithms.bfs
+    name_zh: 广度优先搜索
+    parent_id: cs.algorithms
+    aliases: [宽度优先搜索, BFS]
+    prerequisites: [cs.data_structures.queue]
+    status: active
+    replaced_by: null
+
+  - id: cs.algorithms.dfs
+    name_zh: 深度优先搜索
+    parent_id: cs.algorithms
+    aliases: [DFS]
+    prerequisites: [cs.data_structures.stack]
+    status: active
+    replaced_by: null
+
+  - id: cs.algorithms.dynamic_programming
+    name_zh: 动态规划
+    parent_id: cs.algorithms
+    aliases: [DP, 动态规划算法]
+    prerequisites: []
+    status: active
+    replaced_by: null
+
+  - id: cs.algorithms.greedy
+    name_zh: 贪心算法
+    parent_id: cs.algorithms
+    aliases: [贪心策略]
+    prerequisites: []
+    status: active
+    replaced_by: null

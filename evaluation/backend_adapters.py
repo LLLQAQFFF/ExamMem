@@ -107,8 +107,8 @@ _PRODUCING_OPERATIONS = {
 class EvaluationRecommendationPolicy:
     """Observe the production recommendation policy without question retrieval."""
 
-    def __init__(self) -> None:
-        taxonomy = load_taxonomy("math1_v1")
+    def __init__(self, taxonomy_version: str = "math1_v1") -> None:
+        taxonomy = load_taxonomy(taxonomy_version)
         self._policy = RecommendationPolicyV1(taxonomy=taxonomy)
         self._knowledge_point_ids = tuple(
             node.id
@@ -287,6 +287,7 @@ class NativeEvaluationSession:
         run_id: str,
         case: EvaluationCase,
         client: NativeMemoryClient | None = None,
+        taxonomy_version: str = "math1_v1",
     ) -> None:
         self.case = case
         self._client = client or DeepTutorNativeEvaluationClient(
@@ -297,7 +298,7 @@ class NativeEvaluationSession:
             self._client,
             trace_id=f"{run_id}:native:{case.case_id}",
         )
-        self._recommendation = EvaluationRecommendationPolicy()
+        self._recommendation = EvaluationRecommendationPolicy(taxonomy_version)
 
     async def seed(self, case: EvaluationCase) -> dict[str, JsonValue]:
         if case.case_id != self.case.case_id:
@@ -579,6 +580,7 @@ class PostgresEvaluationSession:
         embedding_client: DeterministicHashEmbeddingClient
         | ConfiguredHostEmbeddingClient
         | None = None,
+        taxonomy_version: str = "math1_v1",
     ) -> None:
         if mode not in {BackendMode.APPEND_ONLY, BackendMode.VECTOR, BackendMode.LIFECYCLE}:
             raise ValueError("PostgresEvaluationSession requires a PostgreSQL backend mode")
@@ -602,7 +604,7 @@ class PostgresEvaluationSession:
         elif mode is BackendMode.LIFECYCLE:
             self._relation_mode = "injected_smoke_only"
         self._contexts = self._runtime_contexts(case)
-        self._recommendation = EvaluationRecommendationPolicy()
+        self._recommendation = EvaluationRecommendationPolicy(taxonomy_version)
 
     def _runtime_scalar_id(self, value: str) -> str:
         return f"{self._prefix}{value}"
@@ -1084,9 +1086,9 @@ class NoMemoryEvaluationSession:
     mode = BackendMode.NONE
     policy_version = "none_v1"
 
-    def __init__(self) -> None:
+    def __init__(self, taxonomy_version: str = "math1_v1") -> None:
         self._backend = NoMemoryBackend()
-        self._recommendation = EvaluationRecommendationPolicy()
+        self._recommendation = EvaluationRecommendationPolicy(taxonomy_version)
 
     async def seed(self, case: EvaluationCase) -> dict[str, JsonValue]:
         return {"backend_mode": "none", "discarded_initial_memory_count": len(case.initial_memory)}

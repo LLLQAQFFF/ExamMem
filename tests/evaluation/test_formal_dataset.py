@@ -5,6 +5,15 @@ from pathlib import Path
 import pytest
 
 from evaluation.data_builder import DATASET_VERSION, build_formal_dataset
+from evaluation.data_builder_v2 import (
+    DATASET_VERSION as CROSS_SUBJECT_DATASET_VERSION,
+)
+from evaluation.data_builder_v2 import (
+    TAXONOMY_VERSION as CROSS_SUBJECT_TAXONOMY_VERSION,
+)
+from evaluation.data_builder_v2 import (
+    build_cross_subject_dataset,
+)
 from evaluation.protocols.validation import (
     ArtifactValidationError,
     validate_formal_dataset,
@@ -56,3 +65,24 @@ def test_formal_dataset_rejects_a_tampered_case(tmp_path: Path) -> None:
 
     with pytest.raises(ArtifactValidationError, match="case hash mismatch"):
         validate_formal_dataset(DATASET_VERSION, dataset_root=tmp_path)
+
+
+def test_cross_subject_dataset_is_valid_isolated_and_reproducible(tmp_path: Path) -> None:
+    first = tmp_path / "first"
+    second = tmp_path / "second"
+
+    manifest = build_cross_subject_dataset(first)
+    build_cross_subject_dataset(second)
+    summary = validate_formal_dataset(CROSS_SUBJECT_DATASET_VERSION, dataset_root=first)
+
+    assert manifest.taxonomy_version == CROSS_SUBJECT_TAXONOMY_VERSION
+    assert summary["case_count"] == 120
+    assert summary["question_count"] == 12
+    assert summary["splits"]["dev"]["case_count"] == 40
+    assert summary["splits"]["test"]["case_count"] == 80
+    assert all(
+        record.path.startswith(f"{CROSS_SUBJECT_DATASET_VERSION}/")
+        for split in manifest.splits
+        for record in split.files
+    )
+    assert _tree_bytes(first) == _tree_bytes(second)

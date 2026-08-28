@@ -13,6 +13,12 @@ from typing import Any
 
 from evaluation.contracts.case import PROTOCOL_SEED, PROTOCOL_VERSION, DatasetSplit
 from evaluation.data_builder import DATASET_VERSION, build_formal_dataset
+from evaluation.data_builder_v2 import (
+    DATASET_VERSION as CROSS_SUBJECT_DATASET_VERSION,
+)
+from evaluation.data_builder_v2 import (
+    build_cross_subject_dataset,
+)
 from evaluation.evaluators.slot import evaluate_slot
 from evaluation.execution import execute_evaluation
 from evaluation.protocols.validation import (
@@ -46,7 +52,15 @@ def _dataset_validate(args: argparse.Namespace) -> dict[str, Any]:
 def _dataset_build(args: argparse.Namespace) -> dict[str, Any]:
     if args.seed != PROTOCOL_SEED:
         raise ValueError(f"formal dataset seed is frozen at {PROTOCOL_SEED}")
-    manifest = build_formal_dataset()
+    builders = {
+        DATASET_VERSION: build_formal_dataset,
+        CROSS_SUBJECT_DATASET_VERSION: build_cross_subject_dataset,
+    }
+    try:
+        builder = builders[args.dataset_version]
+    except KeyError as exc:
+        raise ValueError(f"unknown buildable dataset version: {args.dataset_version}") from exc
+    manifest = builder()
     return {
         "status": "ok",
         "command": "dataset build",
@@ -102,6 +116,7 @@ def _evaluate_run(args: argparse.Namespace) -> dict[str, Any]:
             scenarios=args.scenario,
             embedding_mode=args.embedding_mode,
             allow_frozen_test=args.allow_frozen_test,
+            dataset_version=args.dataset_version,
         )
     )
     return {"status": "ok", "command": "evaluate run", **result}
@@ -136,6 +151,7 @@ def build_parser() -> argparse.ArgumentParser:
         "build", help="Deterministically materialize the formal controlled dataset."
     )
     dataset_build.add_argument("--seed", type=int, default=PROTOCOL_SEED)
+    dataset_build.add_argument("--dataset-version", default=DATASET_VERSION)
     dataset_build.set_defaults(handler=_dataset_build)
 
     dataset_verify = dataset_actions.add_parser(
@@ -169,6 +185,7 @@ def build_parser() -> argparse.ArgumentParser:
     evaluate_actions = evaluate.add_subparsers(dest="action", required=True)
     evaluate_run = evaluate_actions.add_parser("run")
     evaluate_run.add_argument("--run-id", required=True)
+    evaluate_run.add_argument("--dataset-version", default=DATASET_VERSION)
     evaluate_run.add_argument(
         "--split",
         required=True,
