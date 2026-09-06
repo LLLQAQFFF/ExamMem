@@ -1,8 +1,20 @@
-# DeepTutor × ExamMem 底层框架源码走读与面试指南
+# DeepTutor × ExamMem 技术架构、源码走读、评测与面试指南
 
 > 基线：当前仓库 `main`，ExamMem migration head 为 `0014_textbook_grounding`。
 >
 > 这份文档只描述当前源码事实。`ExamMem-local-archive/2026-08-18` 中的材料可作历史参考，但其中“尚未实现教材 grounding”等结论已经过时。
+
+本文是 DeepTutor × ExamMem 架构、实现、评测和面试准备的**唯一综合入口**，已合并原
+`TECHNICAL_OVERVIEW.zh-CN.md` 的技术全景与最新实验口径。阅读时可以按目的选择路径：
+
+- 快速准备项目介绍：第 0、1、19、20、24 节；
+- 理解 DeepTutor 框架：第 2～7 节；
+- 理解 ExamMem Memory：第 8～15 节；
+- 理解教材 PDF 到 RAG：第 16～18 节；
+- 准备源码追问：第 21～23 节。
+
+文中的数字分为论文实验、ExamMem 离线受控实验和工程测试。三者回答的问题不同，不能把
+某个局部高分解释成整个产品的准确率或真实学习增益。当前评测口径更新至 2026-08-28。
 
 ## 0. 先把三个最容易混淆的概念分开
 
@@ -520,6 +532,28 @@ Memory Workbench API 可以启动 update、audit、dedup、merge 等后台 run�
 - Memory 检索“关于用户/学习状态的长期事实”。
 - RAG 检索“外部知识源里的内容证据”。
 
+### 7.1 ParseService 怎样把文件变成统一文档
+
+`ParseService` 是解析适配层，不是某一个 PDF 库：
+
+```text
+文件字节
+→ 计算 source content hash
+→ 根据格式和设置选择 text-only / MinerU / Docling / MarkItDown /
+  PyMuPDF4LLM / LiteParse 等 parser
+→ 用 source hash + parser signature 查询缓存
+→ parser 输出 Markdown、blocks、图片等原始结果
+→ 归一化为 ParsedDocument
+→ 保存可复用缓存
+```
+
+`parser signature` 表示解析器及其关键配置版本；相同文件但解析器配置变化时不会错误复用旧
+结果。稳定的 `ParsedDocument` 把第三方解析差异隔离在 RAG 和 ExamMem 章节恢复之前。PDF
+本身通常没有可靠的“章节”语义，因此章节识别主要依赖解析后 heading、编号、目录/正文对应、
+字体或 block 信息；证据不足时保留低置信度 `Full text`，而不是让 LLM 凭空制造目录。
+
+### 7.2 RAG 怎样建立和查询索引
+
 DeepTutor 的 RAG 有多个 provider，不能一概而论。工厂见 `deeptutor/services/rag/factory.py`。默认 LlamaIndex pipeline 的关键路径是：
 
 ```text
@@ -530,6 +564,11 @@ DeepTutor 的 RAG 有多个 provider，不能一概而论。工厂见 `deeptutor
   → reciprocal-rank fusion
   → top-k nodes + source metadata
 ```
+
+默认 FAISS 路径使用 `IndexFlatIP`。文档向量与查询向量在写入/检索前做 L2 归一化，所以内积
+排序等价于 cosine similarity；`IndexFlatIP` 是精确扫描，不是 HNSW 近似索引。BM25 根据
+词频、逆文档频率和文档长度归一化做词法召回，适合专有名词、公式符号和精确关键词；hybrid
+模式用 Reciprocal Rank Fusion 按双方排名合并，不要求直接比较两种检索器数值尺度不同的分数。
 
 关键文件：
 
@@ -1191,9 +1230,26 @@ planner 的诊断控制组能达到 ANN Recall@5 0.972、P95 约 2.98 ms，证�
 - mastered
 - contested
 
-复习间隔会根据未测、冲突、最近答错、稳定错误、低/高掌握度等确定。推荐分综合考虑 weakness、stable error、forgetting、active plan、coverage gap、contested、scheduled 等信号，并根据状态建议难度。
+复习间隔会根据未测、冲突、最近答错、稳定错误、低/高掌握度等确定。当前推荐链路是：
 
-这里的“推荐”是可复现策略，不是直接让 LLM 看一坨历史自由发挥。
+```text
+完整当前 Profile + Taxonomy active leaves
+→ 为每个知识点计算 weakness / stable error / forgetting /
+  active plan / coverage gap / contested / scheduled 信号
+→ 确定性可行动门控
+→ 无候选时返回 no_recommendation
+→ 生成有界 canonical 候选集并做基础排序
+→ LLM 只能在候选 ID 中选择知识点和动作
+→ 模型失败、越界或低置信度时确定性回退
+→ 记录候选、策略、selector 版本和理由
+```
+
+候选至少需要 weakness、stable error、active plan priority，或 `forgetting_risk >= 0.5` 才能
+打开门控。遗忘风险近似按“距最近有效记忆天数 / 30”截断到 0～1，因此当前阈值约为 15 天；
+coverage gap 可以影响排序，但不能单独强迫系统出题。
+
+所以推荐既不是纯规则，也不是让 LLM 读取全部历史后自由编造。确定性代码负责权限、状态、
+是否推荐和候选边界，LLM 只负责候选内的语义选择，失败时仍能得到可复现结果。
 
 ---
 
@@ -1363,7 +1419,159 @@ Evidence snapshot 记录：
 
 ---
 
-## 20. 推荐的源码走读顺序与断点
+## 20. 评测全景：测了什么、结果怎样、边界在哪
+
+面试时不要把所有数字混成一个“系统准确率”。当前证据分为四层：DeepTutor 整体辅导、
+ExamMem 生命周期、ExamMem 语义检索和工程契约；它们分别回答不同问题。
+
+### 20.1 DeepTutor 整体辅导：TutorBench
+
+DeepTutor 论文通过 TutorBench 比较完整系统和 Naive Tutor：
+
+| 项目 | 内容 |
+| --- | --- |
+| 规模 | 270 个任务、90 个模拟学生画像、30 个知识库 |
+| 方法 | 模拟学生进行多轮交互，LLM judge 在十个维度上按 1～5 分评分 |
+| 对象 | 完整辅导、问答和出题表现，不是 Native Memory 单模块 |
+| 结果 | DeepTutor 3.91，Naive Tutor 3.53，相对提升 10.76% |
+
+它能支持“多能力协同改善整体辅导质量”，但不能直接证明 Native Memory 准确，也不能证明
+真实学生成绩提高。模拟学生和 LLM judge 还可能存在模型偏好与评分漂移。截至 2026-09-03，
+官方 `eval` 分支公开了评测代码和提示词，但论文使用的 270 条 frozen task 与 30 个成品知识库
+没有随 `main`、Release 或该分支一并公开，因此这里引用的是论文结果，不声称已在本仓库复现。
+
+### 20.2 ExamMem Controlled Lifecycle Evaluation
+
+这套评测从已经校验的结构化 `LearningEvent` 开始，测试 L1/L2 生命周期维护、当前状态、
+检索安全和推荐，不测试“原始聊天能否正确抽取事件”。`exam_mem_controlled_v1` 有 120 个
+case：40 个 dev、80 个一次性 frozen test，共 12 类多轮学习轨迹。五个 backend 使用相同
+Gold、顺序、`top_k` 和 seed：
+
+- `none`：不保存长期记忆；
+- `DeepTutor native`：通用 Markdown Memory；
+- `append-only`：只追加、不处理生命周期；
+- `vector`：追加后用向量找相关记录；
+- `lifecycle`：ExamMem 的 typed lifecycle。
+
+主要指标不能混淆：
+
+| 指标 | 回答的问题 |
+| --- | --- |
+| Operation accuracy / macro-F1 | 每次 ADD、MERGE、SUPERSEDE、CONTESTED 等操作是否正确 |
+| Active-state exact | 一系列操作后，每个检查点的完整当前状态是否与 Gold 一致 |
+| Stale / duplicate rate | 返回了多少过时状态或重复状态，越低越好 |
+| Cross-scope leakage | 是否读到其他用户、考试、科目或 namespace，必须为 0 |
+| 推荐知识点准确率 | 推荐的 canonical 知识点是否匹配 Gold |
+| 推荐动作准确率 | `review / advance / no_action` 等动作类型是否匹配 Gold |
+
+v1 frozen test 是生命周期算法的历史正式基线：
+
+| Lifecycle 指标 | v1 frozen test |
+| --- | ---: |
+| 完成率 | 98.75%（79/80） |
+| Operation accuracy / macro-F1 | 95.73%（381/398）/ 82.49% |
+| Active-state exact | 90.42%（217/240） |
+| Stale / duplicate rate | 3.32% / 3.32% |
+| Cross-scope leakage | 0 |
+| 推荐知识点准确率 | 30.83%（74/240） |
+
+95.73% 是逐次操作准确率，90.42% 是操作序列完成后的整体状态准确率；一次错误操作可能持续
+污染多个后续检查点，所以两者不会相等。30.83% 则说明当时 Memory 维护较好，但推荐策略仍
+是明显短板，不能用前两个高分替它辩护。
+
+### 20.3 推荐修复、校准与跨学科 frozen test
+
+推荐修复把“现在是否应该推荐”和“门控通过后推荐哪个知识点”分开：无可行动证据时返回
+`no_recommendation`；coverage gap 不能独自强制出题；遗忘、薄弱、稳定错因或计划优先级
+可以打开门控。随后 LLM 只能从服务端生成的有界 canonical 候选集中选择，越界、低置信度
+或模型失败时回退到确定性排序。
+
+三组数字必须按实验身份分别报告：
+
+| 实验 | 推荐知识点 | 推荐动作 | 证据性质 |
+| --- | ---: | ---: | --- |
+| v1 80-case frozen test | 30.83% | 当时未单列 | 修复前历史正式基线 |
+| v1 40-case dev 单臂重跑 | 83.33%（100/120） | 93.33%（112/120） | 用于校准，不能当 holdout |
+| v1 已公开 test post-hoc | 82.08%（197/240） | 92.83%（220/237） | test 已参与诊断，不能重新包装成盲测 |
+| v3 跨学科 frozen test | **80.83%（194/240）** | **92.74%（217/234）** | 新学科语义上的一次性正式结果 |
+
+`exam_mem_controlled_v3` 将题目、答案、错误证据、Memory 文本、Taxonomy/slot、查询和 Scope
+改成计算机数据结构与算法语义，并对 80 个 case、五个 backend 一次性运行。Lifecycle 完整
+结果为：
+
+| Lifecycle 指标 | v3 frozen test |
+| --- | ---: |
+| 完成率 | 97.50%（78/80） |
+| Operation accuracy / macro-F1 | 94.47%（376/398）/ 82.24% |
+| Active-state exact | 89.17%（214/240） |
+| Stale / duplicate rate | 3.75% / 2.62% |
+| Cross-scope leakage | 0 |
+| Weak recall@5 / archived hit@5 | 80.00% / 0 |
+| 推荐知识点准确率 | **80.83%（194/240）** |
+| 推荐动作准确率 | **92.74%（217/234）** |
+| Over-review rate | 2.99%（7/234） |
+
+其余四个 backend 的推荐知识点准确率均为 55.00%，主要来自正确输出 `no_action`，不能解释
+成有效选题能力。v3 复用了 v1 的生命周期形状，只替换了学科语义，因此支持的是有限跨科目
+迁移，不是真实用户泛化。完整证据见[跨学科 Memory 冻结评测](./evaluation/controlled-v3-frozen-test.zh-CN.md)。
+
+### 20.4 语义检索结果怎样放进全局结论
+
+第 12 节的 `semantic_retrieval_v2` 使用 396 条 L2 corpus、310 条 frozen query，专门评价
+自然语言检索、排序、拒答、难负例和 Scope 隔离。启用 Top-1 相对分差动态截断后的关键结果：
+
+| 指标 | Frozen test |
+| --- | ---: |
+| Recall@5 / Hit@5 | 0.9547 / 0.9800 |
+| MRR / nDCG@5 | 0.9660 / 0.9505 |
+| Pairwise accuracy | 0.9892 |
+| No-answer accuracy | 0.9833 |
+| Hard-negative@1 | 0.0280 |
+| Hard-negative@K / accepted-result | 0.1290 / 0.1176 |
+| Archived/invalidated hit / Cross-scope leakage | 0 / 0 |
+| 检索决策 P95 | 594.78 ms |
+
+这些结果说明首位相关性、拒答和安全过滤较强，但 Top-2～K 仍偶尔混入相邻概念，4B reranker
+也带来显存和延迟成本。它只证明“能否找到已存在的 Memory”，不证明事件抽取、推荐、教学
+回答或学习效果正确。
+
+### 20.5 当前证据覆盖与缺口
+
+| 能力 | 当前证据 | 可以下的结论 | 不能下的结论 |
+| --- | --- | --- | --- |
+| DeepTutor 整体辅导 | TutorBench 论文实验 | 相对 Naive Tutor 的模拟交互质量更高 | Native Memory 单独有效、真实提分 |
+| Native Memory | 工程测试 + Controlled baseline arm | 接口可运行，可作系统对照 | 抽取与长期帮助度已被充分验证 |
+| Lifecycle | v1/v3 controlled benchmark | 结构化事件下的状态维护较强 | 原始聊天抽取同样准确 |
+| 语义检索 | 396 corpus、310 frozen query、10k 画像 | 排序、拒答、隔离达到当前门禁 | 所有学科、真实查询和更大规模均成立 |
+| 教材章节识别 | 单元、集成与样例验证 | 当前支持结构恢复、版本固定和引用 | 对扫描件及各种版式均准确 |
+| 出题、判题、错因 | 契约与流程测试 | 工作流可执行、可恢复 | 达到教师水平 |
+| 推荐 | v3 controlled frozen test | 受控场景下知识点与动作选择明显改善 | 能提高真实考试成绩 |
+| 学习增益 | 尚无真实用户实验 | 无 | 不能声称已提高成绩或长期保持率 |
+
+下一轮最有价值的实验不是继续扩充工程功能，而是补齐因果链：原始聊天/作答到结构化事件的
+教师双标数据，出题与判题的人类一致性，真实或严格外部 holdout，多模型和强 Memory 基线
+消融，以及延迟回忆、完成率和考试成绩等学习效果。若使用 LLM-as-judge，应抽样由教师盲标，
+报告人与模型、人与人之间的一致性，不能只报告模型自评分。
+
+面试时最稳妥的一句话是：
+
+> ExamMem 已分别验证了结构化学习事件下的生命周期维护、推荐决策和自然语言 Memory 检索；
+> 结果支持这些子模块达到当前离线门禁，但原始聊天抽取、教师级出题判题和真实学习增益仍是
+> 明确未覆盖的研究问题。
+
+完整评测材料：
+
+- [评测方法](./evaluation/methodology.md)
+- [v1 Stage09 frozen test](./evaluation/stage09-frozen-test.md)
+- [v3 跨学科 frozen test](./evaluation/controlled-v3-frozen-test.zh-CN.md)
+- [语义检索 v2 协议](./evaluation/semantic-retrieval-v2.zh-CN.md)
+- [语义检索修复与最终结果](./evaluation/semantic-retrieval-v2-remediation.zh-CN.md)
+- [DeepTutor 论文 TutorBench](https://arxiv.org/html/2604.26962#S5)
+- [DeepTutor 公开 eval 分支](https://github.com/HKUDS/DeepTutor/tree/eval/benchmark)
+
+---
+
+## 21. 推荐的源码走读顺序与断点
 
 不要从所有文件平铺着读。按一条真实请求走，理解会快很多。
 
@@ -1443,7 +1651,7 @@ projection watermarks
 
 ---
 
-## 21. 面试高频问题与回答骨架
+## 22. 面试高频问题与回答骨架
 
 ### Q1：你们用了什么 Agent 框架？
 
@@ -1560,9 +1768,24 @@ LangGraph 是更低层的、有状态的智能体编排运行时。它把工作�
 
 > DeepTutor 保持通用 Agent Host，ExamMem 独立拥有考试 taxonomy、练习状态机和强事务 Learning Memory。插件只通过 manifest、Host services 和 bounded context blocks 集成，避免领域模型污染 core，也能独立 migration、测试和演进。
 
+### Q11：Operation accuracy 95.73% 和 Active-state exact 90.42% 有什么区别？
+
+> Operation accuracy 按每一次生命周期操作计分，判断 ADD、MERGE、SUPERSEDE、CONTESTED
+> 等决策是否正确；Active-state exact 按检查点计分，要求经历一串操作后，当前全部稳定状态与
+> Gold 完全一致。一次错误操作可能让后续多个检查点持续错误，因此操作准确率较高时，最终状态
+> 完全一致率仍可能更低。这两个数字来自 v1 历史 frozen test；v3 对应结果是 94.47% 和
+> 89.17%。
+
+### Q12：推荐知识点准确率和推荐动作准确率有什么区别？
+
+> 推荐知识点准确率检查“具体选中了哪个 canonical 知识点”，要求目标 ID 与 Gold 一致；
+> 推荐动作准确率检查“应该复习、前进还是不行动”等决策类型，即使知识点选错，动作类型仍可能
+> 正确。v3 frozen test 中两者分别是 80.83% 和 92.74%，差距说明系统较容易判断当前应采取
+> 哪类动作，但在多个相近候选中精确选择目标仍更难。
+
 ---
 
-## 22. 容易答错的说法
+## 23. 容易答错的说法
 
 以下说法都不够准确：
 
@@ -1577,7 +1800,7 @@ LangGraph 是更低层的、有状态的智能体编排运行时。它把工作�
 
 ---
 
-## 23. 用一句设计原则收尾
+## 24. 用一句设计原则收尾
 
 DeepTutor 把“不确定的模型推理”限制在 AgentLoop 和工具调用协议内；ExamMem 进一步把正式学习状态的改变限制在确定性工作流、强类型事件、事务化生命周期和可审计证据内。
 

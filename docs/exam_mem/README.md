@@ -4,7 +4,7 @@
 
 ## 架构与产品边界
 
-- [DeepTutor × ExamMem 技术全景](./TECHNICAL_OVERVIEW.zh-CN.md)：框架、Memory、教材链路、关键算法、当前默认检索策略、评估结果与改进方向的精简总览。
+- [DeepTutor × ExamMem 综合技术与面试指南](./INTERVIEW_DEEP_DIVE.zh-CN.md)：唯一综合入口，包含框架、源码调用链、Memory、教材链路、关键算法、最新评测结果、证据边界与面试问答。
 - [系统架构](./architecture.md)：Core、Host Hook、插件与领域存储的所有权和调用链。
 - [可靠性设计](./reliability.md)：生命周期不变量、失败分类、恢复和验证证据。
 - [插件迁移报告](./plugin-migration.md)：Fork 到第一方全栈插件的边界、调用链和验收。
@@ -25,6 +25,5 @@
 - [Stage09 一次性冻结测试](./evaluation/stage09-frozen-test.md)。
 - [跨学科 Memory 冻结评测](./evaluation/controlled-v3-frozen-test.zh-CN.md)：计算机学科 v3 数据、五 Backend 结果、失败样例与证据边界。
 - [Memory 语义检索 v2 修复方案与最终结果](./evaluation/semantic-retrieval-v2-remediation.zh-CN.md)：故障阶段、修复调用链、Top-1 相对分差策略和冻结集验收结果。
-- [ExamMem 面试深读](./INTERVIEW_DEEP_DIVE.zh-CN.md)：按调用链解释 Memory、教材 RAG、评估指标和已知限制。
 
 求职话术、逐 checkpoint 工作记录、完整 trace dump 和原始运行目录不属于公开技术文档。
