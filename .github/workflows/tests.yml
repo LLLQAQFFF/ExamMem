@@ -195,7 +195,14 @@ jobs:
         if: ${{ matrix.python-version == '3.11' }}
         # python-jose installs ecdsa, but DeepTutor constrains its jose JWTs to
         # HS256. PYSEC-2026-1325 affects ECDSA signing and has no fixed release.
-        run: python -m pip_audit --progress-spinner off --ignore-vuln PYSEC-2026-1325
+        # llama-index installs nltk. PYSEC-2026-3740 affects caller-controlled
+        # model-artifact paths in APIs DeepTutor does not invoke and likewise
+        # has no fixed release. Keep both exceptions explicit so new findings
+        # still fail the audit.
+        run: >-
+          python -m pip_audit --progress-spinner off
+          --ignore-vuln PYSEC-2026-1325
+          --ignore-vuln PYSEC-2026-3740
 
       - name: Create minimal runtime config
         run: |

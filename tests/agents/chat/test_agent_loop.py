@@ -375,6 +375,7 @@ async def test_explore_context_pre_pass_seeds_loop_without_polluting_answer(
         return _gen()
 
     monkeypatch.setattr(explorer_mod, "llm_stream", _fake_explore_stream)
+    monkeypatch.setattr(explorer_mod, "can_use_native_tool_calling", lambda **_kwargs: False)
     monkeypatch.setattr(
         explorer_mod,
         "get_llm_config",

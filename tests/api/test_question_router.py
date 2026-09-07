@@ -123,6 +123,8 @@ def test_mimic_websocket_accepts_config_and_returns_messages(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     question_router_module = _load_question_router_module(monkeypatch)
+    auth_router = importlib.import_module("deeptutor.api.routers.auth")
+    monkeypatch.setattr(auth_router, "AUTH_ENABLED", False)
 
     async def _fake_mimic_exam_questions(*_args, **_kwargs):
         return {"success": False, "error": "stub mimic failure"}

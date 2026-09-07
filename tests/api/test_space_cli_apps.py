@@ -50,6 +50,7 @@ def caller(monkeypatch: pytest.MonkeyPatch) -> dict[str, Any]:
 def client(caller: dict[str, Any]) -> TestClient:
     app = FastAPI()
     app.include_router(space_cli_apps.router, prefix="/api/v1/space/cli-apps")
+    app.dependency_overrides[space_cli_apps.require_admin] = lambda: None
     return TestClient(app)
 
 
