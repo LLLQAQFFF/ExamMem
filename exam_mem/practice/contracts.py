@@ -18,6 +18,7 @@ from pydantic import (
 from exam_mem.contracts import ErrorType, MemoryScope
 
 NonEmptyString = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
+AnswerText = Annotated[str, StringConstraints(min_length=1, pattern=r"\S")]
 Probability = Annotated[float, Field(ge=0.0, le=1.0)]
 KnowledgePointIds = Annotated[list[NonEmptyString], Field(min_length=1)]
 ReasonCodes = Annotated[list[NonEmptyString], Field(min_length=1)]
@@ -72,7 +73,7 @@ class AnswerSubmission(StrictPracticeModel):
 
     practice_session_id: NonEmptyString
     question_id: NonEmptyString
-    answer: NonEmptyString
+    answer: AnswerText
     submitted_at: AwareDatetime
     idempotency_key: NonEmptyString
 
@@ -105,6 +106,8 @@ class GradeArtifactIdentity(StrictPracticeModel):
     rubric_version: NonEmptyString
     grader_contract_version: NonEmptyString
     config_revision: NonEmptyString
+    # Absent on historical artifacts, which remain readable but are not reused.
+    grader_revision: NonEmptyString | None = None
 
 
 class DiagnosisResult(StrictPracticeModel):

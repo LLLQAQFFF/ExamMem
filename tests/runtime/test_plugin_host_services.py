@@ -93,6 +93,40 @@ async def test_plugin_completion_delegates_to_the_configured_host(monkeypatch) -
 
 
 @pytest.mark.asyncio
+async def test_bound_completion_pins_config_and_restores_scope_on_failure(monkeypatch) -> None:
+    from deeptutor.services.llm.config import (
+        LLMConfig,
+        get_llm_config,
+        reset_scoped_llm_config,
+        set_scoped_llm_config,
+    )
+
+    first = LLMConfig(model="model-a", api_key="test-secret", base_url="https://example.test")
+    token = set_scoped_llm_config(first)
+    try:
+        bound = host_services.BoundCompletion()
+        assert bound.revision == host_services.BoundCompletion().revision
+        changed = first.model_copy(update={"model": "model-b"})
+        switched = set_scoped_llm_config(changed)
+        try:
+            assert bound.revision != host_services.BoundCompletion().revision
+
+            async def fail(**kwargs):
+                assert get_llm_config().model == "model-a"
+                raise RuntimeError("simulated failure")
+
+            monkeypatch.setattr("deeptutor.services.llm.complete", fail)
+            with pytest.raises(RuntimeError, match="simulated failure"):
+                await bound(prompt="p", system_prompt="s", response_format={}, temperature=0.0)
+            assert get_llm_config() is changed
+            assert "test-secret" not in repr(bound)
+        finally:
+            reset_scoped_llm_config(switched)
+    finally:
+        reset_scoped_llm_config(token)
+
+
+@pytest.mark.asyncio
 async def test_plugin_turn_host_delegates_to_the_public_facade(monkeypatch) -> None:
     requests: list[dict[str, object]] = []
 

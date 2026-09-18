@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from datetime import datetime, timezone
+from types import SimpleNamespace
+from unittest.mock import AsyncMock
 
 import pytest
 
@@ -31,8 +34,70 @@ from exam_mem.practice.provider import (
 )
 from exam_mem.practice.question_retriever import QuestionRetriever
 from exam_mem.practice.tools import QuestionRetrieverTool
+from exam_mem.study import ImportedOutline, materialize_outline
 
 pytestmark = pytest.mark.asyncio
+
+
+async def test_correction_reader_resolves_only_owned_published_taxonomies(monkeypatch) -> None:
+    tree = materialize_outline(
+        "plan-one",
+        ImportedOutline.model_validate(
+            {
+                "name": "考试",
+                "subjects": [
+                    {
+                        "name": "科目",
+                        "modules": [
+                            {
+                                "name": "模块",
+                                "knowledge_points": [{"name": "知识点", "type": "concept"}],
+                            }
+                        ],
+                    }
+                ],
+            }
+        ),
+    )
+    subject = tree.subjects[0]
+    point_id = subject.modules[0].knowledge_points[0].id
+    scope = MemoryScope(
+        user_id="owner", exam_id="plan:plan-one", subject_id=subject.id, memory_namespace="mastery"
+    )
+    memory = SimpleNamespace(provenance=["event:one"])
+    memories = SimpleNamespace(
+        get_lifecycle_snapshot=AsyncMock(return_value=SimpleNamespace(memory=memory))
+    )
+    events = SimpleNamespace(
+        get_by_ids=AsyncMock(return_value=[SimpleNamespace(knowledge_point_ids=[point_id])])
+    )
+    plans = SimpleNamespace(
+        get=AsyncMock(
+            return_value={
+                "draft": {"tree": "must not read drafts"},
+                "versions": [
+                    {"tree": tree.model_dump(), "taxonomy_versions": {subject.id: "published_v1"}},
+                    {"tree": "another subject", "taxonomy_versions": {"other": "other_v2"}},
+                ],
+            }
+        )
+    )
+
+    @asynccontextmanager
+    async def connect():
+        yield object()
+
+    monkeypatch.setattr(provider_module, "PostgresLearningMemoryRepository", lambda _: memories)
+    monkeypatch.setattr(provider_module, "PostgresLearningEventRepository", lambda _: events)
+    monkeypatch.setattr(provider_module, "PostgresStudyPlanRepository", lambda _: plans)
+    reader = provider_module.PostgresCorrectionTargetReader(SimpleNamespace(connect=connect))
+    result = await reader.get_target(scope, "memory:one")
+    plans.get.assert_awaited_once_with(user_id="owner", plan_id="plan-one")
+    memories.get_lifecycle_snapshot.assert_awaited_once_with(scope, "memory:one")
+    assert result.knowledge_point_ids == (point_id,)
+    assert [taxonomy.taxonomy_version for taxonomy in result.taxonomies] == ["published_v1"]
+    assert result.taxonomies[0].get(point_id) is not None
+
 
 SCOPE = MemoryScope(
     user_id="practice_provider_user",

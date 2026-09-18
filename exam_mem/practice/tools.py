@@ -163,6 +163,10 @@ class AnswerGraderTool(BaseTool):
     def __init__(self, grader=None) -> None:  # noqa: ANN001
         self._grader = grader or DeepTutorAnswerGraderAdapter()
 
+    @property
+    def cache_revision(self) -> str | None:
+        return getattr(self._grader, "cache_revision", None)
+
     def get_definition(self) -> ToolDefinition:
         return ToolDefinition(
             name="answer_grader",

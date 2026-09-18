@@ -31,7 +31,7 @@ from exam_mem.contracts import (
     MemoryValue,
 )
 from exam_mem.domain.slot_key import validate_slot_key
-from exam_mem.domain.taxonomy import KnowledgePointStatus, load_taxonomy
+from exam_mem.domain.taxonomy import KnowledgePointStatus, Taxonomy, load_taxonomy
 from exam_mem.lifecycle import (
     LifecycleCandidateSnapshot,
     MemoryRelation,
@@ -134,6 +134,7 @@ class ResolvedCorrectionTarget:
 
     memory: LearningMemory
     knowledge_point_ids: tuple[str, ...]
+    taxonomies: tuple[Taxonomy, ...] = ()
 
 
 class ConfirmedCorrectionRelationClassifier:
@@ -183,7 +184,6 @@ class ExplicitCorrectionService:
         self._memory_writer = memory_writer
         self._recommendations = recommendation_refresher
         self._trace = trace
-        self._taxonomy = load_taxonomy("math1_v1")
 
     async def apply(
         self,
@@ -218,6 +218,7 @@ class ExplicitCorrectionService:
         knowledge_point_ids = self._validated_knowledge_points(
             target,
             resolved_target.knowledge_point_ids,
+            resolved_target.taxonomies,
         )
         await self._trace.completed(
             name=PracticeSpanName.CORRECTION_TARGET_RESOLVED,
@@ -326,7 +327,13 @@ class ExplicitCorrectionService:
         self,
         target: LearningMemory,
         knowledge_point_ids: tuple[str, ...],
+        taxonomies: tuple[Taxonomy, ...] = (),
     ) -> tuple[str, ...]:
+        if not taxonomies and (
+            target.scope.exam_id == "postgraduate_entrance_exam"
+            and target.scope.subject_id == "math_1"
+        ):
+            taxonomies = (load_taxonomy("math1_v1"),)
         ordered = tuple(dict.fromkeys(knowledge_point_ids))
         if not ordered:
             raise CorrectionError(
@@ -334,11 +341,11 @@ class ExplicitCorrectionService:
                 "correction target has no canonical knowledge-point provenance",
             )
         for knowledge_point_id in ordered:
-            node = self._taxonomy.get(knowledge_point_id)
-            if (
-                node is None
-                or node.status is not KnowledgePointStatus.ACTIVE
-                or self._taxonomy.children_of(knowledge_point_id)
+            if not any(
+                (node := taxonomy.get(knowledge_point_id)) is not None
+                and node.status is KnowledgePointStatus.ACTIVE
+                and not taxonomy.children_of(knowledge_point_id)
+                for taxonomy in taxonomies
             ):
                 raise CorrectionError(
                     "correction_target_provenance_invalid",

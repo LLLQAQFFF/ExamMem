@@ -18,12 +18,32 @@ import {
 import {
   diagnosisTypeLabel,
   formatExamScore,
+  getConfiguration,
   groupExamReviewHistory,
   listExamReviewHistory,
   practiceStateLabel,
   recommendationReasonLabel,
   selectVisiblePracticeHistory,
 } from "../lib/exam-mem-product";
+
+test("configuration requests retain the selected exam and subject scope", async () => {
+  const originalFetch = globalThis.fetch;
+  const urls: URL[] = [];
+  globalThis.fetch = async (input) => {
+    urls.push(new URL(String(input), "http://localhost"));
+    return Response.json({ pinned: null });
+  };
+  try {
+    await getConfiguration("practice:dynamic", "plan:one", "imported.subject");
+    assert.equal(urls[0].searchParams.get("practice_session_id"), "practice:dynamic");
+    assert.equal(urls[0].searchParams.get("exam_id"), "plan:one");
+    assert.equal(urls[0].searchParams.get("subject_id"), "imported.subject");
+    await getConfiguration();
+    assert.equal(urls[1].search, "");
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
 
 test("exam scores fail closed outside the canonical probability scale", () => {
   assert.equal(formatExamScore(0.5), "50.0%");
@@ -392,7 +412,7 @@ test("browser sends only public question identity and stable retry material", ()
     identity,
     sessionId: "deeptutor-session",
     questionId: "stage07:probability:bayes:001",
-    answer: "0.48",
+    answer: "    return 0.48\n",
     submittedAt: "2026-08-13T12:00:00.000Z",
     attemptNumber: 2,
   });
@@ -406,6 +426,7 @@ test("browser sends only public question identity and stable retry material", ()
   assert.equal(request.idempotency_key, "answer:web:practice:web:fixed-uuid:2");
   assert.equal(request.exam_id, "postgraduate_entrance_exam");
   assert.equal(request.subject_id, "math_1");
+  assert.equal(request.answer, "    return 0.48\n");
   assert.equal("reference_answer" in request, false);
   assert.equal("grading_rubric" in request, false);
 });

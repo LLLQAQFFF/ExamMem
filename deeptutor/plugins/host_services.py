@@ -552,6 +552,49 @@ class NativeMemoryHost:
         }
 
 
+class BoundCompletion:
+    """Pin a Host completion configuration and expose only its opaque revision."""
+
+    def __init__(self) -> None:
+        from dataclasses import fields
+
+        from deeptutor.services.llm.config import get_llm_config
+
+        config = get_llm_config()
+        self._config = config.model_copy(update={"extra_headers": dict(config.extra_headers or {})})
+        # Hash credentials as well: different provider accounts can route the same
+        # model alias differently. No config values leave the Host boundary.
+        payload = {
+            item.name: getattr(self._config, item.name)
+            for item in fields(self._config)
+            if item.name != "traffic_controller"
+        }
+        self.revision = hashlib.sha256(
+            json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()
+        ).hexdigest()
+
+    async def __call__(
+        self,
+        *,
+        prompt: str,
+        system_prompt: str,
+        response_format: dict[str, object],
+        temperature: float,
+    ) -> str:
+        from deeptutor.services.llm.config import reset_scoped_llm_config, set_scoped_llm_config
+
+        token = set_scoped_llm_config(self._config)
+        try:
+            return await complete(
+                prompt=prompt,
+                system_prompt=system_prompt,
+                response_format=response_format,
+                temperature=temperature,
+            )
+        finally:
+            reset_scoped_llm_config(token)
+
+
 async def complete(
     *,
     prompt: str,

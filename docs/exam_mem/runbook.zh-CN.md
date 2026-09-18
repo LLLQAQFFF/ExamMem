@@ -112,8 +112,8 @@ python -m alembic -c alembic.ini history
 预期唯一 head：
 
 ```text
-0012_study_plan_archival (head)
-└── 0011_assessment_archival
+0015_textbook_plan_source (head)
+└── 0014_textbook_grounding
 ```
 
 通过 PyPI wheel 安装、没有仓库根目录 `alembic.ini` 时，使用随包发布的等价入口：
@@ -138,9 +138,9 @@ python -m exam_mem.storage.migrations current
 ```
 
 `upgrade head` 会在 ExamMem PostgreSQL 中创建或升级表、索引、约束和 trigger。预期
-current 为 `0012_study_plan_archival`。
+current 为 `0015_textbook_plan_source`。
 
-全新数据库最终包含 22 张 public 表（包括 `alembic_version`）和 10 个不同的
+全新数据库最终包含 30 张 public 表（包括 `alembic_version`）和 14 个不同的
 append-only trigger：
 
 ```text
@@ -154,7 +154,13 @@ tr_study_plan_versions_append_only
 tr_assessment_versions_append_only
 tr_learning_observations_append_only
 tr_learning_observation_actions_append_only
+tr_study_plan_textbook_bindings_append_only
+tr_objective_textbook_section_mappings_append_only
+tr_learning_source_snapshots_append_only
+tr_assessment_source_snapshots_append_only
 ```
+
+另有 `tr_textbook_versions_completed_immutable` 保护已完成教材版本。
 
 ### 2.6 确认插件没有被禁用
 
@@ -241,7 +247,7 @@ GET /api/v1/exam-mem/configuration
 
 - 插件 `exam_mem`；
 - Capability `exam_practice`；
-- migration head `0012_study_plan_archival`；
+- migration head `0015_textbook_plan_source`；
 - 单一的「智能备考」导航入口；学习路径、练习、学习记忆、考试复盘和配置作为其内部工作区。
 
 注意：`/api/v1/plugins/health` 只表示插件生命周期装配成功。当前 ExamMem 没有主动连接
@@ -484,7 +490,7 @@ alembic downgrade base
 - 无法确认 `EXAM_MEM_DATABASE_URL` 指向哪个数据库；
 - 目标是共享库或生产库，但没有明确变更窗口和备份；
 - 需要获取、更换或迁移凭据；
-- migration head 不是 `0012_study_plan_archival`，或出现多 head/分叉；
+- migration head 不是 `0015_textbook_plan_source`，或出现多 head/分叉；
 - 需要执行 destructive downgrade、删除 schema、删除 Docker volume 或覆盖历史数据；
 - 需要发布、部署或推送远端；
 - 需要通过切换 Backend、绕过 Scope、直接写 Native Memory、编辑 append-only 数据或更换
@@ -521,13 +527,14 @@ alembic downgrade base
   内容授权工作流或大规模质量评估后台。
 - 大纲文件和 URL 仅用于提取层级结构；当前辅导不会自动检索或引用导入来源。把来源接入
   后续 Chat/RAG 需要独立的权限、版本、引用和保留策略，明确延期。
-- PDF/TXT/Markdown 仅通过中性 Host Turn 进入一次临时原生 Quiz 会话。ExamMem 不保存
-  原文件，只在 checkpoint 保存生成题和文件名、MIME、SHA-256；临时 Host 会话随后删除。
+- 临时出题附件（PDF/TXT/Markdown）通过中性 Host Turn 进入一次原生 Quiz 会话；该路径
+  仅保存生成题与附件 provenance。独立教材库路径已经持久保存来源、教材版本、章节和索引，
+  支持绑定计划、按章节检索、引用证据快照和从教材生成学习计划。
 - Browser 的待提交请求只在当前标签页保存；长期恢复依赖服务端 Practice 历史和 Resume。
 - Grade Overturn 暂为 API-only；UI 提供 Dispute 和管理员 Uphold。
 - Issues 是权威事实的派生视图，没有 assignment、comment、SLA 或通知 ledger。
 - 插件 health 不代表 PostgreSQL 连通性。
 - Saved 配置需要重启才成为 Effective；已有 Practice 始终使用 Pinned 快照。
-- 持久文件库、DOCX、视频、图片、音频、笔记、PPT/PPTX 摄取、Learning Journey
+- 通用多模态文件库、DOCX、视频、图片、音频、笔记、PPT/PPTX 摄取、Learning Journey
   Memory、课程问答、大规模来源驱动题库和 Stage 08 优化均未实现，不能通过现有 API
   冒充支持。

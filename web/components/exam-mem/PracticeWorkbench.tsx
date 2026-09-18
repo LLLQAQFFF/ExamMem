@@ -220,7 +220,7 @@ export default function PracticeWorkbench() {
       identity,
       sessionId: turn.session_id,
       questionId: question.question_id,
-      answer: answer.trim(),
+      answer,
       submittedAt: new Date().toISOString(),
       attemptNumber,
     });

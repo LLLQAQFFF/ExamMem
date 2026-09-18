@@ -15,6 +15,7 @@ from deeptutor.core.context import UnifiedContext
 from deeptutor.core.stream import StreamEventType
 from deeptutor.core.stream_bus import StreamBus
 from deeptutor.plugins import PluginManager
+from deeptutor.services.llm.config import LLMConfig
 from deeptutor_plugins.exam_mem import ExamMemPlugin
 from exam_mem.config import ExamMemSettings
 from exam_mem.practice.capability import (
@@ -129,7 +130,6 @@ async def _fixed_completion(**kwargs: object) -> str:
             "error_type": "concept_confusion",
             "explanation": "The prior and posterior were reversed.",
             "confidence": 0.9,
-            "analyzer_version": "error_analyzer_v1",
         },
     }
     return json.dumps(payloads[name], ensure_ascii=False)
@@ -182,6 +182,10 @@ async def test_plugin_registry_runs_recoverable_postgresql_closure(monkeypatch) 
         manager = PluginManager(factories={"exam_mem": lambda: plugin})
         capability = manager.capabilities()[0]
         monkeypatch.setattr("deeptutor.services.llm.complete", _fixed_completion)
+        monkeypatch.setattr(
+            "deeptutor.services.llm.config.get_llm_config",
+            lambda: LLMConfig(model="fixed-plugin-test", api_key="not-used"),
+        )
         monkeypatch.setattr(
             "exam_mem.practice.provider.get_embedding_client",
             lambda: _FixedEmbeddingClient(),

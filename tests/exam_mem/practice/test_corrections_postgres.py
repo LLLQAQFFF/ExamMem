@@ -21,12 +21,13 @@ from exam_mem.contracts import (
     LifecycleState,
     MemoryScope,
 )
-from exam_mem.practice.corrections import ExplicitCorrectionRequest
+from exam_mem.practice.corrections import CorrectionError, ExplicitCorrectionRequest
 from exam_mem.practice.provider import PracticeRuntimeProvider
 from exam_mem.storage import (
     LEARNING_MEMORY_EMBEDDING_DIMENSION,
     PostgresLearningEventRepository,
     PostgresLearningMemoryRepository,
+    PostgresStudyPlanRepository,
     load_database_settings,
     metadata,
 )
@@ -40,6 +41,7 @@ from exam_mem.storage.models import (
     practice_trace_spans,
     student_model_snapshots,
 )
+from exam_mem.study import ImportedOutline, StudyPlanTree, materialize_outline
 
 pytestmark = [
     pytest.mark.asyncio,
@@ -170,6 +172,127 @@ async def _business_counts(connection: AsyncConnection) -> tuple[int, ...]:
         count = await connection.scalar(select(func.count()).select_from(table))
         counts.append(int(count or 0))
     return tuple(counts)
+
+
+@pytest.mark.parametrize("published_target", [True, False])
+async def test_dynamic_correction_uses_published_history_but_never_draft(
+    monkeypatch: pytest.MonkeyPatch, published_target: bool
+) -> None:
+    database_url = _database_url_or_skip()
+    monkeypatch.setattr(
+        "exam_mem.practice.provider.get_embedding_client", lambda: _FixedEmbeddingClient()
+    )
+    schema_name = f"dynamic_correction_{uuid4().hex}"
+    admin_engine = create_async_engine(database_url)
+    engine = create_async_engine(
+        database_url,
+        connect_args={"server_settings": {"search_path": f'"{schema_name}", public'}},
+    )
+    tree = materialize_outline(
+        "correction-plan",
+        ImportedOutline.model_validate(
+            {
+                "name": "算法考试",
+                "subjects": [
+                    {
+                        "name": "算法",
+                        "modules": [
+                            {
+                                "name": "排序",
+                                "knowledge_points": [{"name": "归并排序", "type": "procedure"}],
+                            }
+                        ],
+                    }
+                ],
+            }
+        ),
+    )
+    subject = tree.subjects[0]
+    old_point = subject.modules[0].knowledge_points[0].id
+    updated = tree.model_dump(mode="json")
+    new_point = old_point + "new"
+    updated["subjects"][0]["modules"][0]["knowledge_points"][0]["id"] = new_point
+    context = CONTEXT.model_copy(
+        update={"exam_id": "plan:correction-plan", "subject_id": subject.id}
+    )
+    point_id = old_point if published_target else new_point
+    event = _seed_event().model_copy(update={"context": context, "knowledge_point_ids": [point_id]})
+    memory = _seed_memory().model_copy(
+        update={
+            "scope": MemoryScope(**context.model_dump(), memory_namespace="error_pattern"),
+            "slot_key": f"error_pattern:{point_id}:formula_misuse",
+        }
+    )
+    try:
+        async with admin_engine.begin() as connection:
+            await _install_isolated_schema(connection, schema_name)
+        async with engine.begin() as connection:
+            plans = PostgresStudyPlanRepository(connection)
+            await plans.create_draft(
+                user_id=context.user_id,
+                plan_id="correction-plan",
+                tree=tree,
+                source_kind="file",
+                source_metadata={"filename": "outline.txt"},
+            )
+            await plans.publish(user_id=context.user_id, plan_id="correction-plan")
+            await plans.replace_draft(
+                user_id=context.user_id,
+                plan_id="correction-plan",
+                tree=StudyPlanTree.model_validate(updated),
+                source_kind="file",
+                source_metadata={"filename": "outline.txt"},
+            )
+            if published_target:
+                await plans.publish(user_id=context.user_id, plan_id="correction-plan")
+            await PostgresLearningEventRepository(connection).append(event, trace_id=TRACE_ID)
+            await PostgresLearningMemoryRepository(connection).insert_version(
+                memory, policy_version="lifecycle_policy_v1"
+            )
+        provider = PracticeRuntimeProvider(
+            settings=ExamMemSettings(memory_backend="lifecycle"),
+            engine_factory=lambda _: engine,
+        )
+        request = _request().model_copy(update={"context": context})
+        async with provider.open_learning_memories(trace_id=TRACE_ID) as runtime:
+            with pytest.raises(CorrectionError, match="authenticated Scope"):
+                await runtime.corrections.apply(
+                    request.model_copy(
+                        update={
+                            "context": context.model_copy(update={"user_id": "other-user"}),
+                        }
+                    )
+                )
+            if published_target:
+                result = await runtime.corrections.apply(request)
+                assert result.event.knowledge_point_ids == [old_point]
+                async with engine.connect() as connection:
+                    first_counts = await _business_counts(connection)
+                replay = await runtime.corrections.apply(request)
+                assert replay.event == result.event
+                async with engine.connect() as connection:
+                    assert await _business_counts(connection) == first_counts
+                    assert (
+                        await connection.scalar(select(learning_memories.c.lifecycle_state))
+                        == "invalidated"
+                    )
+            else:
+                with pytest.raises(CorrectionError, match="active taxonomy leaves"):
+                    await runtime.corrections.apply(request)
+                async with engine.connect() as connection:
+                    assert (
+                        await connection.scalar(select(func.count()).select_from(learning_events))
+                        == 1
+                    )
+                    assert (
+                        await connection.scalar(select(learning_memories.c.lifecycle_state))
+                        == "active"
+                    )
+    finally:
+        await engine.dispose()
+        async with admin_engine.begin() as connection:
+            await connection.execute(DropSchema(schema_name, cascade=True))
+        await admin_engine.dispose()
 
 
 async def test_correction_commits_full_chain_replays_and_hides_cross_scope_target(

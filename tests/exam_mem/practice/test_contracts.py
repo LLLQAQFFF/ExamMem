@@ -46,6 +46,20 @@ def _submission() -> AnswerSubmission:
     )
 
 
+def test_answer_preserves_leading_indentation_and_trailing_newline() -> None:
+    payload = _submission().model_dump()
+    payload["answer"] = "    return 1\n"
+    assert AnswerSubmission.model_validate(payload).answer == payload["answer"]
+
+
+@pytest.mark.parametrize("answer", ["", " ", "\n\t"])
+def test_answer_rejects_whitespace_only_input(answer: str) -> None:
+    payload = _submission().model_dump()
+    payload["answer"] = answer
+    with pytest.raises(ValueError):
+        AnswerSubmission.model_validate(payload)
+
+
 def test_tool_contracts_accept_documented_fields_and_serialize_to_json() -> None:
     question = _question()
     submission = _submission()

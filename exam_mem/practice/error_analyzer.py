@@ -8,7 +8,28 @@ from typing import Protocol, Sequence
 from deeptutor.plugins.host_services import complete, extract_json_object
 from exam_mem.contracts import ErrorType
 
-from .contracts import AnswerSubmission, DiagnosisResult, GradeResult, Question
+from .contracts import (
+    AnswerSubmission,
+    DiagnosisResult,
+    GradeResult,
+    KnowledgePointIds,
+    NonEmptyString,
+    Probability,
+    Question,
+    StrictPracticeModel,
+)
+
+ANALYZER_CONTRACT_VERSION = "error_analyzer_v2"
+
+
+class _DiagnosisEvidence(StrictPracticeModel):
+    """The model supplies evidence; the server identifies the implementation."""
+
+    knowledge_point_ids: KnowledgePointIds
+    error_type: ErrorType | None
+    explanation: NonEmptyString
+    confidence: Probability
+
 
 _SYSTEM_PROMPTS = {
     "zh": """你是一个受约束的学习错因分析器。
@@ -75,7 +96,10 @@ class DeepTutorErrorAnalyzerAdapter:
             response_format=_response_format(),
             temperature=0.0,
         )
-        result = DiagnosisResult.model_validate(extract_json_object(raw_output))
+        evidence = _DiagnosisEvidence.model_validate(extract_json_object(raw_output))
+        result = DiagnosisResult(
+            **evidence.model_dump(), analyzer_version=ANALYZER_CONTRACT_VERSION
+        )
         unexpected_ids = sorted(set(result.knowledge_point_ids) - set(allowed_knowledge_point_ids))
         if unexpected_ids:
             raise ValueError(
@@ -91,7 +115,7 @@ def _build_analysis_prompt(
     knowledge_point_ids: Sequence[str],
 ) -> str:
     payload = {
-        "output_json_schema": DiagnosisResult.model_json_schema(),
+        "output_json_schema": _DiagnosisEvidence.model_json_schema(),
         "output_language": question.response_language,
         "canonical_knowledge_point_ids": list(knowledge_point_ids),
         "error_type_vocabulary": [error_type.value for error_type in ErrorType],
@@ -109,7 +133,7 @@ def _response_format() -> dict[str, object]:
         "json_schema": {
             "name": "exam_mem_diagnosis_result",
             "strict": True,
-            "schema": DiagnosisResult.model_json_schema(),
+            "schema": _DiagnosisEvidence.model_json_schema(),
         },
     }
 

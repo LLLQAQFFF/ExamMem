@@ -14,6 +14,7 @@ from deeptutor.multi_user.models import CurrentUser, UserScope
 from deeptutor.plugins import SettingsContribution
 from deeptutor_plugins.exam_mem.api import (
     GeneratedPracticeStartBody,
+    PracticeAnswerBody,
     _canonical_knowledge_point,
     _complete_attempt_if_finished,
     _generate_practice_questions,
@@ -24,6 +25,21 @@ from deeptutor_plugins.exam_mem.api import (
 from exam_mem.config import ExamMemSettings
 from exam_mem.domain import load_taxonomy
 from exam_mem.storage import AppendStatus
+
+
+def test_http_answer_preserves_source_text_and_rejects_blank_input() -> None:
+    payload = {
+        "practice_session_id": "practice:raw-answer",
+        "trace_id": "trace:raw-answer",
+        "session_id": "host:raw-answer",
+        "question_id": "question:raw-answer",
+        "answer": "    return 1\n",
+        "submitted_at": "2026-09-18T00:00:00Z",
+        "idempotency_key": "answer:raw-answer",
+    }
+    assert PracticeAnswerBody.model_validate(payload).answer == payload["answer"]
+    with pytest.raises(ValueError):
+        PracticeAnswerBody.model_validate({**payload, "answer": "\n\t"})
 
 
 @pytest.mark.asyncio
@@ -116,6 +132,54 @@ async def test_non_admin_cannot_save_plugin_configuration(monkeypatch) -> None:
 
     assert response.status_code == 403
     assert saved is False
+
+
+@pytest.mark.asyncio
+async def test_configuration_snapshot_uses_requested_scope_and_authenticated_user(
+    monkeypatch,
+) -> None:
+    contexts = []
+
+    class Checkpoints:
+        async def get_runtime_snapshot(self, context, session_id):
+            contexts.append(context)
+            assert session_id == "practice:imported"
+            return None
+
+    class Provider:
+        @asynccontextmanager
+        async def open_product(self):
+            yield SimpleNamespace(checkpoints=Checkpoints())
+
+    settings = ExamMemSettings().model_dump(mode="json")
+    monkeypatch.setattr("deeptutor_plugins.exam_mem.api.load_plugin_settings", lambda _: settings)
+    api = FastAPI()
+    api.include_router(
+        build_router(
+            Provider(),
+            settings_contribution=SettingsContribution(
+                namespace="exam_mem",
+                defaults=settings,
+                normalize=lambda value: value,
+            ),
+        ),
+        prefix="/api/v1/exam-mem",
+    )
+    with _regular_user():
+        async with AsyncClient(transport=ASGITransport(app=api), base_url="http://test") as client:
+            response = await client.get(
+                "/api/v1/exam-mem/configuration",
+                params={
+                    "practice_session_id": "practice:imported",
+                    "exam_id": "plan:imported",
+                    "subject_id": "imported.subject",
+                    "user_id": "another-user",
+                },
+            )
+    assert response.status_code == 200
+    assert contexts[0].user_id == "regular-user"
+    assert contexts[0].exam_id == "plan:imported"
+    assert contexts[0].subject_id == "imported.subject"
 
 
 @pytest.mark.asyncio

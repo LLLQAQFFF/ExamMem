@@ -134,6 +134,91 @@ async def test_grader_rejects_percentage_scale_scores() -> None:
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "updates",
+    [
+        {"matched_rubric_items": ["apply_bayes"]},
+        {"matched_rubric_items": ["identify_prior", "identify_prior"]},
+        {"missed_rubric_items": ["apply_bayes", "apply_bayes"]},
+        {"correct": True, "score": 0.0},
+        {"correct": False, "score": 1.0},
+        {"correct": True, "score": 1.0},
+    ],
+)
+async def test_grader_rejects_contradictory_evidence(updates) -> None:
+    payload = _grade_result().model_dump(mode="json", exclude={"grader_version"})
+    payload.update(updates)
+    grader = DeepTutorAnswerGraderAdapter(
+        completion=RecordingCompletion(response=json.dumps(payload), calls=[])
+    )
+    with pytest.raises(ValueError):
+        await grader.grade(_question(), _submission())
+
+
+@pytest.mark.asyncio
+async def test_grader_accepts_full_credit_with_no_missed_items() -> None:
+    payload = _grade_result().model_dump(mode="json", exclude={"grader_version"})
+    payload.update(
+        correct=True,
+        score=1.0,
+        matched_rubric_items=["identify_prior", "apply_bayes"],
+        missed_rubric_items=[],
+    )
+    result = await DeepTutorAnswerGraderAdapter(
+        completion=RecordingCompletion(response=json.dumps(payload), calls=[])
+    ).grade(_question(), _submission())
+    assert result.correct is True
+
+
+def test_grader_cache_revision_tracks_prompt_schema_and_validator(monkeypatch) -> None:
+    import exam_mem.practice.grading as grading
+
+    completion = RecordingCompletion(response="{}", calls=[])
+    completion.revision = "model-a-config"
+    grader = DeepTutorAnswerGraderAdapter(completion=completion)
+    original = grader.cache_revision
+    with monkeypatch.context() as patch:
+        patch.setitem(grading._SYSTEM_PROMPTS, "zh", "new prompt")
+        assert grader.cache_revision != original
+    with monkeypatch.context() as patch:
+        patch.setattr(grading, "GRADER_IMPLEMENTATION_VERSION", "new_validator")
+        assert grader.cache_revision != original
+    with monkeypatch.context() as patch:
+        patch.setattr(grading, "_response_format", lambda: {"schema": "new"})
+        assert grader.cache_revision != original
+    completion.revision = "model-b-config"
+    assert grader.cache_revision != original
+    assert DeepTutorAnswerGraderAdapter(RecordingCompletion("{}", [])).cache_revision is None
+
+
+@pytest.mark.asyncio
+async def test_shared_grader_resolves_each_calls_user_configuration(monkeypatch) -> None:
+    from deeptutor.services.llm.config import (
+        LLMConfig,
+        get_llm_config,
+        reset_scoped_llm_config,
+        set_scoped_llm_config,
+    )
+
+    models = []
+
+    async def completion(**kwargs):
+        models.append(get_llm_config().model)
+        return json.dumps(_grade_result().model_dump(mode="json", exclude={"grader_version"}))
+
+    monkeypatch.setattr("deeptutor.services.llm.complete", completion)
+    grader = DeepTutorAnswerGraderAdapter()
+    assert grader.cache_revision is None
+    for model in ("user-a-model", "user-b-model"):
+        token = set_scoped_llm_config(LLMConfig(model=model, api_key="fake"))
+        try:
+            await grader.grade(_question(), _submission())
+        finally:
+            reset_scoped_llm_config(token)
+    assert models == ["user-a-model", "user-b-model"]
+
+
+@pytest.mark.asyncio
 async def test_chinese_exam_pins_chinese_grading_and_diagnosis_prompts() -> None:
     question = _question().model_copy(
         update={
@@ -157,7 +242,6 @@ async def test_chinese_exam_pins_chinese_grading_and_diagnosis_prompts() -> None
                 "error_type": "concept_confusion",
                 "explanation": "先验概率与后验概率发生了混淆。",
                 "confidence": 0.82,
-                "analyzer_version": "error_analyzer_v1",
             },
             ensure_ascii=False,
         ),
@@ -295,7 +379,6 @@ async def test_error_analyzer_accepts_only_mapped_ids_and_frozen_error_types() -
                 "error_type": "concept_confusion",
                 "explanation": "The prior and posterior were reversed.",
                 "confidence": 0.82,
-                "analyzer_version": "error_analyzer_v1",
             }
         ),
         calls=[],
@@ -311,10 +394,12 @@ async def test_error_analyzer_accepts_only_mapped_ids_and_frozen_error_types() -
 
     assert result.error_type is not None
     assert result.error_type.value == "concept_confusion"
+    assert result.analyzer_version == "error_analyzer_v2"
     prompt = json.loads(str(completion.calls[0]["prompt"]))
     assert prompt["student_answer"] == _submission().answer
     assert "ADD" not in prompt["error_type_vocabulary"]
     assert prompt["output_language"] == "en"
+    assert "analyzer_version" not in prompt["output_json_schema"]["properties"]
 
 
 @pytest.mark.asyncio
@@ -327,7 +412,6 @@ async def test_error_analyzer_rejects_a_hallucinated_canonical_id() -> None:
                     "error_type": None,
                     "explanation": "Insufficient evidence.",
                     "confidence": 0.3,
-                    "analyzer_version": "error_analyzer_v1",
                 }
             ),
             calls=[],

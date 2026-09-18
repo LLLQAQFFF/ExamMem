@@ -161,7 +161,6 @@ async def _fixed_completion(**kwargs: object) -> str:
                 "error_type": "concept_confusion",
                 "explanation": "The controlled answer uses the wrong rule.",
                 "confidence": 0.9,
-                "analyzer_version": "error_analyzer_v1",
             }
         )
     if name == "exam_mem_relation_classifier_output":
@@ -224,8 +223,8 @@ def _wire_runtime(
     )
     fixed_config = LLMConfig(model="fixed-entry-test", api_key="not-used")
     monkeypatch.setattr(
-        "deeptutor.services.model_selection.runtime.activate_llm_selection",
-        lambda _selection: (fixed_config, None),
+        "deeptutor.services.model_selection.runtime.resolve_llm_config_for_selection",
+        lambda _selection: fixed_config,
     )
     monkeypatch.setattr(
         TurnRuntimeManager, "_maybe_generate_session_title", lambda *_a, **_k: _completed()
@@ -399,6 +398,72 @@ async def _counts(engine: AsyncEngine, schema_name: str) -> tuple[int, ...]:
             count = await connection.scalar(select(func.count()).select_from(table))
             counts.append(int(count or 0))
         return tuple(counts)
+
+
+async def test_http_grade_cache_preserves_answers_and_invalidates_model_revision(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    async with _isolated_database("grade_cache_http") as (_, _, engine_factory):
+        manager, plugin, app, path_service = _wire_runtime(monkeypatch, engine_factory, tmp_path)
+        monkeypatch.setattr("deeptutor.app.DeepTutorApp", lambda: app)
+        # Exercise grading/checkpoint persistence without unrelated recommendation writes.
+        plugin._runtime_provider._settings = ExamMemSettings(memory_backend="none")
+        model = "model-a"
+        graded_answers = []
+
+        async def completion(**kwargs):
+            if kwargs["response_format"]["json_schema"]["name"] == "exam_mem_grade_result":
+                graded_answers.append(json.loads(kwargs["prompt"])["student_answer"])
+            return await _fixed_completion(**kwargs)
+
+        monkeypatch.setattr("deeptutor.services.llm.complete", completion)
+        monkeypatch.setattr(
+            "deeptutor.services.model_selection.runtime.resolve_llm_config_for_selection",
+            lambda _: LLMConfig(model=model, api_key="not-used"),
+        )
+        api = FastAPI()
+        contribution = manager.routers()[0]
+        api.include_router(contribution.router, prefix=contribution.prefix)
+        answers = ["    return 1\n", "    return 1\n", "return 1\n", "    return 1\n"]
+        with memory_path_service_override(path_service):
+            async with AsyncClient(
+                transport=ASGITransport(app=api), base_url="http://test"
+            ) as client:
+                for index, answer in enumerate(answers):
+                    if index == 3:
+                        model = "model-b"
+                    practice_id = f"practice:cache:{index}"
+                    trace_id = f"trace:cache:{index}"
+                    started = await client.post(
+                        "/api/v1/exam-mem/practice/start",
+                        json={"practice_session_id": practice_id, "trace_id": trace_id},
+                    )
+                    assert started.status_code == 200, started.text
+                    issued = started.json()
+                    body = {
+                        "practice_session_id": practice_id,
+                        "trace_id": trace_id,
+                        "session_id": issued["session_id"],
+                        "question_id": issued["practice"]["question"]["question_id"],
+                        "answer": answer,
+                        "submitted_at": NOW.isoformat(),
+                        "idempotency_key": f"answer:cache:{index}",
+                    }
+                    response = await client.post("/api/v1/exam-mem/practice/answer", json=body)
+                    assert response.status_code == 200, response.text
+                    replay = await client.post("/api/v1/exam-mem/practice/answer", json=body)
+                    assert replay.status_code == 200, replay.text
+                    review = await client.get(f"/api/v1/exam-mem/practice/sessions/{practice_id}")
+                    assert review.status_code == 200, review.text
+                    checkpoint = next(
+                        item for item in review.json()["checkpoints"] if item["grade_result"]
+                    )
+                    assert checkpoint["submitted_answer"]["answer"] == answer
+                    assert checkpoint["grade_artifact"]["reused"] is (index == 1)
+                    assert checkpoint["grade_artifact"]["identity"]["grader_revision"]
+                    assert checkpoint["diagnosis_result"]["analyzer_version"] == "error_analyzer_v2"
+        assert graded_answers == [answers[0], answers[2], answers[3]]
 
 
 async def test_generated_questions_are_checkpointed_and_attempts_share_exam_scope(
@@ -787,6 +852,10 @@ async def test_real_entry_runs_one_plugin_workflow_and_replays_without_duplicate
                         for item in archive_response.json()["l1"]
                         if item["event"]["event_id"] == answer_checkpoint["learning_event_id"]
                     )
+                    assert archive_event["event"]["evidence_quality"]["confidence"] == 0.9
+                    assert archive_event["event"]["evidence_quality"]["reasons"] == [
+                        "ambiguous_response"
+                    ]
                     assert archive_event["detail"]["question"]["reference_answer"]
                     assert archive_event["detail"]["submitted_answer"]["answer"] == (
                         "controlled incorrect answer"

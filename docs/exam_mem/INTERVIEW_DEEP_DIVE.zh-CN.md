@@ -1,6 +1,6 @@
 # DeepTutor × ExamMem 技术架构、源码走读、评测与面试指南
 
-> 基线：当前仓库 `main`，ExamMem migration head 为 `0014_textbook_grounding`。
+> 基线：当前仓库 `main`，ExamMem migration head 为 `0015_textbook_plan_source`。
 >
 > 这份文档只描述当前源码事实。`ExamMem-local-archive/2026-08-18` 中的材料可作历史参考，但其中“尚未实现教材 grounding”等结论已经过时。
 
@@ -666,8 +666,8 @@ IDLE
 
 1. 验证提交的 question 正是该 session 发出的题。
 2. 把状态推进到 `ANSWER_RECEIVED`。
-3. 计算 grade artifact identity：题目内容 hash、规范化答案 hash、rubric hash、grader contract、配置 revision。
-4. 已存在相同 grade artifact 时复用，否则调用受约束 Grader。
+3. 计算 grade artifact identity：题目内容 hash、原样答案 hash（保留代码缩进和 Unicode 差异）、rubric hash、grader contract、配置 revision 和 grader revision。
+4. grader revision 覆盖 Prompt、输出 Schema、实现版本、温度和 Host 模型配置指纹；只有完整身份一致才跨考试复用，否则调用受约束 Grader。
 5. checkpoint 到 `GRADED`。
 6. 用冻结 taxonomy 做知识点映射；未知知识点直接拒绝。
 7. 正确答案产生确定性“无错误”诊断；错误答案才调用 ErrorAnalyzer。
@@ -680,13 +680,38 @@ IDLE
 
 LLM 的输出在这里是受 schema 约束的领域判断，不拥有状态推进权。
 
+答案原文从浏览器提交、HTTP `PracticeAnswerBody` 到领域 `AnswerSubmission` 一直保留；
+只拒绝空字符串和全空白输入，不裁去有效答案的首行缩进或末尾换行。历史记录中已被裁去的
+空白无法追补，不改写存量 checkpoint 或学习事件。
+
+评分适配器额外拒绝重复或相互重叠的评分项，以及 correctness/score/missed 项之间的
+矛盾。当前新评分约定 `correct` 当且仅当 `score == 1.0`，完全正确时不能有 missed 项。
+不满足约束时停在评分阶段，不推进诊断和记忆写入。诊断的 `analyzer_version` 由服务端
+写入；模型输出的 confidence 会传给 `LearningEvent.evidence_quality`，小于 1 时标记
+`ambiguous_response`，供已有生命周期规则降权。该 confidence 尚未做人工标注校准。
+
+模型配置通过中性 Host `BoundCompletion` 在单次工作流首次评分时绑定；共享 Tool 仍按
+每次调用的用户上下文解析配置。指纹只保存 hash，不保存密钥。Prompt 文本和 Schema
+变化自动失效；修改 Prompt 构造逻辑或语义校验器时必须更新 `GRADER_IMPLEMENTATION_VERSION`。
+这不能检测供应商在同一模型别名下静默更换权重，也不代表整场考试已冻结远程模型版本。
+
 ### 9.4 幂等与恢复
 
 - Learning event ID 由用户和 idempotency key 等稳定信息确定。
 - 同一正式作答重复提交可以识别为同一事件/评分产物。
 - Checkpoint 保存运行时快照，恢复时必须验证题库、taxonomy、backend 和配置身份。
 - 不会在恢复时偷偷切换另一个 memory backend。
+- 旧 checkpoint 和旧 Grade/Diagnosis 保持可读、可恢复；缺少 grader revision 的历史评分
+  不再用于新的跨考试缓存命中。已提交事件不重新计算 evidence quality。
 - L1/L2 的事务成功后，即使 L3 projection 失败，也不回滚业务真相；L3 可以从 checkpoint 重试和重建。
+
+动态学习计划的记忆纠错从当前用户拥有的计划读取已发布 taxonomy（包括历史版本），并
+结合目标记忆 provenance 核验叶子知识点和 slot；不使用未发布草稿，也不回退到数学一目录。
+配置页读取最近考试的 Pinned backend 快照时，同样传递其 exam/subject scope；user ID
+始终由登录身份生成。
+
+本轮 PostgreSQL、真实本地 HTTP 流程与实现审查结果见
+[2026-09-18 未提交修复验收记录](./acceptance-2026-09-18.zh-CN.md)。
 
 ---
 
@@ -1796,7 +1821,7 @@ LangGraph 是更低层的、有状态的智能体编排运行时。它把工作�
 - “答对就把答错覆盖掉。”——L1 不可变，L2 版本化并有冲突生命周期。
 - “L3 是最终真相。”——L3 是可重建读模型。
 - “Chat 会自动学习用户说的所有东西。”——偏好需要明确写入；正式 mastery 更不能靠聊天自述更新。
-- “ExamMem 还没有教材 RAG。”——当前 migration head `0014_textbook_grounding` 已实现版本化教材摄取、绑定、章节过滤检索和证据快照。
+- “ExamMem 还没有教材 RAG。”——教材链路（`0013`～`0015`）已实现版本化教材摄取、绑定、章节过滤检索和证据快照。
 
 ---
 

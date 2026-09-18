@@ -65,6 +65,7 @@ from exam_mem.practice import (
     UserPlanCancellationRequest,
     stage07_practice_questions,
 )
+from exam_mem.practice.contracts import AnswerText
 from exam_mem.practice.learning_observation import (
     LEARNING_OBSERVATION_AGENT_VERSION,
     KnowledgePointOption,
@@ -131,7 +132,7 @@ class PracticeAnswerBody(StrictApiModel):
     trace_id: NonEmptyString
     session_id: NonEmptyString
     question_id: NonEmptyString
-    answer: NonEmptyString
+    answer: AnswerText
     submitted_at: AwareDatetime
     idempotency_key: NonEmptyString
     exam_id: NonEmptyString = _EXAM_ID
@@ -1954,6 +1955,8 @@ def build_router(
     @router.get("/configuration")
     async def get_configuration(
         practice_session_id: NonEmptyString | None = None,
+        exam_id: NonEmptyString = _EXAM_ID,
+        subject_id: NonEmptyString = _SUBJECT_ID,
     ) -> dict[str, Any]:
         contribution = settings_contribution
         if contribution is None:
@@ -1964,7 +1967,7 @@ def build_router(
         saved = ExamMemSettings.model_validate(load_plugin_settings(contribution))
         pinned = None
         if practice_session_id is not None:
-            context = _authenticated_context(exam_id=_EXAM_ID, subject_id=_SUBJECT_ID)
+            context = _authenticated_context(exam_id=exam_id, subject_id=subject_id)
             async with runtime_provider.open_product() as runtime:
                 pinned = await runtime.checkpoints.get_runtime_snapshot(
                     context, practice_session_id

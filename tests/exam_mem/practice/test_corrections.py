@@ -15,6 +15,7 @@ from exam_mem.contracts import (
     LifecycleState,
     MemoryScope,
 )
+from exam_mem.domain.taxonomy import Taxonomy
 from exam_mem.lifecycle import LifecycleCandidateSnapshot, LifecyclePolicyInput, decide_lifecycle
 from exam_mem.practice.corrections import (
     ConfirmedCorrectionRelationClassifier,
@@ -171,6 +172,52 @@ def _service(target: LearningMemory | None, writer):  # noqa: ANN001, ANN202
         trace=PracticeTraceRecorder(traces, trace_id="trace:correction:1"),
     )
     return service, traces, recommendations
+
+
+async def test_correction_uses_published_dynamic_taxonomy_from_target_reader() -> None:
+    taxonomy = Taxonomy.model_validate(
+        {
+            "taxonomy_version": "imported_v1",
+            "nodes": [
+                {"id": "imported", "name_zh": "科目"},
+                {"id": "imported.topic", "name_zh": "知识点", "parent_id": "imported"},
+            ],
+        }
+    )
+    context = CONTEXT.model_copy(update={"exam_id": "plan:one", "subject_id": "imported"})
+    target = _memory().model_copy(
+        update={
+            "scope": MemoryScope(**context.model_dump(), memory_namespace="error_pattern"),
+            "slot_key": "error_pattern:imported.topic:formula_misuse",
+        }
+    )
+
+    class Reader:
+        async def get_target(self, scope, memory_id):
+            assert scope == target.scope
+            return ResolvedCorrectionTarget(
+                memory=target, knowledge_point_ids=("imported.topic",), taxonomies=(taxonomy,)
+            )
+
+    service, _, _ = _service(target, PolicyCorrectionWriter(target))
+    service._target_reader = Reader()
+    result = await service.apply(_request(context=context))
+    assert result.event.knowledge_point_ids == ["imported.topic"]
+
+
+async def test_dynamic_scope_cannot_fall_back_to_math_taxonomy() -> None:
+    target = _memory().model_copy(
+        update={"scope": SCOPE.model_copy(update={"exam_id": "plan:other", "subject_id": "other"})}
+    )
+    service, _, _ = _service(target, PolicyCorrectionWriter(target))
+    with pytest.raises(CorrectionError, match="active taxonomy leaves"):
+        await service.apply(
+            _request(
+                context=LearningContext.model_validate(
+                    target.scope.model_dump(exclude={"memory_namespace"})
+                )
+            )
+        )
 
 
 @pytest.mark.parametrize(

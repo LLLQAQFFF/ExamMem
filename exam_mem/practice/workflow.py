@@ -8,11 +8,15 @@ import hashlib
 import json
 import logging
 from typing import Any, Protocol, TypeVar
-import unicodedata
 
 from pydantic import JsonValue
 
-from exam_mem.contracts import LearningContext, LearningEvent
+from exam_mem.contracts import (
+    EvidenceQuality,
+    EvidenceQualityReason,
+    LearningContext,
+    LearningEvent,
+)
 from exam_mem.domain import UNKNOWN_KNOWLEDGE_POINT_ID, KnowledgePointNormalizationResult
 from exam_mem.storage.event_repository import AppendStatus
 from exam_mem.storage.practice_checkpoint_repository import (
@@ -322,15 +326,19 @@ class ExamPracticeWorkflow:
         assert question is not None and submission is not None
 
         if not _at_least(checkpoint, PracticeState.GRADED):
+            grader_revision = getattr(self._answer_grader, "cache_revision", None)
             artifact_identity = grade_artifact_identity(
                 question,
                 submission,
                 grader_contract_version=self._grader_contract_version,
                 config_revision=self._config_revision,
+                grader_revision=grader_revision,
             )
-            artifact = await self._checkpoints.find_grade_artifact(
-                _learning_context(checkpoint.context), artifact_identity
-            )
+            artifact = None
+            if grader_revision is not None:
+                artifact = await self._checkpoints.find_grade_artifact(
+                    _learning_context(checkpoint.context), artifact_identity
+                )
             reuse_source = None
             if artifact is not None:
                 grade = artifact.checkpoint.grade_result
@@ -765,16 +773,18 @@ def grade_artifact_identity(
     *,
     grader_contract_version: str,
     config_revision: str,
+    grader_revision: str | None = None,
 ) -> GradeArtifactIdentity:
     """Build the exact cache identity without including exam-instance identity."""
     question_payload = question.model_dump(mode="json", exclude={"grading_rubric"})
-    normalized_answer = " ".join(unicodedata.normalize("NFKC", submission.answer).strip().split())
     return GradeArtifactIdentity(
         question_version=_canonical_hash(question_payload),
-        normalized_answer_hash=hashlib.sha256(normalized_answer.encode()).hexdigest(),
+        # Preserve whitespace and Unicode distinctions used by code/math answers.
+        normalized_answer_hash=hashlib.sha256(submission.answer.encode()).hexdigest(),
         rubric_version=_canonical_hash(question.grading_rubric),
         grader_contract_version=grader_contract_version,
         config_revision=config_revision,
+        grader_revision=grader_revision,
     )
 
 
@@ -819,6 +829,12 @@ def _learning_event(
         answer_correct=grade.correct,
         error_type=diagnosis.error_type,
         error_detail=None if grade.correct else diagnosis.explanation,
+        evidence_quality=EvidenceQuality(
+            confidence=diagnosis.confidence,
+            reasons=(
+                [EvidenceQualityReason.AMBIGUOUS_RESPONSE] if diagnosis.confidence < 1.0 else []
+            ),
+        ),
         occurred_at=submission.submitted_at,
     )
 

@@ -70,7 +70,7 @@ from .corrections import (
     QueryServiceRecommendationRefresher,
     ResolvedCorrectionTarget,
 )
-from .grading import GRADER_CONTRACT_VERSION
+from .grading import GRADER_CONTRACT_VERSION, DeepTutorAnswerGraderAdapter
 from .learning_profile_service import LearningProfileQueryService
 from .memory import MemoryWriter, MemoryWriteResult, PracticeMemoryCandidateBuilder
 from .memory_workbench import LearningMemoryQueryService
@@ -430,8 +430,25 @@ class PostgresCorrectionTargetReader:
                 LearningContext.model_validate(scope.model_dump(exclude={"memory_namespace"})),
                 snapshot.memory.provenance,
             )
+            taxonomies = ()
+            if scope.exam_id.startswith("plan:"):
+                from exam_mem.study.contracts import StudyPlanTree
+
+                plan = await PostgresStudyPlanRepository(connection).get(
+                    user_id=scope.user_id, plan_id=scope.exam_id.removeprefix("plan:")
+                )
+                # A correction may target evidence from an older published outline.
+                # Never use an unpublished draft or another user's plan vocabulary.
+                taxonomies = tuple(
+                    StudyPlanTree.model_validate(version["tree"]).taxonomy(
+                        scope.subject_id, version["taxonomy_versions"][scope.subject_id]
+                    )
+                    for version in plan["versions"]
+                    if scope.subject_id in version["taxonomy_versions"]
+                )
         return ResolvedCorrectionTarget(
             memory=snapshot.memory,
+            taxonomies=taxonomies,
             knowledge_point_ids=tuple(
                 dict.fromkeys(
                     knowledge_point_id
@@ -522,7 +539,7 @@ class PracticeRuntimeProvider:
             workflow = ExamPracticeWorkflow(
                 checkpoint_repository=checkpoints,
                 trace_repository=CommittedPostgresPracticeTraceRepository(engine),
-                answer_grader=AnswerGraderTool(),
+                answer_grader=AnswerGraderTool(DeepTutorAnswerGraderAdapter(pin_completion=True)),
                 knowledge_mapper=KnowledgeMapperTool(taxonomy=taxonomy),
                 error_analyzer=ErrorAnalyzerTool(),
                 memory_candidate_builder=PracticeMemoryCandidateBuilder(taxonomy),

@@ -1,7 +1,8 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import datetime, timezone
+import json
 
 import pytest
 
@@ -9,6 +10,7 @@ from exam_mem.contracts import MemoryScope
 from exam_mem.domain import KnowledgePointNormalizationResult, load_taxonomy
 from exam_mem.practice import (
     AnswerSubmission,
+    DeepTutorAnswerGraderAdapter,
     DiagnosisResult,
     ExamPracticeWorkflow,
     GradeResult,
@@ -17,6 +19,7 @@ from exam_mem.practice import (
     PracticeMemoryCandidateBuilder,
     PracticeSpanName,
     PracticeState,
+    PracticeWorkflowCheckpoint,
     PracticeWorkflowError,
     Question,
     Recommendation,
@@ -212,6 +215,7 @@ class FakeTraceRepository:
 @dataclass
 class FakeGrader:
     calls: int = 0
+    cache_revision: str | None = "fake_grader_v1"
 
     async def grade(self, question, submission):  # noqa: ANN001, ANN201
         del question, submission
@@ -445,7 +449,7 @@ async def test_grade_artifact_reuses_only_grading_across_exam_instances() -> Non
         trace_id="trace:workflow:002",
         practice_session_id="practice:workflow:002",
         idempotency_key="answer:workflow:002",
-        answer="  I   reversed the conditional probability.  ",
+        answer=first_context.submitted_answer.answer,
     )
     await _issue_first_question(workflow, first_context)
     first = await workflow.run(first_context)
@@ -460,6 +464,7 @@ async def test_grade_artifact_reuses_only_grading_across_exam_instances() -> Non
         second_context.submitted_answer,
         grader_contract_version="answer_grader_v2",
         config_revision="exam_mem_default_v1",
+        grader_revision="fake_grader_v1",
     )
     assert second.checkpoint.grade_reused_from_checkpoint == (
         "practice:workflow:001:answer:answer:workflow:001"
@@ -482,6 +487,99 @@ async def test_grade_artifact_identity_change_calls_grader_again() -> None:
 
     assert deps["grader"].calls == 2
     assert deps["writer"].calls == 2
+
+
+@pytest.mark.parametrize("revision", ["fake_grader_v2", None])
+async def test_changed_or_unknown_grader_revision_does_not_reuse_cache(revision) -> None:
+    workflow, deps = _workflow()
+    first = _context()
+    second = _context(
+        trace_id="trace:new", practice_session_id="practice:new", idempotency_key="answer:new"
+    )
+    await _issue_first_question(workflow, first)
+    await workflow.run(first)
+    deps["grader"].cache_revision = revision
+    await _issue_first_question(workflow, second)
+    result = await workflow.run(second)
+    assert deps["grader"].calls == 2
+    assert result.checkpoint.grade_reused_from_checkpoint is None
+
+
+async def test_answer_whitespace_is_not_collapsed_for_grading_cache() -> None:
+    workflow, deps = _workflow()
+    first = _context(answer="if True:\n    x = 1\ny = 2")
+    second = _context(
+        trace_id="trace:indent",
+        practice_session_id="practice:indent",
+        idempotency_key="answer:indent",
+        answer="if True:\n    x = 1\n    y = 2",
+    )
+    for context in (first, second):
+        await _issue_first_question(workflow, context)
+        await workflow.run(context)
+    assert deps["grader"].calls == 2
+
+
+async def test_diagnosis_confidence_reaches_learning_evidence() -> None:
+    workflow, deps = _workflow()
+    await _issue_first_question(workflow, _context())
+    result = await workflow.run(_context())
+    quality = result.checkpoint.learning_event.evidence_quality
+    assert quality.confidence == 0.8
+    assert [reason.value for reason in quality.reasons] == ["ambiguous_response"]
+    assert deps["writer"].events[0].evidence_quality == quality
+
+
+async def test_legacy_checkpoint_replays_but_its_grade_is_not_reused_in_new_exam() -> None:
+    workflow, deps = _workflow()
+    context = _context()
+    await _issue_first_question(workflow, context)
+    result = await workflow.run(context)
+    key = (context.practice_session_id, result.checkpoint.checkpoint_key)
+    record = deps["checkpoints"].records[key]
+    payload = record.checkpoint.model_dump(mode="json")
+    payload["grade_artifact_identity"].pop("grader_revision")
+    payload["learning_event"]["evidence_quality"] = {
+        "confidence": 1.0,
+        "reasons": [],
+        "is_temporary_exception": False,
+    }
+    legacy = PracticeWorkflowCheckpoint.model_validate(payload)
+    deps["checkpoints"].records[key] = replace(record, checkpoint=legacy)
+
+    replay = await workflow.run(context)
+    assert replay.replayed
+    assert replay.checkpoint.learning_event.evidence_quality.confidence == 1.0
+    assert deps["grader"].calls == 1
+    assert deps["writer"].calls == 1
+    next_context = _context(
+        trace_id="trace:next", practice_session_id="practice:next", idempotency_key="answer:next"
+    )
+    await _issue_first_question(workflow, next_context)
+    next_result = await workflow.run(next_context)
+    assert deps["grader"].calls == 2
+    assert next_result.checkpoint.grade_reused_from_checkpoint is None
+
+
+async def test_invalid_grade_stops_before_diagnosis_or_memory_write() -> None:
+    async def completion(**kwargs):
+        return json.dumps(
+            {
+                "correct": True,
+                "score": 0.0,
+                "matched_rubric_items": [],
+                "missed_rubric_items": ["apply_bayes"],
+                "evidence": ["conflicting"],
+            }
+        )
+
+    workflow, deps = _workflow(grader=DeepTutorAnswerGraderAdapter(completion))
+    await _issue_first_question(workflow, _context())
+    with pytest.raises(PracticeWorkflowError) as failure:
+        await workflow.run(_context())
+    assert failure.value.step_state is PracticeState.ANSWER_RECEIVED
+    assert deps["analyzer"].calls == 0
+    assert deps["writer"].calls == 0
 
 
 async def test_memory_failure_resumes_from_diagnosed_without_regrading() -> None:

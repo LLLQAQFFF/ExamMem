@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 import os
 
 import pytest
+from sqlalchemy import update
 from sqlalchemy.ext.asyncio import create_async_engine
 
 from exam_mem.contracts import LearningContext, MemoryScope
@@ -24,6 +25,7 @@ from exam_mem.storage import (
     PostgresPracticeTraceRepository,
     load_database_settings,
 )
+from exam_mem.storage.models import practice_workflow_checkpoints
 
 pytestmark = [pytest.mark.asyncio, pytest.mark.database, pytest.mark.repository]
 
@@ -225,5 +227,55 @@ async def test_grade_artifact_lookup_crosses_practice_session_but_not_scope() ->
             assert found.checkpoint.context.practice_session_id == "practice:artifact:001"
             assert other_scope is None
             await transaction.rollback()
+    finally:
+        await engine.dispose()
+
+
+async def test_grade_revision_and_legacy_payload_round_trip_through_postgres() -> None:
+    engine = create_async_engine(_database_url_or_skip())
+    try:
+        async with engine.connect() as connection:
+            transaction = await connection.begin()
+            try:
+                repository = PostgresPracticeCheckpointRepository(connection)
+                legacy = _graded_checkpoint(
+                    practice_session_id="practice:artifact:revision",
+                    checkpoint_key="answer:revision",
+                )
+                identity = legacy.grade_artifact_identity.model_copy(
+                    update={"grader_revision": "model-and-prompt-a"}
+                )
+                stored = legacy.model_copy(update={"grade_artifact_identity": identity})
+                await repository.create(stored)
+                assert await repository.find_grade_artifact(LEARNING_CONTEXT, identity) is not None
+                changed = identity.model_copy(update={"grader_revision": "model-and-prompt-b"})
+                assert await repository.find_grade_artifact(LEARNING_CONTEXT, changed) is None
+                for field in ("user_id", "exam_id", "subject_id"):
+                    assert (
+                        await repository.find_grade_artifact(
+                            LEARNING_CONTEXT.model_copy(update={field: "other"}), identity
+                        )
+                        is None
+                    )
+
+                # Persist the actual historical JSON shape, where the new key is absent.
+                payload = stored.model_dump(mode="json")
+                payload["grade_artifact_identity"].pop("grader_revision")
+                await connection.execute(
+                    update(practice_workflow_checkpoints)
+                    .where(
+                        practice_workflow_checkpoints.c.practice_session_id
+                        == "practice:artifact:revision"
+                    )
+                    .values(payload=payload)
+                )
+                loaded = await repository.get(
+                    LEARNING_CONTEXT, "practice:artifact:revision", "answer:revision"
+                )
+                assert loaded.checkpoint.grade_result == stored.grade_result
+                assert loaded.checkpoint.grade_artifact_identity.grader_revision is None
+                assert await repository.find_grade_artifact(LEARNING_CONTEXT, identity) is None
+            finally:
+                await transaction.rollback()
     finally:
         await engine.dispose()

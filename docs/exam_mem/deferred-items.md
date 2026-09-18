@@ -7,7 +7,7 @@ is a product boundary, not an unfinished fallback path.
 
 | Item | Why deferred | Entry condition |
 | --- | --- | --- |
-| Durable file/document ingestion and tutoring retrieval | Imported PDF/TXT/Markdown or URL content is used only to derive a reviewed hierarchy; only source metadata/hash is retained. Reusing source content in later tutoring requires authorization, versioning, retention, citation and retrieval provenance. Practice attachments remain transient context for one explicitly requested generation. | Approved source/RAG contract and end-to-end acceptance. |
+| General-purpose document library beyond textbooks | The dedicated textbook path already persists sources, versions, sections, indexes and grounded evidence. Syllabus imports and one-shot Practice attachments remain separate transient paths and are not automatically promoted to the textbook library. | Separate contracts for additional document types and retention. |
 | Video, image and audio ingestion | Requires modality-specific extraction, timestamps/regions, evidence rendering and model-quality evaluation. | Separate modality ADRs and privacy/cost controls. |
 | Notes and PPT ingestion | Requires source versioning and conflict semantics; must not be treated as plain Practice evidence. | Multi-source provenance model approved. |
 | Learning Journey Memory | Has a different longitudinal aggregation and product lifecycle from current Learning Memory. | Dedicated schema/invariants and migration plan. |
@@ -23,7 +23,8 @@ is a product boundary, not an unfinished fallback path.
 - PDF, TXT and Markdown attachments are passed through the neutral Host Turn
   contract to one transient native Quiz session. ExamMem persists only the
   generated question/rubric plus filename, MIME type and SHA-256 provenance;
-  it does not persist or index the source content. DOCX, PPT/PPTX, notes, image,
+  that transient path does not persist or index source content. The dedicated
+  textbook library does persist/index PDF, TXT and Markdown sources. DOCX, PPT/PPTX, notes, image,
   video and audio ingestion remain unsupported.
 - Arbitrary DeepTutor Native Quiz history is not automatically promoted to
   Learning Memory. Only the explicit Smart Exam Prep generation entry pins a
@@ -48,7 +49,9 @@ is a product boundary, not an unfinished fallback path.
 - Plugin health reports lifecycle assembly, not active PostgreSQL connectivity;
   operations must pair it with migration/current and authenticated read probes.
 - Saved configuration becomes Effective after process restart; an in-progress
-  exam always uses its Pinned snapshot.
+  exam uses its Pinned backend/side-effect snapshot. LLM configuration is bound
+  per grading invocation; this is not a promise to freeze a remote model for the
+  entire exam. Cross-exam grade reuse also requires a matching grader revision.
 - Ordinary Chat is analyzed only after the learner explicitly selects a
   conversation. Background scanning is intentionally absent so small talk and
   unrelated private context are not silently processed. Confirmed Chat clues

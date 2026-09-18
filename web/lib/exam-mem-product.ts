@@ -20,7 +20,7 @@ export interface PracticeCheckpointSummary {
   grade_artifact: {
     reused: boolean;
     source_checkpoint: string | null;
-    identity: Record<string, string>;
+    identity: Record<string, string | null>;
   } | null;
   diagnosis_result: { error_type: string | null; explanation: string } | null;
   recommendation: { reason_codes: string[]; source_memory_ids: string[] } | null;
@@ -413,9 +413,11 @@ export async function upholdGrade(options: {
 
 export async function getConfiguration(
   practiceSessionId?: string,
+  examId = "postgraduate_entrance_exam",
+  subjectId = "math_1",
 ): Promise<ConfigurationView> {
   const query = practiceSessionId
-    ? `?practice_session_id=${encodeURIComponent(practiceSessionId)}`
+    ? `?${new URLSearchParams({ practice_session_id: practiceSessionId, exam_id: examId, subject_id: subjectId })}`
     : "";
   return jsonOrThrow<ConfigurationView>(
     await apiFetch(apiUrl(`/api/v1/exam-mem/configuration${query}`)),
